@@ -1,0 +1,217 @@
+Repository:
+https://github.com/awab-salah/Track-Tracker
+
+You are continuing work on an EXISTING project.
+
+Do NOT create a new project.
+
+Do NOT use a template.
+
+Read the latest commit from the repository before making any changes.
+
+Inspect the entire codebase and continue ONLY from the last completed point.
+
+The previous Agent has already completed:
+
+- UI
+- RTL
+- Responsive layout
+- Dark Mode
+- Supabase integration
+- Database schema
+- Repository layer
+- AppContext integration
+- Infrastructure (Database Phase 1)
+
+Do NOT modify or recreate any of the above.
+
+Do NOT redesign anything.
+
+Do NOT modify colors, spacing, typography, routing, components, animations, layouts or architecture.
+
+--------------------------------------------------
+
+GOAL
+
+Implement Authentication Phase only.
+
+Do NOT start Maps.
+
+Do NOT implement Live Tracking.
+
+Do NOT implement Notifications.
+
+Do NOT implement PWA.
+
+Do NOT modify completed database infrastructure.
+
+--------------------------------------------------
+
+Implement complete Supabase Authentication.
+
+Support two account types:
+
+1. Company
+2. Driver
+
+--------------------------------------------------
+
+Company Authentication
+
+Implement:
+
+- Sign Up
+- Sign In
+- Sign Out
+- Password Reset
+- Session Restore
+
+During Company registration:
+
+Create Supabase Auth user.
+
+Then create the Company record inside the Companies table.
+
+Link both correctly.
+
+--------------------------------------------------
+
+Driver Authentication
+
+Implement:
+
+- Sign Up
+- Sign In
+- Sign Out
+- Password Reset
+- Session Restore
+
+During Driver registration:
+
+Create Supabase Auth user.
+
+Then create the Driver record.
+
+Automatically associate the Driver with the correct Company.
+
+Vehicle Number must be stored.
+
+--------------------------------------------------
+
+Authorization
+
+Only authenticated users may access dashboard pages.
+
+Guests must be redirected to authentication.
+
+Persist login across refreshes.
+
+Restore sessions automatically.
+
+--------------------------------------------------
+
+User Context
+
+Replace temporary authentication with real Supabase sessions.
+
+Create a reusable Auth Provider.
+
+Never duplicate authentication logic.
+
+--------------------------------------------------
+
+Security
+
+Prepare the application for future Row Level Security.
+
+Do NOT use service_role.
+
+Use only the public client.
+
+Never expose secrets.
+
+--------------------------------------------------
+
+Database Integration
+
+All registrations must write directly to Supabase.
+
+Profile updates must update Supabase.
+
+Authentication state must remain synchronized with AppContext.
+
+--------------------------------------------------
+
+Keep Existing UI
+
+Reuse every existing screen.
+
+Do NOT create replacement pages.
+
+Do NOT redesign forms.
+
+Only connect them to real authentication.
+
+--------------------------------------------------
+
+Quality Requirements
+
+Keep TypeScript clean.
+
+Keep ESLint clean.
+
+Avoid duplicate code.
+
+Reuse repositories.
+
+Reuse existing models.
+
+Reuse existing validation.
+
+Maintain responsiveness.
+
+Maintain RTL.
+
+Maintain Dark Mode.
+
+--------------------------------------------------
+
+Before finishing
+
+Verify:
+
+✓ Company Sign Up
+
+✓ Company Login
+
+✓ Driver Sign Up
+
+✓ Driver Login
+
+✓ Logout
+
+✓ Session Restore
+
+✓ Password Reset
+
+✓ Company creation in database
+
+✓ Driver creation in database
+
+✓ Vehicle Number persistence
+
+✓ No runtime errors
+
+✓ No TypeScript errors
+
+✓ No ESLint errors
+
+Finally provide:
+
+1. Files created
+
+2. Files modified
+
+3. Authentication flow implemented
+
+4. Remaining work for the next phase
