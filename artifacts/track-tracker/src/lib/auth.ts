@@ -1,10 +1,14 @@
 /**
  * Reusable Supabase auth service.
  * All authentication logic lives here — never duplicated across pages.
+ *
+ * Company and driver rows are created by a database trigger on auth.users
+ * (handle_new_user), so no client-side DB writes are needed after signUp.
+ * This makes signup atomic and works correctly even when email confirmation
+ * is enabled in the Supabase project settings.
  */
 import { supabase, isSupabaseConfigured } from './supabase';
-import { fetchCompanyByJoinCode, createCompany } from '@/services';
-import { createDriver } from '@/services';
+import { fetchCompanyByJoinCode } from '@/services';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +32,8 @@ export function translateAuthError(msg: string): string {
     return 'محاولات كثيرة، يرجى الانتظار قليلاً والمحاولة مرة أخرى';
   if (m.includes('network') || m.includes('fetch'))
     return 'خطأ في الاتصال بالشبكة، يرجى التحقق من اتصالك بالإنترنت';
+  if (m.includes('database error') || m.includes('unexpected_failure') || m.includes('saving new user'))
+    return 'حدث خطأ في قاعدة البيانات، يرجى المحاولة مرة أخرى';
   return msg;
 }
 
@@ -35,13 +41,19 @@ export function translateAuthError(msg: string): string {
 
 /**
  * Register a new company account.
- * Creates a Supabase auth user, then inserts a row in the companies table.
+ *
+ * The companies row is created atomically by the handle_new_user trigger in the
+ * database — no separate INSERT is needed here. If the trigger fails the auth
+ * signUp itself fails, so there are never orphaned auth accounts.
+ *
+ * If Supabase email confirmation is enabled the returned session will be null.
+ * We surface a friendly "check your email" message in that case.
  */
 export async function companySignUp(
   email: string,
   password: string,
   companyName: string
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; emailConfirmationRequired?: boolean }> {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
   const joinCode = generateJoinCode();
@@ -57,12 +69,9 @@ export async function companySignUp(
   if (error) return { error: translateAuthError(error.message) };
   if (!data.user) return { error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' };
 
-  // Persist the company row — link it to the auth user
-  const id = await createCompany(data.user.id, companyName, email, joinCode);
-  if (!id) {
-    // Auth account was created but DB row failed — sign out to keep them consistent
-    await supabase.auth.signOut();
-    return { error: 'تعذر إنشاء سجل الشركة، يرجى المحاولة مرة أخرى' };
+  // If session is null the project requires email confirmation.
+  if (!data.session) {
+    return { emailConfirmationRequired: true };
   }
 
   return {};
@@ -94,8 +103,13 @@ export async function companySignIn(
 
 /**
  * Register a new driver account.
- * Validates the join code, creates a Supabase auth user, then inserts a row
- * in the drivers table linked to the correct company.
+ *
+ * Validates the join code first (via the validate_join_code RPC so no
+ * over-permissive table SELECT is required). The drivers row is then created
+ * atomically by the handle_new_user trigger.
+ *
+ * If Supabase email confirmation is enabled the returned session will be null.
+ * We surface a friendly "check your email" message in that case.
  */
 export async function driverSignUp(
   email: string,
@@ -103,7 +117,7 @@ export async function driverSignUp(
   fullName: string,
   vehicleNumber: string,
   joinCode: string
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; emailConfirmationRequired?: boolean }> {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
   // 1. Validate join code before creating any auth user
@@ -112,13 +126,15 @@ export async function driverSignUp(
     return { error: 'رمز الانضمام غير صحيح أو غير موجود' };
   }
 
-  // 2. Create Supabase auth user
+  // 2. Create Supabase auth user — the handle_new_user DB trigger will
+  //    atomically insert the drivers row using this metadata.
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
         role: 'driver',
+        fullName,
         vehicleNumber,
         companyId: company.id,
         companyName: company.name,
@@ -129,21 +145,9 @@ export async function driverSignUp(
   if (error) return { error: translateAuthError(error.message) };
   if (!data.user) return { error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' };
 
-  // 3. Create driver row with auth_user_id reference
-  const driverId =
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `drv-${Date.now().toString(36)}`;
-
-  const ok = await createDriver(driverId, data.user.id, company.id, company.name, {
-    name: fullName,
-    email,
-    vehicleNumber,
-  });
-
-  if (!ok) {
-    await supabase.auth.signOut();
-    return { error: 'تعذر إنشاء سجل السائق، يرجى المحاولة مرة أخرى' };
+  // If session is null the project requires email confirmation.
+  if (!data.session) {
+    return { emailConfirmationRequired: true };
   }
 
   return {};

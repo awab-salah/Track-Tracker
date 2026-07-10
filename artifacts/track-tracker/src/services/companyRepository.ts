@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import type { CompanyProfile } from '@/store/AppContext';
+import type { CompanyProfile } from '@/types';
 
 // ── Shape converters ──────────────────────────────────────────────────────────
 
@@ -82,28 +82,28 @@ export async function fetchCompanyByAuthUserId(
 }
 
 /**
- * Fetch a company by its join code.
- * Returns null when not found or when Supabase is not configured.
+ * Validate a join code via the validate_join_code security-definer RPC.
+ * Returns a minimal { id, name } object — only what driverSignUp needs.
+ * No direct companies table SELECT required, so no over-permissive RLS policy.
  */
 export async function fetchCompanyByJoinCode(
   joinCode: string
-): Promise<(CompanyProfile & { id: string }) | null> {
+): Promise<{ id: string; name: string } | null> {
   if (!isSupabaseConfigured) return null;
 
-  const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('join_code', joinCode.toUpperCase())
-    .single();
+  const { data, error } = await supabase.rpc('validate_join_code', {
+    p_join_code: joinCode.toUpperCase(),
+  });
 
   if (error) {
-    if (error.code !== 'PGRST116') {
-      console.error('[companyRepository] fetchCompanyByJoinCode error:', error.message);
-    }
+    console.error('[companyRepository] fetchCompanyByJoinCode (rpc) error:', error.message);
     return null;
   }
 
-  return toCompanyProfile(data as DbCompany);
+  const rows = data as Array<{ company_id: string; company_name: string }> | null;
+  if (!rows || rows.length === 0) return null;
+
+  return { id: rows[0].company_id, name: rows[0].company_name };
 }
 
 /**

@@ -1,3 +1,4 @@
 - [Supabase Auth Architecture](supabase-auth-arch.md) — Auth is split across AuthContext (session/profile) + AppContext (data bootstrap); both import from @/types to avoid circular deps.
-- [RLS Policies](rls-policies.md) — All five tables have RLS enabled; schema.sql is the single source of truth; companies SELECT is public for join-code validation during driver signup.
+- [RLS Policies](rls-policies.md) — All five tables have RLS enabled; schema.sql is the single source of truth; companies has NO public SELECT policy — join-code validation uses validate_join_code() RPC instead.
 - [Auth Bootstrap Race Fixes](auth-bootstrap-race.md) — AuthContext uses a loadVersionRef counter; AppContext uses three separate effects with cancellation flags; see these files before modifying either context.
+- [Atomic Signup via DB Trigger](atomic-signup-trigger.md) — Company/driver rows are created by handle_new_user trigger on auth.users, not by client-side INSERT; eliminates orphaned auth accounts and email-confirmation bugs.

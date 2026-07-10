@@ -120,17 +120,19 @@ create index if not exists sales_date_idx      on sales(date);
 
 create index if not exists sale_items_sale_id_idx on sale_items(sale_id);
 
--- ── 6. updated_at trigger ─────────────────────────────────────────────────────
+-- ── 6. Trigger functions ───────────────────────────────────────────────────────
+
+-- 6a. updated_at maintenance ──────────────────────────────────────────────────
 
 create or replace function set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql as $
 begin
   new.updated_at = now();
   return new;
 end;
-$$;
+$;
 
-do $$ begin
+do $ begin
   if not exists (
     select 1 from pg_trigger t
     join pg_class c on c.oid = t.tgrelid
@@ -170,7 +172,89 @@ do $$ begin
       before update on sales
       for each row execute procedure set_updated_at();
   end if;
-end $$;
+end $;
+
+-- 6b. handle_new_user — atomic signup ─────────────────────────────────────────
+--
+-- Fires AFTER INSERT ON auth.users.  Creates the matching companies or drivers
+-- row inside the same transaction as the auth user creation, so there can never
+-- be an orphaned auth account without a domain row (and vice-versa).
+--
+-- Metadata expected in raw_user_meta_data:
+--   company: { role:'company', companyName, joinCode }
+--   driver:  { role:'driver',  fullName, vehicleNumber, companyId, companyName }
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $
+declare
+  v_role        text;
+  v_company_id  uuid;
+begin
+  v_role := new.raw_user_meta_data ->> 'role';
+
+  if v_role = 'company' then
+    insert into public.companies (auth_user_id, name, email, join_code)
+    values (
+      new.id,
+      new.raw_user_meta_data ->> 'companyName',
+      new.email,
+      upper(new.raw_user_meta_data ->> 'joinCode')
+    );
+
+  elsif v_role = 'driver' then
+    v_company_id := (new.raw_user_meta_data ->> 'companyId')::uuid;
+
+    -- Guard: reject if the referenced company does not exist
+    if not exists (select 1 from public.companies where id = v_company_id) then
+      raise exception 'Company not found for driver signup (companyId=%)', v_company_id;
+    end if;
+
+    insert into public.drivers (
+      auth_user_id, company_id, name, email, vehicle_number, location, lat, lng
+    ) values (
+      new.id,
+      v_company_id,
+      new.raw_user_meta_data ->> 'fullName',
+      new.email,
+      new.raw_user_meta_data ->> 'vehicleNumber',
+      '',
+      33.3152,
+      44.3661
+    );
+  end if;
+
+  return new;
+end;
+$;
+
+-- Drop-and-recreate is idempotent for triggers
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- 6c. validate_join_code — security-definer RPC ───────────────────────────────
+--
+-- Called by the client BEFORE creating a driver account to verify the join code
+-- and retrieve the company id + name.  Runs as the function owner (superuser),
+-- so it bypasses RLS and requires no over-permissive public SELECT policy on
+-- companies.  Returns at most one row; empty result = invalid code.
+
+create or replace function public.validate_join_code(p_join_code text)
+returns table(company_id uuid, company_name text)
+language sql
+security definer set search_path = public
+as $
+  select id, name
+  from   public.companies
+  where  join_code = upper(p_join_code);
+$;
+
+-- Allow anonymous (unauthenticated) callers — needed for driver pre-signup check
+grant execute on function public.validate_join_code(text) to anon, authenticated;
 
 -- ── 7. Enable RLS ─────────────────────────────────────────────────────────────
 --
@@ -212,11 +296,10 @@ create policy companies_owner on companies
   using     (auth.uid() = auth_user_id)
   with check (auth.uid() = auth_user_id);
 
--- Anyone (including unauthenticated callers) can SELECT companies.
--- Required: driverSignUp validates a join code before the driver has an account.
-create policy companies_select_any on companies
-  for select
-  using (true);
+-- NOTE: companies_select_any was intentionally removed.
+-- Join-code validation is handled by the validate_join_code() security-definer
+-- RPC (section 6c), which exposes only {company_id, company_name} to anon
+-- callers and requires no broad table-level SELECT grant.
 
 -- drivers ─────────────────────────────────────────────────────────────────────
 

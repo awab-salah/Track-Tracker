@@ -35,6 +35,7 @@ export default function DriverAuth() {
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const [registrationPending, setRegistrationPending] = useState(false);
 
   const loginForm = useForm<LoginFormValues>();
   const registerForm = useForm<RegisterFormValues>();
@@ -67,6 +68,10 @@ export default function DriverAuth() {
       setFormError(result.error);
       return;
     }
+    if (result.emailConfirmationRequired) {
+      setRegistrationPending(true);
+      return;
+    }
     setLocation("/driver-dashboard");
   });
 
@@ -86,6 +91,7 @@ export default function DriverAuth() {
     setMode(val as Mode);
     setFormError("");
     setForgotSent(false);
+    setRegistrationPending(false);
   };
 
   return (
@@ -130,7 +136,34 @@ export default function DriverAuth() {
           </div>
         )}
 
+        {/* ── Email-confirmation pending banner ── */}
+        {registrationPending && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center gap-4 py-8 text-center flex-1"
+          >
+            <div className="w-16 h-16 rounded-full flex items-center justify-center text-3xl"
+              style={{ background: 'rgba(13,59,74,0.08)' }}>
+              ✉️
+            </div>
+            <p className="text-foreground font-bold text-lg">تحقق من بريدك الإلكتروني</p>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              تم إنشاء حسابك بنجاح. يرجى تأكيد بريدك الإلكتروني ثم تسجيل الدخول.
+            </p>
+            <button
+              type="button"
+              onClick={() => { setRegistrationPending(false); handleModeChange("login"); }}
+              className="text-sm font-semibold mt-2"
+              style={{ color: '#0D3B4A' }}
+            >
+              الانتقال لتسجيل الدخول
+            </button>
+          </motion.div>
+        )}
+
         {/* Form area */}
+        {!registrationPending && (
         <div className="flex-1 relative">
           <AnimatePresence mode="wait">
 
@@ -338,6 +371,7 @@ export default function DriverAuth() {
 
           </AnimatePresence>
         </div>
+        )}
       </div>
     </MobileLayout>
   );
