@@ -1,0 +1,3 @@
+- [Supabase Auth Architecture](supabase-auth-arch.md) — Auth is split across AuthContext (session/profile) + AppContext (data bootstrap); both import from @/types to avoid circular deps.
+- [RLS Policies](rls-policies.md) — All five tables have RLS enabled; schema.sql is the single source of truth; companies SELECT is public for join-code validation during driver signup.
+- [Auth Bootstrap Race Fixes](auth-bootstrap-race.md) — AuthContext uses a loadVersionRef counter; AppContext uses three separate effects with cancellation flags; see these files before modifying either context.
