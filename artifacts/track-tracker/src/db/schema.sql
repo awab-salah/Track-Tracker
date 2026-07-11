@@ -498,7 +498,7 @@ create policy sale_items_company_owner_all on sale_items
 --
 -- Alternative: Supabase Dashboard → Database → Replication → Tables → enable "drivers"
 
-do $$
+do $
 begin
   if not exists (
     select 1
@@ -509,4 +509,23 @@ begin
   ) then
     alter publication supabase_realtime add table public.drivers;
   end if;
-end $$;
+end $;
+
+-- The company owner's "new sale" browser notification (Web Notifications API)
+-- subscribes to INSERT events on the sales table via Supabase Realtime.
+-- This is idempotent — safe to re-run.
+--
+-- Alternative: Supabase Dashboard → Database → Replication → Tables → enable "sales"
+
+do $
+begin
+  if not exists (
+    select 1
+    from   pg_publication_tables
+    where  pubname    = 'supabase_realtime'
+      and  schemaname = 'public'
+      and  tablename  = 'sales'
+  ) then
+    alter publication supabase_realtime add table public.sales;
+  end if;
+end $;
