@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Camera, Copy, Check, Edit3, X } from 'lucide-react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -182,7 +182,19 @@ function JoinCodeSheet({
 
 export default function ProfilePage() {
   const [, setLocation] = useLocation();
-  const { company, darkMode, toggleDarkMode, updateLogo, setJoinCode, setCompanyProfile, logout } = useApp();
+  const {
+    company,
+    darkMode,
+    toggleDarkMode,
+    updateLogo,
+    setJoinCode,
+    setCompanyProfile,
+    logout,
+    notificationsEnabled,
+    notificationPermission,
+    enableNotifications,
+    disableNotifications,
+  } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [showCodeSheet, setShowCodeSheet] = useState(false);
@@ -215,6 +227,14 @@ export default function ProfilePage() {
     navigator.clipboard.writeText(company.joinCode).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleNotifications = () => {
+    if (notificationsEnabled) {
+      disableNotifications();
+    } else {
+      void enableNotifications();
+    }
   };
 
   return (
@@ -416,6 +436,46 @@ export default function ProfilePage() {
                   <span className="font-semibold text-foreground">الوضع الليلي</span>
                 </div>
               </div>
+
+              {/* Sale notifications row */}
+              <div className="flex items-center justify-between px-4 py-4 border-t border-border">
+                <button
+                  onClick={handleToggleNotifications}
+                  className="relative w-12 h-6 rounded-full shrink-0 overflow-hidden
+                             transition-colors duration-300 focus:outline-none
+                             focus-visible:ring-2 focus-visible:ring-primary"
+                  style={{ background: notificationsEnabled ? '#0D4D5A' : '#E5E7EB' }}
+                  aria-checked={notificationsEnabled}
+                  aria-label="تفعيل إشعارات المبيعات"
+                  role="switch"
+                  data-testid="toggle-notifications"
+                >
+                  <span
+                    className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-md
+                               transition-all duration-300 ease-in-out"
+                    style={{ left: notificationsEnabled ? '26px' : '2px' }}
+                  />
+                </button>
+
+                <div className="flex items-center gap-2">
+                  {notificationsEnabled
+                    ? <Bell size={18} className="text-primary" />
+                    : <BellOff size={18} className="text-muted-foreground" />}
+                  <span className="font-semibold text-foreground">إشعارات المبيعات</span>
+                </div>
+              </div>
+
+              {notificationPermission === 'denied' && (
+                <p className="px-4 pb-4 -mt-2 text-xs text-red-500 leading-relaxed">
+                  الإشعارات محظورة من إعدادات المتصفح. لتفعيلها، اسمح بالإشعارات لهذا الموقع من إعدادات المتصفح ثم أعد المحاولة.
+                </p>
+              )}
+
+              {notificationPermission === 'unsupported' && (
+                <p className="px-4 pb-4 -mt-2 text-xs text-muted-foreground leading-relaxed">
+                  متصفحك لا يدعم إشعارات الويب.
+                </p>
+              )}
             </div>
 
             {/* ── Logout ── */}
