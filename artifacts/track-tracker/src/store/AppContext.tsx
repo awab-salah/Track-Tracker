@@ -1,12 +1,13 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import {
   Driver,
   CargoItem,
   SaleRecord,
   SaleLineItem,
+  formatIQD,
 } from '@/data/mockData';
-import { isSupabaseConfigured } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { signOut } from '@/lib/auth';
 import {
   updateCompany,
@@ -47,6 +48,12 @@ interface AppContextType {
   upsertLoad: (input: { id?: string; productName: string; quantity: number; unitPrice: number }) => void;
   removeLoad: (id: string) => void;
   addSale: (items: SaleLineItem[], receiptImageUrl?: string | null) => void;
+
+  // Sale notifications (company owner) — Web Notifications API + Supabase Realtime
+  notificationsEnabled: boolean;
+  notificationPermission: NotificationPermission | 'unsupported';
+  enableNotifications: () => Promise<void>;
+  disableNotifications: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,6 +76,16 @@ const DEFAULT_COMPANY: CompanyProfile = {
   joinCode: '',
   logoUrl: null,
 };
+
+// Local-only preference — Notification permission itself is a per-browser/device
+// concept (not a company-level setting), so it is intentionally not persisted
+// to Supabase. Kept in localStorage like the dark-mode toggle.
+const NOTIFICATIONS_STORAGE_KEY = 'tt_notifications_enabled';
+
+function getNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
 
 function dedupeLoads(loads: CargoItem[]): CargoItem[] {
   const byKey = new Map<string, CargoItem>();
@@ -109,6 +126,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loads, setLoads] = useState<CargoItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
+
+  // ── Sale notifications ────────────────────────────────────────────────────
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    () => localStorage.getItem(NOTIFICATIONS_STORAGE_KEY) === '1'
+  );
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | 'unsupported'
+  >(getNotificationPermission);
+
+  // Kept in a ref (not a dependency of the subscription effect below) so that
+  // routine driver-list refreshes don't tear down and re-create the realtime
+  // channel — only role/company/toggle changes should do that.
+  const driversRef = useRef<Driver[]>(drivers);
+  useEffect(() => {
+    driversRef.current = drivers;
+  }, [drivers]);
 
   // ── Dark mode ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -341,6 +374,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void createSale(newSale.id, currentDriverId, date, items, totalPrice);
   };
 
+  // Only asks for browser permission when the owner explicitly enables the
+  // toggle (never on load / never automatically).
+  const enableNotifications = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationPermission('unsupported');
+      return;
+    }
+
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
+    setNotificationPermission(permission);
+
+    if (permission === 'granted') {
+      setNotificationsEnabled(true);
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '1');
+    } else {
+      // Denied or dismissed — keep the toggle off.
+      setNotificationsEnabled(false);
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+    }
+  };
+
+  const disableNotifications = () => {
+    setNotificationsEnabled(false);
+    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+  };
+
+  // ── Sale notifications — Supabase Realtime subscription ───────────────────
+  // Fires a Web Notification the instant any driver in this company records a
+  // new sale. Active only while: signed in as the company owner, the toggle is
+  // on, and the browser permission is actually granted.
+  useEffect(() => {
+    if (role !== 'company' || !authCompanyId) return;
+    if (!isSupabaseConfigured || !notificationsEnabled) return;
+    if (getNotificationPermission() !== 'granted') return;
+
+    const channel = supabase
+      .channel(`company-sales-notify-${authCompanyId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sales' },
+        (payload) => {
+          const row = payload.new as { driver_id: string; total_price: number };
+          // sales has no company_id column — filter client-side against this
+          // company's known driver ids (kept fresh via driversRef).
+          const driver = driversRef.current.find((d) => d.id === row.driver_id);
+          if (!driver) return;
+
+          try {
+            new Notification('عملية بيع جديدة', {
+              body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(row.total_price)}`,
+              icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
+              tag: `sale-${row.driver_id}-${Date.now()}`,
+            });
+          } catch (err) {
+            console.error('[AppContext] Failed to display sale notification:', err);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [role, authCompanyId, notificationsEnabled]);
+
   const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
 
   return (
@@ -364,6 +465,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         upsertLoad,
         removeLoad,
         addSale,
+        notificationsEnabled,
+        notificationPermission,
+        enableNotifications,
+        disableNotifications,
       }}
     >
       {children}
