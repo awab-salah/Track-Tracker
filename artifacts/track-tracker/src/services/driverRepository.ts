@@ -90,40 +90,6 @@ export async function fetchDriverByAuthUserId(
 }
 
 /**
- * Create a new driver row linked to a Supabase auth user and a company.
- */
-export async function createDriver(
-  id: string,
-  authUserId: string,
-  companyId: string,
-  companyName: string,
-  input: Pick<Driver, 'name' | 'email' | 'vehicleNumber'>
-): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
-
-  const { error } = await supabase
-    .from('drivers')
-    .insert({
-      id,
-      auth_user_id: authUserId,
-      company_id: companyId,
-      name: input.name,
-      email: input.email ?? null,
-      vehicle_number: input.vehicleNumber,
-      location: '',
-      lat: 33.3152,
-      lng: 44.3661,
-    });
-
-  if (error) {
-    console.error('[driverRepository] createDriver error:', error.message);
-    return false;
-  }
-
-  return true;
-}
-
-/**
  * Partially update a driver row by id.
  */
 export async function updateDriver(

@@ -125,14 +125,14 @@ create index if not exists sale_items_sale_id_idx on sale_items(sale_id);
 -- 6a. updated_at maintenance ──────────────────────────────────────────────────
 
 create or replace function set_updated_at()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$;
+$$;
 
-do $ begin
+do $$ begin
   if not exists (
     select 1 from pg_trigger t
     join pg_class c on c.oid = t.tgrelid
@@ -172,7 +172,7 @@ do $ begin
       before update on sales
       for each row execute procedure set_updated_at();
   end if;
-end $;
+end $$;
 
 -- 6b. handle_new_user — atomic signup ─────────────────────────────────────────
 --
@@ -188,7 +188,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
-as $
+as $$
 declare
   v_role        text;
   v_company_id  uuid;
@@ -228,7 +228,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 -- Drop-and-recreate is idempotent for triggers
 drop trigger if exists on_auth_user_created on auth.users;
@@ -247,14 +247,46 @@ create or replace function public.validate_join_code(p_join_code text)
 returns table(company_id uuid, company_name text)
 language sql
 security definer set search_path = public
-as $
+as $$
   select id, name
   from   public.companies
   where  join_code = upper(p_join_code);
-$;
+$$;
 
 -- Allow anonymous (unauthenticated) callers — needed for driver pre-signup check
 grant execute on function public.validate_join_code(text) to anon, authenticated;
+
+-- 6d. RLS helper functions (security definer) ──────────────────────────────────
+--
+-- companies and drivers policies need to reference each other (a driver's
+-- policy checks their company, a company owner's policy checks their
+-- drivers). Doing that with a plain cross-table subquery inside the policy
+-- causes Postgres to re-evaluate the other table's RLS, which re-evaluates
+-- this table's RLS, etc. — "infinite recursion detected in policy" (42P17).
+-- These functions run as security definer (bypassing RLS on the table they
+-- read) so the cross-reference resolves once instead of recursing.
+
+create or replace function public.driver_company_id()
+returns uuid
+language sql
+security definer set search_path = public
+stable
+as $$
+  select company_id from public.drivers where auth_user_id = auth.uid() limit 1;
+$$;
+
+create or replace function public.is_company_owner(target_company_id uuid)
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.companies
+     where id = target_company_id
+       and auth_user_id = auth.uid()
+  );
+$$;
 
 -- ── 7. Enable RLS ─────────────────────────────────────────────────────────────
 --
@@ -271,9 +303,16 @@ alter table sale_items enable row level security;
 
 drop policy if exists companies_owner               on companies;
 drop policy if exists companies_select_any          on companies;
+drop policy if exists companies_select_own_driver_company on companies;
 
+drop policy if exists anon_all                      on drivers;
 drop policy if exists drivers_own_row               on drivers;
+drop policy if exists drivers_own_row_select        on drivers;
+drop policy if exists drivers_own_row_update        on drivers;
 drop policy if exists drivers_company_owner_all     on drivers;
+
+-- Recreated below with security-definer helpers (section 6d) — dropping first
+-- keeps this file safely re-runnable even if an older recursive version ran.
 
 drop policy if exists loads_driver_own              on loads;
 drop policy if exists loads_company_owner_all       on loads;
@@ -296,6 +335,14 @@ create policy companies_owner on companies
   using     (auth.uid() = auth_user_id)
   with check (auth.uid() = auth_user_id);
 
+-- Drivers can read the name of the company they belong to (needed for profile
+-- bootstrap joins in driverRepository). No INSERT/UPDATE/DELETE — read only.
+-- Uses driver_company_id() (security definer, see section 6d) instead of a
+-- direct subquery on drivers to avoid RLS recursion between the two tables.
+create policy companies_select_own_driver_company on companies
+  for select
+  using (id = public.driver_company_id());
+
 -- NOTE: companies_select_any was intentionally removed.
 -- Join-code validation is handled by the validate_join_code() security-definer
 -- RPC (section 6c), which exposes only {company_id, company_name} to anon
@@ -303,29 +350,27 @@ create policy companies_owner on companies
 
 -- drivers ─────────────────────────────────────────────────────────────────────
 
--- Drivers can fully manage their own row (INSERT during signup, SELECT, UPDATE).
-create policy drivers_own_row on drivers
-  for all
+-- Drivers can read and update their own row. Row creation is intentionally
+-- NOT allowed here — driver rows are only ever created by the handle_new_user
+-- security-definer trigger (section 6b), which validates the join code server
+-- side. Allowing client INSERT here would let any authenticated user attach
+-- themselves to an arbitrary company_id.
+create policy drivers_own_row_select on drivers
+  for select
+  using (auth.uid() = auth_user_id);
+
+create policy drivers_own_row_update on drivers
+  for update
   using     (auth.uid() = auth_user_id)
   with check (auth.uid() = auth_user_id);
 
 -- Company owners can read and manage all drivers in their company.
+-- Uses is_company_owner() (security definer, see section 6d) instead of a
+-- direct subquery on companies to avoid RLS recursion between the two tables.
 create policy drivers_company_owner_all on drivers
   for all
-  using (
-    exists (
-      select 1 from companies
-       where companies.id = drivers.company_id
-         and companies.auth_user_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from companies
-       where companies.id = drivers.company_id
-         and companies.auth_user_id = auth.uid()
-    )
-  );
+  using     (public.is_company_owner(company_id))
+  with check (public.is_company_owner(company_id));
 
 -- loads ───────────────────────────────────────────────────────────────────────
 

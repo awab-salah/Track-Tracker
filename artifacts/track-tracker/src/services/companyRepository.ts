@@ -25,38 +25,6 @@ function toCompanyProfile(row: DbCompany): CompanyProfile & { id: string } {
 // ── Repository ────────────────────────────────────────────────────────────────
 
 /**
- * Create a new company record linked to a Supabase auth user.
- * Returns the company UUID on success, null on failure.
- */
-export async function createCompany(
-  authUserId: string,
-  name: string,
-  email: string,
-  joinCode: string
-): Promise<string | null> {
-  if (!isSupabaseConfigured) return null;
-
-  const { data, error } = await supabase
-    .from('companies')
-    .insert({
-      auth_user_id: authUserId,
-      name,
-      email,
-      join_code: joinCode.toUpperCase(),
-      logo_url: null,
-    })
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error('[companyRepository] createCompany error:', error.message);
-    return null;
-  }
-
-  return (data as { id: string }).id;
-}
-
-/**
  * Fetch a company row by its Supabase auth user id.
  * Called during session restore to reconnect the profile.
  */
@@ -104,37 +72,6 @@ export async function fetchCompanyByJoinCode(
   if (!rows || rows.length === 0) return null;
 
   return { id: rows[0].company_id, name: rows[0].company_name };
-}
-
-/**
- * Upsert a company by join_code (used for legacy/mock-mode bootstrap).
- * Returns the company id (UUID) on success, null on error or unconfigured.
- */
-export async function upsertCompany(
-  profile: CompanyProfile
-): Promise<string | null> {
-  if (!isSupabaseConfigured) return null;
-
-  const { data, error } = await supabase
-    .from('companies')
-    .upsert(
-      {
-        name: profile.name,
-        email: profile.email,
-        join_code: profile.joinCode.toUpperCase(),
-        logo_url: null,
-      },
-      { onConflict: 'join_code', ignoreDuplicates: false }
-    )
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error('[companyRepository] upsertCompany error:', error.message);
-    return null;
-  }
-
-  return (data as { id: string }).id;
 }
 
 /**
