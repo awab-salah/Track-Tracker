@@ -11,8 +11,9 @@ import {
   Cell,
 } from 'recharts';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
-import { LiveLocationPlaceholder } from './LiveLocationPlaceholder';
+import { LiveLocationMap } from './LiveLocationMap';
 import { useApp } from '@/store/AppContext';
+import type { LocationCoords, TrackingStatus } from '@/hooks/useLocationTracking';
 import {
   getDriverCargo,
   getDriverSales,
@@ -38,9 +39,14 @@ function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: s
 
 interface DriverStatsTabProps {
   onEditLoad: (item: CargoItem) => void;
+  locationState: {
+    status: TrackingStatus;
+    coords: LocationCoords | null;
+    locationError: string | null;
+  };
 }
 
-export function DriverStatsTab({ onEditLoad }: DriverStatsTabProps) {
+export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProps) {
   const { currentDriver, loads, sales } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
@@ -177,8 +183,12 @@ export function DriverStatsTab({ onEditLoad }: DriverStatsTabProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* ── Reserved: future live location tracking ── */}
-      <LiveLocationPlaceholder />
+      {/* ── Live location tracking ── */}
+      <LiveLocationMap
+        status={locationState.status}
+        coords={locationState.coords}
+        locationError={locationState.locationError}
+      />
 
       <ReceiptViewerModal imageUrl={receiptUrl} onClose={() => setReceiptUrl(null)} />
     </motion.div>

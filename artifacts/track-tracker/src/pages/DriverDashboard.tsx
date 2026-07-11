@@ -8,15 +8,21 @@ import { LoadTab } from '@/components/driver/LoadTab';
 import { SalesTab } from '@/components/driver/SalesTab';
 import { DriverStatsTab } from '@/components/driver/DriverStatsTab';
 import { useApp } from '@/store/AppContext';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 import type { CargoItem } from '@/data/mockData';
 
 type TabId = 'load' | 'sales' | 'stats';
 
 export default function DriverDashboard() {
   const [, setLocation] = useLocation();
-  const { currentDriver } = useApp();
+  const { currentDriver, currentDriverId } = useApp();
   const [activeTab, setActiveTab] = useState<TabId>('load');
   const [editingLoad, setEditingLoad] = useState<CargoItem | null>(null);
+
+  // Auto-starts GPS tracking the moment the dashboard mounts.
+  // Hook must be called unconditionally (rules of hooks) — driverId null
+  // means the hook is a no-op until currentDriver is available.
+  const locationState = useLocationTracking(currentDriverId ?? null);
 
   if (!currentDriver) {
     setLocation('/driver-auth');
@@ -94,7 +100,7 @@ export default function DriverDashboard() {
             )}
             {activeTab === 'sales' && <SalesTab key="sales" />}
             {activeTab === 'stats' && (
-              <DriverStatsTab key="stats" onEditLoad={handleEditLoad} />
+              <DriverStatsTab key="stats" onEditLoad={handleEditLoad} locationState={locationState} />
             )}
           </AnimatePresence>
         </div>

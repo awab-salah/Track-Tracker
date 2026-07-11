@@ -489,3 +489,24 @@ create policy sale_items_company_owner_all on sale_items
          and c.auth_user_id = auth.uid()
     )
   );
+
+-- ── 10. Supabase Realtime ─────────────────────────────────────────────────────
+--
+-- The company dashboard subscribes to live driver position updates via
+-- Supabase Realtime (postgres_changes on the drivers table).
+-- This is idempotent — safe to re-run.
+--
+-- Alternative: Supabase Dashboard → Database → Replication → Tables → enable "drivers"
+
+do $$
+begin
+  if not exists (
+    select 1
+    from   pg_publication_tables
+    where  pubname    = 'supabase_realtime'
+      and  schemaname = 'public'
+      and  tablename  = 'drivers'
+  ) then
+    alter publication supabase_realtime add table public.drivers;
+  end if;
+end $$;
