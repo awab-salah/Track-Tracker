@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Copy, Check, Edit3, X } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { Logo } from '@/components/Logo';
 import { AppButton } from '@/components/AppButton';
+import { AvatarUpload } from '@/components/AvatarUpload';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { useApp } from '@/store/AppContext';
 
@@ -186,7 +187,7 @@ export default function ProfilePage() {
     company,
     darkMode,
     toggleDarkMode,
-    updateLogo,
+    uploadCompanyLogo,
     setJoinCode,
     setCompanyProfile,
     logout,
@@ -195,7 +196,6 @@ export default function ProfilePage() {
     enableNotifications,
     disableNotifications,
   } = useApp();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [showCodeSheet, setShowCodeSheet] = useState(false);
 
@@ -215,12 +215,6 @@ export default function ProfilePage() {
     if (!editName.trim()) return;
     setCompanyProfile({ name: editName.trim(), email: editEmail.trim() });
     setIsEditing(false);
-  };
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    updateLogo(URL.createObjectURL(file));
   };
 
   const handleCopy = () => {
@@ -289,39 +283,13 @@ export default function ProfilePage() {
 
           {/* Avatar section */}
           <div className="flex flex-col items-center pt-8 pb-6 px-6">
-            <div className="relative mb-5">
-              <div className="w-24 h-24 rounded-full border-[3px] border-primary/25 bg-primary/10
-                              flex items-center justify-center overflow-hidden
-                              shadow-[0_4px_20px_rgba(13,77,90,0.15)]">
-                {company.logoUrl ? (
-                  <img
-                    src={company.logoUrl}
-                    alt="شعار الشركة"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Logo size="sm" showText={false} />
-                )}
-              </div>
-
-              <motion.button
-                whileTap={{ scale: 0.88 }}
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center
-                           justify-center border-2 border-white shadow-md"
-                style={{ background: '#C97A56' }}
-              >
-                <Camera size={13} color="white" />
-              </motion.button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleLogoChange}
-                data-testid="input-logo"
-              />
-            </div>
+            <AvatarUpload
+              imageUrl={company.logoUrl}
+              onUpload={uploadCompanyLogo}
+              placeholder={<Logo size="sm" showText={false} />}
+              alt="شعار الشركة"
+              testId="input-logo"
+            />
 
             {isEditing ? (
               <div className="w-full flex flex-col gap-3 mt-3">

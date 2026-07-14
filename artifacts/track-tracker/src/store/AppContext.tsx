@@ -9,6 +9,7 @@ import {
 } from '@/data/mockData';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { signOut } from '@/lib/auth';
+import { uploadAvatar } from '@/lib/storage';
 import {
   updateCompany,
   fetchDrivers,
@@ -32,7 +33,8 @@ interface AppContextType {
   company: CompanyProfile;
   darkMode: boolean;
   toggleDarkMode: () => void;
-  updateLogo: (url: string) => void;
+  /** Uploads the file to permanent storage, then persists the resulting URL. Throws on failure. */
+  uploadCompanyLogo: (file: File) => Promise<void>;
   setCompanyProfile: (data: Partial<Pick<CompanyProfile, 'name' | 'email'>>) => void;
   setJoinCode: (code: string) => void;
   regenerateJoinCode: () => void;
@@ -45,6 +47,8 @@ interface AppContextType {
   currentDriver: Driver | null;
   logoutDriver: () => void;
   updateDriverProfile: (data: Partial<Pick<Driver, 'name' | 'email' | 'vehicleNumber' | 'profilePictureUrl'>>) => void;
+  /** Uploads the file to permanent storage, then persists the resulting URL. Throws on failure. */
+  uploadDriverAvatar: (file: File) => Promise<void>;
   upsertLoad: (input: { id?: string; productName: string; quantity: number; unitPrice: number }) => void;
   removeLoad: (id: string) => void;
   addSale: (items: SaleLineItem[], receiptImageUrl?: string | null) => void;
@@ -109,6 +113,7 @@ const AppContext = createContext<AppContextType | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const {
+    user: authUser,
     role,
     companyId: authCompanyId,
     driverId: authDriverId,
@@ -228,9 +233,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Dark mode toggle ──────────────────────────────────────────────────────
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
-  const updateLogo = (url: string) => {
-    // logoUrl is a local blob URL — not persisted to DB
+  // Uploads to permanent Supabase Storage, then persists the resulting public
+  // URL to the companies row — replaces the old blob-URL-only implementation
+  // that never survived a page refresh.
+  const uploadCompanyLogo = async (file: File) => {
+    if (!authUser) throw new Error('غير مسجّل الدخول');
+    const url = await uploadAvatar(file, 'companies', authUser.id);
     setCompany((prev) => ({ ...prev, logoUrl: url }));
+    if (authCompanyId) {
+      await updateCompany(authCompanyId, { logoUrl: url });
+    }
   };
 
   // ── Company profile mutations ─────────────────────────────────────────────
@@ -277,6 +289,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       prev.map((d) => (d.id === currentDriverId ? { ...d, ...data } : d))
     );
     void updateDriver(currentDriverId, data);
+  };
+
+  // Uploads to permanent Supabase Storage, then persists the resulting public
+  // URL to the drivers row — same fix as uploadCompanyLogo above.
+  const uploadDriverAvatar = async (file: File) => {
+    if (!authUser || !currentDriverId) throw new Error('غير مسجّل الدخول');
+    const url = await uploadAvatar(file, 'drivers', authUser.id);
+    setDrivers((prev) =>
+      prev.map((d) => (d.id === currentDriverId ? { ...d, profilePictureUrl: url } : d))
+    );
+    await updateDriver(currentDriverId, { profilePictureUrl: url });
   };
 
   // ── Load management ───────────────────────────────────────────────────────
@@ -450,7 +473,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         company,
         darkMode,
         toggleDarkMode,
-        updateLogo,
+        uploadCompanyLogo,
         setCompanyProfile,
         setJoinCode,
         regenerateJoinCode,
@@ -462,6 +485,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentDriver,
         logoutDriver,
         updateDriverProfile,
+        uploadDriverAvatar,
         upsertLoad,
         removeLoad,
         addSale,

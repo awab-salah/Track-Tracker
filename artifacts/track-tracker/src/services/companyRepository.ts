@@ -79,7 +79,7 @@ export async function fetchCompanyByJoinCode(
  */
 export async function updateCompany(
   id: string,
-  patch: Partial<Pick<CompanyProfile, 'name' | 'email' | 'joinCode'>>
+  patch: Partial<Pick<CompanyProfile, 'name' | 'email' | 'joinCode' | 'logoUrl'>>
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
 
@@ -87,6 +87,7 @@ export async function updateCompany(
   if (patch.name !== undefined) dbPatch.name = patch.name;
   if (patch.email !== undefined) dbPatch.email = patch.email;
   if (patch.joinCode !== undefined) dbPatch.join_code = patch.joinCode.toUpperCase();
+  if (patch.logoUrl !== undefined) dbPatch.logo_url = patch.logoUrl;
 
   if (Object.keys(dbPatch).length === 0) return;
 

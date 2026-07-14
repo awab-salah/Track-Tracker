@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { MapPin, Car } from 'lucide-react';
 import type { Driver } from '@/data/mockData';
+import { useReverseGeocodedLocation } from '@/hooks/useReverseGeocodedLocation';
 
 interface DriverCardProps {
   driver: Driver;
@@ -8,6 +9,14 @@ interface DriverCardProps {
 }
 
 export function DriverCard({ driver, onClick }: DriverCardProps) {
+  // Driver location is tracked as raw lat/lng (see useLocationTracking) — the
+  // UI must never show those coordinates directly, so resolve them to a
+  // short readable place name here instead of rendering driver.location.
+  const { label: locationLabel, loading: locationLoading } = useReverseGeocodedLocation(
+    driver.lat,
+    driver.lng
+  );
+
   return (
     <motion.button
       whileTap={{ scale: 0.98 }}
@@ -29,7 +38,7 @@ export function DriverCard({ driver, onClick }: DriverCardProps) {
         <div className="flex items-center gap-1 mt-[2px]">
           <MapPin size={13} className="shrink-0" style={{ color: '#C97A56' }} />
           <span className="text-sm font-semibold truncate" style={{ color: '#C97A56' }}>
-            {driver.location}
+            {locationLoading ? '...' : locationLabel}
           </span>
         </div>
       </div>

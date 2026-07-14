@@ -529,3 +529,39 @@ begin
     alter publication supabase_realtime add table public.sales;
   end if;
 end $;
+
+-- ── 11. Storage: avatar / logo uploads ───────────────────────────────────────
+--
+-- Public bucket for company logos and driver profile pictures
+-- (src/lib/storage.ts). Files are stored at
+-- `{companies|drivers}/{auth_user_id}/{timestamp}.{ext}` — keyed by the
+-- Supabase auth user id (not the companies/drivers row id) so these RLS
+-- policies can authorize with a plain auth.uid() check, no cross-table
+-- lookup required. Public read is intentional: avatars are non-sensitive
+-- images displayed throughout the app. This block is idempotent — safe to
+-- re-run.
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists avatars_public_read on storage.objects;
+create policy avatars_public_read on storage.objects
+  for select
+  using (bucket_id = 'avatars');
+
+drop policy if exists avatars_owner_insert on storage.objects;
+create policy avatars_owner_insert on storage.objects
+  for insert
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+drop policy if exists avatars_owner_update on storage.objects;
+create policy avatars_owner_update on storage.objects
+  for update
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );

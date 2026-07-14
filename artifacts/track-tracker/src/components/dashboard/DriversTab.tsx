@@ -9,11 +9,19 @@ export function DriversTab() {
   const { drivers } = useApp();
 
   return (
+    // Opacity-only entrance (no `y` transform): animating a transform on this
+    // container promotes it (and every descendant, including the Arabic
+    // driver name/vehicle/location text below) to its own GPU-composited
+    // layer for the duration of the animation. Combined with `overflow-hidden`
+    // clipping on the RTL/shaped Arabic glyphs inside DriverCard, that
+    // compositing pass is what produced the corrupted horizontal-line
+    // rendering artifact — the fix is to stop transform-animating a container
+    // that holds shaped Arabic text, not to hide the symptom with CSS.
     <motion.div
       key="drivers"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto"
     >

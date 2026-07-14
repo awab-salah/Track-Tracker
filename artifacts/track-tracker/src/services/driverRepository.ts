@@ -102,7 +102,9 @@ export async function updateDriver(
   if (patch.name !== undefined) dbPatch.name = patch.name;
   if (patch.email !== undefined) dbPatch.email = patch.email;
   if (patch.vehicleNumber !== undefined) dbPatch.vehicle_number = patch.vehicleNumber;
-  // profilePictureUrl is a blob URL — not persisted to the DB (cleared on reload)
+  // profilePictureUrl is now a permanent Supabase Storage public URL (see
+  // src/lib/storage.ts) — safe to persist, unlike the old blob: URL approach.
+  if (patch.profilePictureUrl !== undefined) dbPatch.profile_picture_url = patch.profilePictureUrl;
 
   if (Object.keys(dbPatch).length === 0) return;
 

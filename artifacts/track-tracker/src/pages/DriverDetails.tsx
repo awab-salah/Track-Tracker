@@ -25,6 +25,7 @@ import {
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
+import { useReverseGeocodedLocation } from '@/hooks/useReverseGeocodedLocation';
 
 // Fix leaflet icons (same fix as MapTab)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,10 +89,17 @@ export default function DriverDetails() {
     );
   }
 
-  const cargo = getDriverCargo(loads, driver.id);
+  // Active/visible load only — items with quantity 0 have been fully sold and
+  // must disappear from the current-load view (they still exist in the DB
+  // and remain in sales history, which is untouched below).
+  const cargo = getDriverCargo(loads, driver.id).filter((item) => item.quantity > 0);
   const driverSales = getDriverSales(sales, driver.id);
   const totalSales = getDriverTotalSales(sales, driver.id);
   const performance = getWeeklyPerformance(sales, driver.id);
+  const { label: locationLabel, loading: locationLoading } = useReverseGeocodedLocation(
+    driver.lat,
+    driver.lng
+  );
 
   return (
     <MobileLayout>
@@ -126,7 +134,7 @@ export default function DriverDetails() {
             <div className="flex flex-col gap-2">
               <InfoRow label="الاسم" value={driver.name} />
               <InfoRow label="رقم السيارة" value={driver.vehicleNumber} />
-              <InfoRow label="الموقع" value={driver.location} accent />
+              <InfoRow label="الموقع" value={locationLoading ? '...' : locationLabel} accent />
             </div>
           </motion.div>
 
@@ -237,6 +245,9 @@ export default function DriverDetails() {
           >
             <div className="p-4 pb-3">
               <SectionTitle icon={MapPin} title="موقع السائق" />
+              <p className="text-[11px] text-muted-foreground -mt-2">
+                (استخدم إصبعين لتحريك الخريطة)
+              </p>
             </div>
             <div style={{ height: 220 }}>
               <MapContainer

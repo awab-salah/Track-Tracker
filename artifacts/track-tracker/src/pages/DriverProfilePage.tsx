@@ -11,7 +11,7 @@ import { useApp } from '@/store/AppContext';
 
 export default function DriverProfilePage() {
   const [, setLocation] = useLocation();
-  const { currentDriver, updateDriverProfile, logoutDriver } = useApp();
+  const { currentDriver, updateDriverProfile, uploadDriverAvatar, logoutDriver } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -98,7 +98,7 @@ export default function DriverProfilePage() {
           <div className="flex flex-col items-center pt-8 pb-6 px-6">
             <AvatarUpload
               imageUrl={currentDriver.profilePictureUrl}
-              onChange={(url) => updateDriverProfile({ profilePictureUrl: url })}
+              onUpload={uploadDriverAvatar}
               placeholder={<User size={36} className="text-primary/60" />}
               alt="الصورة الشخصية"
               testId="input-avatar"

@@ -51,7 +51,9 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   const driverId = currentDriver?.id ?? '';
-  const cargo = getDriverCargo(loads, driverId);
+  // Active/visible load only — quantity-0 items are fully sold and must
+  // disappear from the current-load view. Sales history below is unaffected.
+  const cargo = getDriverCargo(loads, driverId).filter((item) => item.quantity > 0);
   const driverSales = getDriverSales(sales, driverId);
   const performance = getWeeklyPerformance(sales, driverId);
 
