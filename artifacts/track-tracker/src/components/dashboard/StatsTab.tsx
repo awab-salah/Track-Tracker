@@ -1,5 +1,7 @@
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -12,6 +14,7 @@ import {
 import {
   getDriverTotalSales,
   getWeeklyPerformance,
+  getStartOfWeek,
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
@@ -54,7 +57,22 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function StatsTab() {
   const [, setLocation] = useLocation();
   const { drivers, sales } = useApp();
-  const weeklyData = getWeeklyPerformance(sales);
+
+  const [weekOffset, setWeekOffset] = useState(0);
+  const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
+  const weekStart = useMemo(() => {
+    const d = new Date(thisSunday);
+    d.setDate(d.getDate() + weekOffset * 7);
+    return d;
+  }, [thisSunday, weekOffset]);
+  const weekYear = weekStart.getFullYear();
+  const isCurrentWeek = weekOffset === 0;
+
+  const weeklyData = useMemo(
+    () => getWeeklyPerformance(sales, undefined, weekStart),
+    [sales, weekStart],
+  );
+
   const sortedDrivers = [...drivers].sort(
     (a, b) => getDriverTotalSales(sales, b.id) - getDriverTotalSales(sales, a.id)
   );
@@ -71,17 +89,44 @@ export function StatsTab() {
       {/* ── Weekly chart ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <p className="font-extrabold text-foreground text-[15px]">إجمالي المبيعات الأسبوعية</p>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-4">
+        <p className="text-xs text-muted-foreground mt-0.5 mb-3">
           جميع السواق • بالدينار العراقي
         </p>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={weeklyData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+
+        {/* ── Week navigation ── */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setWeekOffset((o) => o - 1)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="الأسبوع السابق"
+          >
+            <ChevronRight size={18} />
+          </button>
+          <span className="text-sm font-bold text-foreground tabular-nums">{weekYear}</span>
+          <button
+            onClick={() => setWeekOffset((o) => o + 1)}
+            disabled={isCurrentWeek}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="الأسبوع التالي"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
+
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={weeklyData} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
             <XAxis
               dataKey="day"
-              tickFormatter={(v) => SHORT_DAY[v] ?? v}
-              tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
+              tickFormatter={(v: string, i: number) => {
+                const short = SHORT_DAY[v] ?? v;
+                const dateStr = weeklyData[i]?.date;
+                return dateStr ? `${short}\n${dateStr}` : short;
+              }}
+              tick={{ fontFamily: 'Cairo', fontSize: 10, fill: '#888' }}
+              angle={0}
               axisLine={false}
               tickLine={false}
+              interval={0}
             />
             <YAxis hide />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(13,77,90,0.06)' }} />
@@ -107,10 +152,6 @@ export function StatsTab() {
           {sortedDrivers.map((driver, i) => {
             const total = getDriverTotalSales(sales, driver.id);
             return (
-              // No per-item entrance animation (the parent motion.div already
-              // fades/slides the whole list in) — stacking a second JS-driven
-              // opacity animation on every item held its own GPU compositing
-              // layer, which produced seam/banding artifacts while scrolling.
               <motion.button
                 key={driver.id}
                 whileTap={{ scale: 0.98 }}

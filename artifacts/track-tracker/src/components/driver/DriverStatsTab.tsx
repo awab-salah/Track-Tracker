@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Package, ShoppingCart, Receipt, Pencil } from 'lucide-react';
+import { Package, ShoppingCart, Receipt, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -18,6 +18,7 @@ import {
   getDriverCargo,
   getDriverSales,
   getWeeklyPerformance,
+  getStartOfWeek,
   formatIQD,
   pluralizeUnit,
   type CargoItem,
@@ -50,10 +51,23 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   const { currentDriver, loads, sales } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
+  const [weekOffset, setWeekOffset] = useState(0);
+  const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
+  const weekStart = useMemo(() => {
+    const d = new Date(thisSunday);
+    d.setDate(d.getDate() + weekOffset * 7);
+    return d;
+  }, [thisSunday, weekOffset]);
+  const weekYear = weekStart.getFullYear();
+  const isCurrentWeek = weekOffset === 0;
+
   const driverId = currentDriver?.id ?? '';
   const cargo = getDriverCargo(loads, driverId);
   const driverSales = getDriverSales(sales, driverId);
-  const performance = getWeeklyPerformance(sales, driverId);
+  const performance = useMemo(
+    () => getWeeklyPerformance(sales, driverId, weekStart),
+    [sales, driverId, weekStart],
+  );
 
   return (
     <motion.div
@@ -148,15 +162,42 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
       {/* ── Weekly chart ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <SectionTitle icon={ShoppingCart} title="مبيعات هذا الأسبوع" />
-        <p className="text-xs text-muted-foreground mb-4">بالدينار العراقي</p>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={performance} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+        <p className="text-xs text-muted-foreground mb-1">بالدينار العراقي</p>
+
+        {/* ── Week navigation ── */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setWeekOffset((o) => o - 1)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="الأسبوع السابق"
+          >
+            <ChevronRight size={18} />
+          </button>
+          <span className="text-sm font-bold text-foreground tabular-nums">{weekYear}</span>
+          <button
+            onClick={() => setWeekOffset((o) => o + 1)}
+            disabled={isCurrentWeek}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="الأسبوع التالي"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
+
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={performance} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
             <XAxis
               dataKey="day"
-              tickFormatter={(v) => SHORT_DAY[v] ?? v}
-              tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
+              tickFormatter={(v: string, i: number) => {
+                const short = SHORT_DAY[v] ?? v;
+                const dateStr = performance[i]?.date;
+                return dateStr ? `${short}\n${dateStr}` : short;
+              }}
+              tick={{ fontFamily: 'Cairo', fontSize: 10, fill: '#888' }}
+              angle={0}
               axisLine={false}
               tickLine={false}
+              interval={0}
             />
             <YAxis hide />
             <Tooltip
