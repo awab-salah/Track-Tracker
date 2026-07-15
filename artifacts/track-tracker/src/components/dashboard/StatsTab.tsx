@@ -60,6 +60,14 @@ export function StatsTab() {
 
   const [weekOffset, setWeekOffset] = useState(0);
   const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
+
+  // Earliest week that has any sales (gate for "previous" button)
+  const earliestWeekStart = useMemo(() => {
+    if (sales.length === 0) return thisSunday;
+    const minTime = Math.min(...sales.map((s) => new Date(s.date + 'T00:00:00').getTime()));
+    return getStartOfWeek(new Date(minTime));
+  }, [sales, thisSunday]);
+
   const weekStart = useMemo(() => {
     const d = new Date(thisSunday);
     d.setDate(d.getDate() + weekOffset * 7);
@@ -67,11 +75,17 @@ export function StatsTab() {
   }, [thisSunday, weekOffset]);
   const weekYear = weekStart.getFullYear();
   const isCurrentWeek = weekOffset === 0;
+  const isEarliestWeek = weekStart.getTime() === earliestWeekStart.getTime();
 
   const weeklyData = useMemo(
     () => getWeeklyPerformance(sales, undefined, weekStart),
     [sales, weekStart],
   );
+
+  // RTL: reverse so Saturday (newest) renders leftmost, Sunday (oldest) rightmost.
+  // Recharts always renders data[0] on the left → data[6] on the right.
+  // After reverse: index 0 = Saturday (newest/left), index 6 = Sunday (oldest/right).
+  const chartData = useMemo(() => [...weeklyData].reverse(), [weeklyData]);
 
   const sortedDrivers = [...drivers].sort(
     (a, b) => getDriverTotalSales(sales, b.id) - getDriverTotalSales(sales, a.id)
@@ -97,6 +111,7 @@ export function StatsTab() {
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setWeekOffset((o) => o - 1)}
+            disabled={isEarliestWeek}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
             aria-label="الأسبوع السابق"
           >
@@ -114,12 +129,12 @@ export function StatsTab() {
         </div>
 
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={weeklyData} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
             <XAxis
               dataKey="day"
               tickFormatter={(v: string, i: number) => {
                 const short = SHORT_DAY[v] ?? v;
-                const dateStr = weeklyData[i]?.date;
+                const dateStr = chartData[i]?.date;
                 return dateStr ? `${short}\n${dateStr}` : short;
               }}
               tick={{ fontFamily: 'Cairo', fontSize: 10, fill: '#888' }}
@@ -131,11 +146,11 @@ export function StatsTab() {
             <YAxis hide />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(13,77,90,0.06)' }} />
             <Bar dataKey="sales" radius={[6, 6, 0, 0]} maxBarSize={36}>
-              {weeklyData.map((_, i) => (
+              {chartData.map((_, i) => (
                 <Cell
                   key={i}
-                  fill={i === weeklyData.length - 1 ? '#C97A56' : '#0D4D5A'}
-                  fillOpacity={i === weeklyData.length - 1 ? 1 : 0.85}
+                  fill={i === 0 ? '#C97A56' : '#0D4D5A'}
+                  fillOpacity={i === 0 ? 1 : 0.85}
                 />
               ))}
             </Bar>
