@@ -52,6 +52,7 @@ export interface SaleRecord {
 
 export interface DailyPerformance {
   day: string;   // Arabic day name
+  date: string;  // DD/MM formatted date string
   sales: number; // total IQD
 }
 
@@ -160,16 +161,59 @@ export function getDriverProducts(
     .map((item) => ({ productName: item.productName, unitPrice: item.unitPrice, available: item.quantity }));
 }
 
-/** Weekly totals grouped by Arabic weekday name. Pass a driverId to scope to one driver, omit for company-wide. */
-export function getWeeklyPerformance(sales: SaleRecord[], driverId?: string): DailyPerformance[] {
-  const scoped = driverId ? sales.filter((s) => s.driverId === driverId) : sales;
+/** Returns the Sunday 00:00 of the week that contains `date`. */
+export function getStartOfWeek(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay()); // Sunday
+  return d;
+}
+
+/** Formats a Date as DD/MM. */
+function formatDateDDMM(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}`;
+}
+
+/**
+ * Weekly totals grouped by Arabic weekday name.
+ * Pass a driverId to scope to one driver, omit for company-wide.
+ * Pass weekStart to restrict to exactly 7 days starting from that Sunday;
+ * omit (or pass undefined) for the original behaviour (all-time by day name).
+ */
+export function getWeeklyPerformance(
+  sales: SaleRecord[],
+  driverId?: string,
+  weekStart?: Date,
+): DailyPerformance[] {
+  let scoped = driverId ? sales.filter((s) => s.driverId === driverId) : sales;
+
+  if (weekStart) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    scoped = scoped.filter((s) => {
+      const d = new Date(s.date + 'T00:00:00');
+      return d >= weekStart && d < weekEnd;
+    });
+  }
+
   const totals: Record<string, number> = Object.fromEntries(DAYS_AR.map((d) => [d, 0]));
   for (const sale of scoped) {
-    const dayIndex = new Date(sale.date).getDay(); // 0 = Sunday
+    const dayIndex = new Date(sale.date).getDay();
     const dayName = DAYS_AR[dayIndex];
     if (dayName) totals[dayName] += sale.totalPrice;
   }
-  return DAYS_AR.map((day) => ({ day, sales: totals[day] }));
+
+  if (weekStart) {
+    return DAYS_AR.map((day, i) => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      return { day, date: formatDateDDMM(d), sales: totals[day] };
+    });
+  }
+
+  return DAYS_AR.map((day) => ({ day, date: '', sales: totals[day] }));
 }
 
 export function formatIQD(amount: number): string {
