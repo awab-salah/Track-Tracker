@@ -53,6 +53,18 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
 
   const [weekOffset, setWeekOffset] = useState(0);
   const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
+
+  const driverId = currentDriver?.id ?? '';
+  const cargo = getDriverCargo(loads, driverId);
+  const driverSales = getDriverSales(sales, driverId);
+
+  // Earliest week that has any sales for THIS driver
+  const earliestWeekStart = useMemo(() => {
+    if (driverSales.length === 0) return thisSunday;
+    const minTime = Math.min(...driverSales.map((s) => new Date(s.date + 'T00:00:00').getTime()));
+    return getStartOfWeek(new Date(minTime));
+  }, [driverSales, thisSunday]);
+
   const weekStart = useMemo(() => {
     const d = new Date(thisSunday);
     d.setDate(d.getDate() + weekOffset * 7);
@@ -60,14 +72,15 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   }, [thisSunday, weekOffset]);
   const weekYear = weekStart.getFullYear();
   const isCurrentWeek = weekOffset === 0;
+  const isEarliestWeek = weekStart.getTime() === earliestWeekStart.getTime();
 
-  const driverId = currentDriver?.id ?? '';
-  const cargo = getDriverCargo(loads, driverId);
-  const driverSales = getDriverSales(sales, driverId);
   const performance = useMemo(
     () => getWeeklyPerformance(sales, driverId, weekStart),
     [sales, driverId, weekStart],
   );
+
+  // RTL: reverse so Saturday (newest) renders leftmost, Sunday (oldest) rightmost.
+  const chartData = useMemo(() => [...performance].reverse(), [performance]);
 
   return (
     <motion.div
@@ -168,6 +181,7 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setWeekOffset((o) => o - 1)}
+            disabled={isEarliestWeek}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
             aria-label="الأسبوع السابق"
           >
@@ -185,12 +199,12 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
         </div>
 
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={performance} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
             <XAxis
               dataKey="day"
               tickFormatter={(v: string, i: number) => {
                 const short = SHORT_DAY[v] ?? v;
-                const dateStr = performance[i]?.date;
+                const dateStr = chartData[i]?.date;
                 return dateStr ? `${short}\n${dateStr}` : short;
               }}
               tick={{ fontFamily: 'Cairo', fontSize: 10, fill: '#888' }}
@@ -212,11 +226,11 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
               cursor={{ fill: 'rgba(13,77,90,0.06)' }}
             />
             <Bar dataKey="sales" radius={[6, 6, 0, 0]} maxBarSize={36}>
-              {performance.map((_, i) => (
+              {chartData.map((_, i) => (
                 <Cell
                   key={i}
-                  fill={i === performance.length - 1 ? '#C97A56' : '#0D4D5A'}
-                  fillOpacity={i === performance.length - 1 ? 1 : 0.85}
+                  fill={i === 0 ? '#C97A56' : '#0D4D5A'}
+                  fillOpacity={i === 0 ? 1 : 0.85}
                 />
               ))}
             </Bar>
