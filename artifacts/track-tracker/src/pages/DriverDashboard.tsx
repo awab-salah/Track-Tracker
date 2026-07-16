@@ -1,26 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { AnimatePresence } from 'framer-motion';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { Logo } from '@/components/Logo';
 import { SegmentedControl } from '@/components/SegmentedControl';
-import { WeekDaySelector } from '@/components/WeekDaySelector';
 import { LoadTab } from '@/components/driver/LoadTab';
 import { SalesTab } from '@/components/driver/SalesTab';
 import { DriverStatsTab } from '@/components/driver/DriverStatsTab';
 import { useApp } from '@/store/AppContext';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { fetchEarliestSnapshotDate } from '@/services/loadRepository';
 import type { CargoItem } from '@/data/mockData';
 
 type TabId = 'load' | 'sales' | 'stats';
-
-const BAGHDAD_TZ = 'Asia/Baghdad';
-
-/** Returns YYYY-MM-DD for today in Baghdad local time. */
-function baghdadToday(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: BAGHDAD_TZ });
-}
 
 export default function DriverDashboard() {
   const [, setLocation] = useLocation();
@@ -28,30 +19,10 @@ export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('load');
   const [editingLoad, setEditingLoad] = useState<CargoItem | null>(null);
 
-  // ── Day-based cargo/sales view ──
-  // selectedDate is lifted to the dashboard level so the week selector can
-  // sit directly below the top tabs (always visible across Load / Sales /
-  // Stats). Only the Cargo card and Sales card on the Stats tab actually
-  // respond to it — Load and Sales tabs (the input forms) always work with
-  // the current/today cargo.
-  const today = useMemo(() => baghdadToday(), []);
-  const [selectedDate, setSelectedDate] = useState<string>(today);
-  const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
-
   // Auto-starts GPS tracking the moment the dashboard mounts.
   // Hook must be called unconditionally (rules of hooks) — driverId null
   // means the hook is a no-op until currentDriver is available.
   const locationState = useLocationTracking(currentDriverId ?? null);
-
-  // Fetch earliest snapshot date once per driver (gates the prev-week arrow).
-  useEffect(() => {
-    if (!currentDriverId) return;
-    let cancelled = false;
-    void fetchEarliestSnapshotDate(currentDriverId).then((d) => {
-      if (!cancelled) setEarliestSnapshotDate(d);
-    });
-    return () => { cancelled = true; };
-  }, [currentDriverId]);
 
   if (!currentDriver) {
     setLocation('/driver-auth');
@@ -117,15 +88,6 @@ export default function DriverDashboard() {
           />
         </div>
 
-        {/* ── Week / day selector — directly below the top tabs ── */}
-        <div className="px-4 py-2 bg-background shrink-0 z-10">
-          <WeekDaySelector
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            earliestDate={earliestSnapshotDate}
-          />
-        </div>
-
         {/* ── Content ── */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           <AnimatePresence mode="wait">
@@ -140,8 +102,6 @@ export default function DriverDashboard() {
             {activeTab === 'stats' && (
               <DriverStatsTab
                 key="stats"
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
                 onEditLoad={handleEditLoad}
                 locationState={locationState}
               />

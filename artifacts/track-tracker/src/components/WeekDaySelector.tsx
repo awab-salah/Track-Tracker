@@ -15,8 +15,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  * has left padding equal to the arrow width so the FIRST day is never
  * trapped behind the arrows at initial render.
  *
- * `dir="ltr"` is forced on the root so the arrow overlay always sits on
- * the visual left regardless of the app's RTL direction.
+ * The strip itself is rendered as an RTL flex container so days appear in
+ * normal Arabic reading order from right to left (Sunday on the right,
+ * Saturday on the left). The arrow overlay remains pinned to the visual
+ * LEFT edge — only the strip direction is reversed, the arrows stay where
+ * they are.
  *
  * All date math is done in UTC on YYYY-MM-DD strings to stay timezone-safe
  * regardless of the browser's local timezone. Baghdad timezone (UTC+3, no
@@ -25,15 +28,17 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const BAGHDAD_TZ = 'Asia/Baghdad';
 
-/** Short Arabic weekday names, indexed by JS getDay() (0 = Sunday). */
-const AR_DAY_SHORT: string[] = [
-  'أحد',    // Sun
-  'اثنين',  // Mon
-  'ثلاثاء', // Tue
-  'أربع',   // Wed
-  'خميس',   // Thu
-  'جمعة',   // Fri
-  'سبت',    // Sat
+/** Full Arabic weekday names, indexed by JS getDay() (0 = Sunday).
+ *  Per spec: use the full forms (الأحد, الاثنين, …) — NOT the abbreviated
+ *  forms (أحد, اثنين, …). */
+const AR_DAY_FULL: string[] = [
+  'الأحد',    // Sun
+  'الاثنين',  // Mon
+  'الثلاثاء', // Tue
+  'الأربعاء', // Wed
+  'الخميس',   // Thu
+  'الجمعة',   // Fri
+  'السبت',    // Sat
 ];
 
 /** Returns YYYY-MM-DD for today in Baghdad local time. */
@@ -109,7 +114,7 @@ export function WeekDaySelector({
       const date = new Date(Date.UTC(y, m - 1, d));
       return {
         ymd,
-        dayName: AR_DAY_SHORT[date.getUTCDay()],
+        dayName: AR_DAY_FULL[date.getUTCDay()],
         dayNum: date.getUTCDate(),
         monthNum: date.getUTCMonth() + 1,
         isToday: ymd === today,
@@ -133,8 +138,12 @@ export function WeekDaySelector({
       className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06] overflow-hidden"
       data-testid="week-day-selector"
     >
-      {/* ── Scrollable 7-day strip (full width, days slide under arrows) ── */}
+      {/* ── Scrollable 7-day strip (full width, days slide under arrows) ──
+          `dir="rtl"` so the strip starts from the RIGHT: Sunday is the
+          first child and renders rightmost, Saturday renders leftmost.
+          The arrows stay on the visual left via the parent's LTR overlay. */}
       <div
+        dir="rtl"
         className="overflow-x-auto no-scrollbar"
         style={{ paddingLeft: ARROW_OVERLAY_WIDTH, paddingRight: 8, paddingTop: 8, paddingBottom: 8 }}
       >

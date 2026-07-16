@@ -35,6 +35,21 @@ function baghdadToday(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: BAGHDAD_TZ });
 }
 
+/**
+ * Add `offset` days to a YYYY-MM-DD string, returning a new YYYY-MM-DD.
+ * Arithmetic is done in UTC to avoid local-timezone drift. (Local helper —
+ * do not change repository APIs per spec.)
+ */
+function addDays(ymd: string, offset: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + offset);
+  const yy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
 // Fix leaflet icons (same fix as MapTab)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -82,13 +97,19 @@ export default function DriverDetails() {
   const driver = drivers.find((d) => d.id === params.id);
 
   // ── Day-based cargo/sales view ──
-  // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad). Past dates show
-  // an immutable snapshot titled "Remaining Cargo From This Day" with
-  // quantity-0 products hidden; today/future shows live "Current Cargo".
+  // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad).
+  //
+  // Title rules (UI only — snapshot generation/storage untouched):
+  //   TODAY      → "الحمولة الحالية"
+  //   YESTERDAY  → "الحمولة المتبقية من اليوم السابق"
+  //   ANY OLDER  → "الحمولة المتبقية من هذا اليوم"
+  //   FUTURE     → "الحمولة الحالية" (live, empty)
   const today = useMemo(() => baghdadToday(), []);
+  const yesterday = useMemo(() => addDays(today, -1), [today]);
   const [selectedDate, setSelectedDate] = useState<string>(today);
-  const isPastDay = selectedDate < today;
-  const isLiveDay = !isPastDay; // today or future -> live loads
+  const isToday = selectedDate === today;
+  const isYesterday = selectedDate === yesterday;
+  const isLiveDay = selectedDate >= today; // today or future -> live loads
 
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
@@ -133,10 +154,18 @@ export default function DriverDetails() {
   const cargo = getDriverCargo(loads, driver.id);
   // Plain derivations (no useMemo) — these run after the early-return guard
   // above, so they cannot be hooks.
-  const displayCargo = isLiveDay
-    ? cargo
-    : (historyCargo ?? []).filter((item) => item.quantity > 0);
-  const cargoTitle = isLiveDay ? 'الحمولة الحالية' : 'الحمولة المتبقية من هذا اليوم';
+  // Per spec: hide qty-0 products from the UI for BOTH live and snapshot cargo.
+  // Underlying rows in the loads table and JSONB snapshots are untouched.
+  const displayCargo = (isLiveDay ? cargo : (historyCargo ?? [])).filter(
+    (item) => item.quantity > 0,
+  );
+  const cargoTitle = isToday
+    ? 'الحمولة الحالية'
+    : isYesterday
+      ? 'الحمولة المتبقية من اليوم السابق'
+      : isLiveDay
+        ? 'الحمولة الحالية'
+        : 'الحمولة المتبقية من هذا اليوم';
 
   const driverSales = getDriverSales(sales, driver.id);
   const daySales = driverSales.filter((s) => s.date === selectedDate);
