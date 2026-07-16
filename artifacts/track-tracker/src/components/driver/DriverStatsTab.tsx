@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
 import { LiveLocationMap } from './LiveLocationMap';
+import { WeekDaySelector } from '@/components/WeekDaySelector';
 import { useApp } from '@/store/AppContext';
 import type { LocationCoords, TrackingStatus } from '@/hooks/useLocationTracking';
 import {
@@ -25,23 +26,11 @@ import {
 } from '@/data/mockData';
 import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
 
-/** Format a YYYY-MM-DD date for the daily nav label (Arabic day name + DD/MM). */
-const AR_DAYS_SHORT: Record<string, string> = {
-  '0': 'الأحد', '1': 'الاثنين', '2': 'الثلاثاء',
-  '3': 'الأربعاء', '4': 'الخميس', '5': 'الجمعة', '6': 'السبت',
-};
-function formatHistoryLabel(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${AR_DAYS_SHORT[String(d.getDay())] ?? ''} ${dd}/${mm}`;
-}
+const BAGHDAD_TZ = 'Asia/Baghdad';
 
-/** Returns YYYY-MM-DD for `offset` days from today in Baghdad local time. */
-function baghdadDateOffset(offset: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
+/** Returns YYYY-MM-DD for today in Baghdad local time. */
+function baghdadToday(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: BAGHDAD_TZ });
 }
 
 // Custom tick: Recharts categorical axis tick entries do NOT include
@@ -94,9 +83,15 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   const [weekOffset, setWeekOffset] = useState(0);
   const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
 
-  // ── Daily history navigation ──
-  // dayOffset: 0 = today (live cargo), -1 = yesterday, -2 = day before, etc.
-  const [dayOffset, setDayOffset] = useState(0);
+  // ── Day-based cargo/sales view ──
+  // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad). Past dates show
+  // an immutable snapshot titled "Remaining Cargo From This Day" with
+  // quantity-0 products hidden; today/future shows live "Current Cargo".
+  const today = useMemo(() => baghdadToday(), []);
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const isPastDay = selectedDate < today;
+  const isLiveDay = !isPastDay; // today or future -> live loads, editable
+
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
 
@@ -104,13 +99,7 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   const cargo = getDriverCargo(loads, driverId);
   const driverSales = getDriverSales(sales, driverId);
 
-  // Selected date for history (null when viewing today/live).
-  const selectedDate = useMemo(() => {
-    if (dayOffset === 0) return null;
-    return baghdadDateOffset(dayOffset);
-  }, [dayOffset]);
-
-  // Fetch earliest snapshot date once per driver (gates the "previous" button).
+  // Fetch earliest snapshot date once per driver (gates the prev-week arrow).
   useEffect(() => {
     if (!driverId) return;
     let cancelled = false;
@@ -120,9 +109,9 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
     return () => { cancelled = true; };
   }, [driverId]);
 
-  // Fetch snapshots when a past date is selected; clear when viewing today.
+  // Fetch snapshot only for past days; clear when viewing today/future.
   useEffect(() => {
-    if (!driverId || !selectedDate) {
+    if (!driverId || isLiveDay) {
       setHistoryCargo(null);
       return;
     }
@@ -131,13 +120,25 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
       if (!cancelled) setHistoryCargo(rows);
     });
     return () => { cancelled = true; };
-  }, [driverId, selectedDate]);
+  }, [driverId, selectedDate, isLiveDay]);
 
-  const displayCargo = dayOffset === 0 ? cargo : (historyCargo ?? []);
-  const canGoBack =
-    earliestSnapshotDate !== null &&
-    (dayOffset === 0 || (selectedDate !== null && selectedDate > earliestSnapshotDate));
-  const canGoForward = dayOffset < 0;
+  // Cargo source: live loads for today/future, snapshot (with qty-0 filtered)
+  // for past days.
+  const displayCargo = useMemo(() => {
+    if (isLiveDay) return cargo;
+    return (historyCargo ?? []).filter((item) => item.quantity > 0);
+  }, [isLiveDay, cargo, historyCargo]);
+
+  // Sales follow the selected day.
+  const daySales = useMemo(
+    () => driverSales.filter((s) => s.date === selectedDate),
+    [driverSales, selectedDate],
+  );
+
+  // Cargo card title switches based on day type.
+  const cargoTitle = isLiveDay ? 'الحمولة الحالية' : 'الحمولة المتبقية من هذا اليوم';
+
+  // ── Weekly chart (unchanged — independent of day selector) ──
 
   // Earliest week that has any sales for THIS driver
   const earliestWeekStart = useMemo(() => {
@@ -172,36 +173,20 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
       transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8"
     >
-      {/* ── Current load ── */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
-        <SectionTitle icon={Package} title="الحمولة الحالية" />
+      {/* ── Week / day selector (below the top tabs, above cargo) ── */}
+      <WeekDaySelector
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        earliestDate={earliestSnapshotDate}
+      />
 
-        {/* ── Daily navigation (clone of weekly chevron pattern) ── */}
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={() => setDayOffset((o) => o - 1)}
-            disabled={!canGoBack}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
-            aria-label="اليوم السابق"
-          >
-            <ChevronRight size={18} />
-          </button>
-          <span className="text-xs font-bold text-foreground">
-            {dayOffset === 0 ? 'اليوم' : formatHistoryLabel(selectedDate!)}
-          </span>
-          <button
-            onClick={() => setDayOffset((o) => o + 1)}
-            disabled={!canGoForward}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
-            aria-label="اليوم التالي"
-          >
-            <ChevronLeft size={18} />
-          </button>
-        </div>
+      {/* ── Cargo (Current / Remaining) ── */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
+        <SectionTitle icon={Package} title={cargoTitle} />
 
         {displayCargo.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2 text-center">
-            {dayOffset === 0 ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
+            {isLiveDay ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -210,7 +195,7 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
                 key={item.id}
                 className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2.5 gap-4"
               >
-                {dayOffset === 0 ? (
+                {isLiveDay ? (
                   <button
                     onClick={() => onEditLoad(item)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 transition-colors shrink-0"
@@ -237,14 +222,16 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
         )}
       </div>
 
-      {/* ── Sales history ── */}
+      {/* ── Sales for the selected day ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <SectionTitle icon={ShoppingCart} title="سجل المبيعات" />
-        {driverSales.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2 text-center">لا توجد مبيعات بعد</p>
+        {daySales.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2 text-center">
+            {isLiveDay ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
+          </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {driverSales.map((sale) => (
+            {daySales.map((sale) => (
               <div
                 key={sale.id}
                 className="flex flex-col gap-2 bg-muted/50 rounded-xl px-3 py-2.5"
@@ -283,7 +270,7 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
         )}
       </div>
 
-      {/* ── Weekly chart ── */}
+      {/* ── Weekly chart (independent of day selector) ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <SectionTitle icon={ShoppingCart} title="مبيعات هذا الأسبوع" />
         <p className="text-xs text-muted-foreground mb-1">بالدينار العراقي</p>
