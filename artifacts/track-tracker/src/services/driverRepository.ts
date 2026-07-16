@@ -14,6 +14,7 @@ type DbDriver = {
   lng: number;
   profile_picture_url: string | null;
   company_id: string;
+  created_at: string;
 };
 
 function toDriver(row: DbDriver, companyName?: string): Driver {
@@ -27,6 +28,9 @@ function toDriver(row: DbDriver, companyName?: string): Driver {
     lng: row.lng,
     profilePictureUrl: row.profile_picture_url,
     companyName,
+    // Mirror the drivers.created_at column so the week selector can
+    // clamp the navigable range to [account-creation-week .. current-week].
+    createdAt: row.created_at,
   };
 }
 

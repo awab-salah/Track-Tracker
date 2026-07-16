@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
@@ -24,6 +24,24 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  * All date math is done in UTC on YYYY-MM-DD strings to stay timezone-safe
  * regardless of the browser's local timezone. Baghdad timezone (UTC+3, no
  * DST) is used only for the initial "today" computation.
+ *
+ * ── Navigation bounds (per spec) ──
+ *
+ *   - First available week = the week containing the driver's account
+ *     creation date (`minDate`). The user must NEVER navigate to weeks
+ *     before the account-creation week.
+ *   - Last available week = the current week (`maxDate` = today). The
+ *     user must NEVER navigate to future weeks.
+ *   - Prev/Next arrow buttons enable/disable correctly based on these
+ *     bounds.
+ *   - Day cells outside `[minDate, maxDate]` render as disabled — tapping
+ *     them does nothing.
+ *   - The internal `weekAnchor` is clamped to
+ *     `[startOfWeek(minDate), startOfWeek(maxDate)]` on init and after
+ *     every navigation, so swiping / scrolling cannot escape the bounds.
+ *
+ *   - No fake empty weeks are ever created — days outside the bounds are
+ *     simply disabled (greyed out, not clickable).
  */
 
 const BAGHDAD_TZ = 'Asia/Baghdad';
@@ -75,18 +93,35 @@ interface DayCell {
   monthNum: number;
   isToday: boolean;
   isSelected: boolean;
+  /** True iff this day is inside [minDate, maxDate]. Days outside the
+   *  bounds render disabled and are not clickable. */
+  isInRange: boolean;
 }
 
 interface WeekDaySelectorProps {
   /** Currently selected date as YYYY-MM-DD. */
   selectedDate: string;
-  /** Called when the user taps a day cell. */
+  /** Called when the user taps a day cell. Not called for out-of-range days. */
   onSelectDate: (ymd: string) => void;
-  /** Earliest snapshot date (YYYY-MM-DD). Disables the prev-week arrow when
-   *  the previous week would be entirely before this date. Optional. */
+  /**
+   * Earliest snapshot date (YYYY-MM-DD) — kept for backward compat with
+   * existing callers. When `minDate` is null, this is used as a fallback
+   * lower bound for the prev-week arrow.
+   */
   earliestDate?: string | null;
-  /** If false, prevents navigating past the current week. Default true. */
-  allowFuture?: boolean;
+  /**
+   * Minimum navigable date (YYYY-MM-DD) — the driver's account-creation
+   * date in Baghdad local time. The user must never navigate to weeks
+   * before the account-creation week. Days before this date render as
+   * disabled. Null disables the lower bound (allows navigating all the
+   * way back to epoch).
+   */
+  minDate?: string | null;
+  /**
+   * Maximum navigable date (YYYY-MM-DD). Defaults to today. The user must
+   * never navigate to future weeks. Days after this date render as disabled.
+   */
+  maxDate?: string;
 }
 
 // Width of the fixed arrow overlay (must match the strip's left padding so
@@ -97,21 +132,60 @@ export function WeekDaySelector({
   selectedDate,
   onSelectDate,
   earliestDate,
-  allowFuture = true,
+  minDate,
+  maxDate,
 }: WeekDaySelectorProps) {
   const today = useMemo(() => baghdadToday(), []);
+  const effectiveMaxDate = maxDate ?? today;
+  // The effective lower bound is minDate (driver account creation) if
+  // provided, falling back to earliestDate (earliest snapshot) for
+  // backward compat. If neither is set, the lower bound is null (no clamp).
+  const effectiveMinDate = minDate ?? earliestDate ?? null;
+
+  // Compute the clamped week-anchor range once per bounds change.
+  const minWeekAnchor = useMemo(
+    () => (effectiveMinDate ? startOfWeek(effectiveMinDate) : null),
+    [effectiveMinDate],
+  );
+  const maxWeekAnchor = useMemo(
+    () => startOfWeek(effectiveMaxDate),
+    [effectiveMaxDate],
+  );
+
   // Anchor = Sunday starting the visible week. Initialized to the week
   // containing `selectedDate` so external resets of selectedDate are
-  // reflected.
-  const [weekAnchor, setWeekAnchor] = useState<string>(() =>
-    startOfWeek(selectedDate)
-  );
+  // reflected. CLAMPED to [minWeekAnchor, maxWeekAnchor] so the user
+  // can never see a week outside the bounds — even if `selectedDate`
+  // itself is somehow out of range.
+  const [weekAnchor, setWeekAnchor] = useState<string>(() => {
+    const natural = startOfWeek(selectedDate);
+    if (minWeekAnchor && natural < minWeekAnchor) return minWeekAnchor;
+    if (natural > maxWeekAnchor) return maxWeekAnchor;
+    return natural;
+  });
+
+  // Sync `weekAnchor` to follow `selectedDate` when the selected date
+  // moves to a different week (e.g. when `handleEditFromHistory` snaps
+  // `selectedDate` back to today after the user was browsing a past
+  // week). Without this, the user would see the past week with no
+  // highlighted cell after such a snap. Clamped to the same bounds as
+  // the initializer so external resets cannot escape the bounds either.
+  useEffect(() => {
+    const natural = startOfWeek(selectedDate);
+    let target = natural;
+    if (minWeekAnchor && natural < minWeekAnchor) target = minWeekAnchor;
+    if (natural > maxWeekAnchor) target = maxWeekAnchor;
+    setWeekAnchor((current) => (current === target ? current : target));
+  }, [selectedDate, minWeekAnchor, maxWeekAnchor]);
 
   const days: DayCell[] = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const ymd = addDays(weekAnchor, i);
       const [y, m, d] = ymd.split('-').map(Number);
       const date = new Date(Date.UTC(y, m - 1, d));
+      const inRange =
+        (!effectiveMinDate || ymd >= effectiveMinDate) &&
+        ymd <= effectiveMaxDate;
       return {
         ymd,
         dayName: AR_DAY_FULL[date.getUTCDay()],
@@ -119,18 +193,32 @@ export function WeekDaySelector({
         monthNum: date.getUTCMonth() + 1,
         isToday: ymd === today,
         isSelected: ymd === selectedDate,
+        isInRange: inRange,
       };
     });
-  }, [weekAnchor, today, selectedDate]);
+  }, [weekAnchor, today, selectedDate, effectiveMinDate, effectiveMaxDate]);
 
-  // Disable prev arrow if the entire previous week is before earliestDate.
-  // Previous week's Saturday = weekAnchor - 1 day.
-  const canGoPrev = !earliestDate || addDays(weekAnchor, -1) >= earliestDate;
-  // Disable next arrow if future is disallowed and we're on the current week.
-  const canGoNext = allowFuture || weekAnchor < startOfWeek(today);
+  // Prev arrow disabled if the previous week's Sunday would be before
+  // minWeekAnchor (i.e. the entire previous week is out of bounds).
+  const canGoPrev = !minWeekAnchor || addDays(weekAnchor, -7) >= minWeekAnchor;
+  // Next arrow disabled if the next week's Sunday would be after
+  // maxWeekAnchor (i.e. the entire next week is in the future).
+  const canGoNext = weekAnchor < maxWeekAnchor;
 
-  const handlePrev = () => setWeekAnchor((a) => addDays(a, -7));
-  const handleNext = () => setWeekAnchor((a) => addDays(a, 7));
+  const handlePrev = () => {
+    setWeekAnchor((a) => {
+      const next = addDays(a, -7);
+      if (minWeekAnchor && next < minWeekAnchor) return minWeekAnchor;
+      return next;
+    });
+  };
+  const handleNext = () => {
+    setWeekAnchor((a) => {
+      const next = addDays(a, 7);
+      if (next > maxWeekAnchor) return maxWeekAnchor;
+      return next;
+    });
+  };
 
   return (
     <div
@@ -160,18 +248,29 @@ export function WeekDaySelector({
         <div className="flex gap-1 min-w-min">
           {days.map((day) => {
             const base = 'shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-1.5 min-w-[52px] transition-colors';
-            const tone = day.isSelected
-              ? 'bg-primary text-white shadow-sm'
-              : day.isToday
-                ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                : 'text-foreground hover:bg-muted';
+            // Out-of-range days render disabled (greyed out, not clickable).
+            // In-range days use the same selection/today/default styling as before.
+            const tone = !day.isInRange
+              ? 'text-muted-foreground/40 cursor-not-allowed'
+              : day.isSelected
+                ? 'bg-primary text-white shadow-sm'
+                : day.isToday
+                  ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  : 'text-foreground hover:bg-muted';
             return (
               <button
                 key={day.ymd}
-                onClick={() => onSelectDate(day.ymd)}
+                onClick={() => {
+                  // Ignore taps on out-of-range days — they are not
+                  // selectable per spec.
+                  if (!day.isInRange) return;
+                  onSelectDate(day.ymd);
+                }}
+                disabled={!day.isInRange}
                 className={`${base} ${tone}`}
                 data-testid={`day-cell-${day.ymd}`}
                 aria-pressed={day.isSelected}
+                aria-disabled={!day.isInRange}
               >
                 <span className="text-[11px] font-bold leading-none">{day.dayName}</span>
                 <span className="text-[12px] font-extrabold leading-none tabular-nums">
