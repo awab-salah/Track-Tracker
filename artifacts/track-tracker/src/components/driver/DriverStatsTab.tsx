@@ -24,28 +24,30 @@ import {
   type CargoItem,
 } from '@/data/mockData';
 
+// Custom tick: Recharts categorical axis tick entries do NOT include
+// the original data point (no `payload.payload`). Only `value` and `index`
+// are available. We use `index` to look up the date from chartData.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MultiLineTick = ({ x, y, payload }: any) => {
-  const dayName = payload.value as string;
-  const dateStr = payload.payload?.date as string | undefined;
-  // y is at the axis line (bottom of bars). Push first line 16px below it
-  // so both lines sit entirely within the bottom margin.
-  const LINE_GAP = 14;
-  const TOP_OFFSET = 16;
-  if (!dateStr) {
+const makeMultiLineTick = (data: any[]) =>
+  function MultiLineTick({ x, y, payload }: any) {
+    const dayName = payload.value as string;
+    const dateStr = data[payload.index]?.date as string | undefined;
+    const LINE_GAP = 14;
+    const TOP_OFFSET = 16;
+    if (!dateStr) {
+      return (
+        <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+          {dayName}
+        </text>
+      );
+    }
     return (
       <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
-        {dayName}
+        <tspan x={x} dy={0}>{dayName}</tspan>
+        <tspan x={x} dy={LINE_GAP}>{dateStr}</tspan>
       </text>
     );
-  }
-  return (
-    <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
-      <tspan x={x} dy={0}>{dayName}</tspan>
-      <tspan x={x} dy={LINE_GAP}>{dateStr}</tspan>
-    </text>
-  );
-};
+  };
 
 function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
@@ -220,7 +222,7 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
           <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 55 }}>
             <XAxis
               dataKey="day"
-              tick={MultiLineTick}
+              tick={makeMultiLineTick(chartData)}
               axisLine={false}
               tickLine={false}
               interval={0}
