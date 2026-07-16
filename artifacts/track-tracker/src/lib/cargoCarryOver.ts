@@ -113,14 +113,21 @@ export function isCargoCarriedOverToday(
  * Resolve the cargo card title for the given day, applying the midnight
  * carry-over rules described above.
  *
- *   - isToday + carried over (not edited) → "الحمولة المتبقية من اليوم السابق"
- *   - isToday + edited or no carry-over   → "الحمولة الحالية"
- *   - past day (yesterday or older)       → "الحمولة المتبقية من هذا اليوم"
- *   - future day                          → "الحمولة الحالية" (empty)
+ *   - isToday=true,  carriedOverToday=true   → "الحمولة المتبقية من اليوم السابق"
+ *   - isToday=true,  carriedOverToday=false  → "الحمولة الحالية"
+ *   - isToday=false, isLiveOrPast=true       → "الحمولة المتبقية من هذا اليوم"
+ *                                              (past day — immutable snapshot)
+ *   - isToday=false, isLiveOrPast=false      → "الحمولة الحالية"
+ *                                              (future day — empty cargo)
+ *
+ * `isLiveOrPast` is `!isFuture`: today or any past day returns true,
+ * strictly-future days return false. The `isToday` branch takes
+ * precedence and handles the carry-over title; the second branch only
+ * distinguishes past (snapshot) from future (empty).
  */
 export function resolveCargoTitle(
   isToday: boolean,
-  isLiveDay: boolean,
+  isLiveOrPast: boolean,
   carriedOverToday: boolean,
 ): string {
   if (isToday) {
@@ -128,7 +135,9 @@ export function resolveCargoTitle(
       ? 'الحمولة المتبقية من اليوم السابق'
       : 'الحمولة الحالية';
   }
-  return isLiveDay
-    ? 'الحمولة الحالية'
-    : 'الحمولة المتبقية من هذا اليوم';
+  // Past days show the immutable-snapshot title; future days show the
+  // default current-cargo title (with empty cargo).
+  return isLiveOrPast
+    ? 'الحمولة المتبقية من هذا اليوم'
+    : 'الحمولة الحالية';
 }

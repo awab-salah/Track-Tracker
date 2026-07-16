@@ -69,10 +69,13 @@ export function DriverStatsTab({
     selectedDate,
     setSelectedDate,
     earliestSnapshotDate,
+    minDate,
+    maxDate,
     isLiveDay,
+    isFuture,
     displayCargo,
     cargoTitle,
-  } = useCargoHistory(driverId, cargo);
+  } = useCargoHistory(driverId, cargo, currentDriver?.createdAt);
 
   const driverSales = getDriverSales(sales, driverId);
   // Sales follow the selected day.
@@ -109,16 +112,24 @@ export function DriverStatsTab({
   };
 
   /**
-   * Edit handler passed to the shared `CargoCard`. For LIVE days (today or
-   * future), taps go straight to the Load tab editor. For HISTORICAL days,
-   * taps first promote that day's snapshot to live Current Cargo, then
-   * open the editor.
+   * Edit handler passed to the shared `CargoCard`. Behavior depends on the
+   * selected day:
+   *
+   *   - TODAY (live):           open the Load tab editor with this item.
+   *   - PAST day (snapshot):    promote that day's snapshot to live Current
+   *                             Cargo (per spec — historical edits convert
+   *                             to live), then open the editor.
+   *   - FUTURE day:             no-op. Future days have empty cargo per
+   *                             spec, so this branch is unreachable in
+   *                             practice (no items to tap). Guarded anyway
+   *                             for safety.
    *
    * The shared `CargoCard` is the same component used by the Company
    * Dashboard's Driver Details page — only this call site passes a real
    * `onEditItem`, so the pencil buttons render here and are omitted there.
    */
   const handleEditItem = (item: CargoItem) => {
+    if (isFuture) return; // future days have no editable cargo
     if (isLiveDay) {
       onEditLoad(item);
     } else {
@@ -140,11 +151,19 @@ export function DriverStatsTab({
       transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8"
     >
-      {/* ── Week / day selector (Statistics tab only, per spec) ── */}
+      {/* ── Week / day selector (Statistics tab only, per spec) ──
+          Navigation bounds (per spec):
+            - First available week = account-creation week (minDate).
+            - Last available week  = current week (maxDate = today).
+            - Prev/Next arrows enable/disable correctly.
+            - Day cells outside [minDate, maxDate] render disabled.
+            - No fake empty weeks. */}
       <WeekDaySelector
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         earliestDate={earliestSnapshotDate}
+        minDate={minDate}
+        maxDate={maxDate}
       />
 
       {/* ── Cargo (Current / Remaining) ──
@@ -152,11 +171,20 @@ export function DriverStatsTab({
           the Company Dashboard's Driver Details page (same styling,
           animations, labels, colors, behavior). This call site passes
           a real `onEditItem` so each row renders a pencil button; the
-          Company Dashboard view omits it (read-only). */}
+          Company Dashboard view omits it (read-only).
+
+          For FUTURE days, `displayCargo` is empty per spec (future days
+          never inherit inventory); the card shows the empty-state
+          message and the title resolves to "الحمولة الحالية".
+
+          `isLiveDay` for the CargoCard means "show the live empty-state
+          message" (today OR future), as opposed to the snapshot
+          empty-state message used for past days. The actual edit
+          handler is a no-op for future days (no items to tap). */}
       <CargoCard
         title={cargoTitle}
         items={displayCargo}
-        isLiveDay={isLiveDay}
+        isLiveDay={isLiveDay || isFuture}
         onEditItem={handleEditItem}
         editAriaLabel={(item) =>
           isLiveDay ? 'تعديل المنتج' : 'تعديل وتحويل إلى حمولة حالية'
@@ -168,7 +196,7 @@ export function DriverStatsTab({
         <SectionTitle icon={ShoppingCart} title="سجل المبيعات" />
         {daySales.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2 text-center">
-            {isLiveDay ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
+            {(isLiveDay || isFuture) ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
           </p>
         ) : (
           <div className="flex flex-col gap-2">

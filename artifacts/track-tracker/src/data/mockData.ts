@@ -19,6 +19,17 @@ export interface Driver {
   email?: string;
   profilePictureUrl?: string | null;
   companyName?: string;
+  /**
+   * ISO timestamp of when the driver's account was created (mirrors the
+   * `drivers.created_at` column). Used by the week selector to clamp the
+   * navigable range to [account-creation-week .. current-week] — the user
+   * must never navigate to weeks before account creation or to future
+   * weeks.
+   *
+   * Optional for backward compatibility with mock data, but always
+   * populated when the driver is loaded from Supabase.
+   */
+  createdAt?: string;
 }
 
 /** A single product line inside a driver's current load. */
@@ -69,6 +80,7 @@ export const MOCK_DRIVERS: Driver[] = [
     email: 'ahmed.driver@alfalah.iq',
     profilePictureUrl: null,
     companyName: 'شركة الفلاح للتوزيع',
+    createdAt: '2026-06-15T08:00:00.000Z',
   },
   {
     id: 'd2',
@@ -80,6 +92,7 @@ export const MOCK_DRIVERS: Driver[] = [
     email: 'karrar.driver@alfalah.iq',
     profilePictureUrl: null,
     companyName: 'شركة الفلاح للتوزيع',
+    createdAt: '2026-06-20T08:00:00.000Z',
   },
   {
     id: 'd3',
@@ -91,6 +104,7 @@ export const MOCK_DRIVERS: Driver[] = [
     email: 'omar.driver@alfalah.iq',
     profilePictureUrl: null,
     companyName: 'شركة الفلاح للتوزيع',
+    createdAt: '2026-06-25T08:00:00.000Z',
   },
   {
     id: 'd4',
@@ -102,6 +116,7 @@ export const MOCK_DRIVERS: Driver[] = [
     email: 'mustafa.driver@alfalah.iq',
     profilePictureUrl: null,
     companyName: 'شركة الفلاح للتوزيع',
+    createdAt: '2026-07-01T08:00:00.000Z',
   },
 ];
 

@@ -87,17 +87,22 @@ export default function DriverDetails() {
   // `useCargoHistory` instead.
   //
   // Called with the resolved driverId (may be empty string when the
-  // driver is missing — the hook is a no-op in that case).
+  // driver is missing — the hook is a no-op in that case). The driver's
+  // `createdAt` ISO timestamp is passed so the week selector can clamp
+  // navigation to [account-creation-week .. current-week].
   const driverId = driver?.id ?? '';
   const cargo = getDriverCargo(loads, driverId);
   const {
     selectedDate,
     setSelectedDate,
     earliestSnapshotDate,
+    minDate,
+    maxDate,
     isLiveDay,
+    isFuture,
     displayCargo,
     cargoTitle,
-  } = useCargoHistory(driverId, cargo);
+  } = useCargoHistory(driverId, cargo, driver?.createdAt);
 
   if (!driver) {
     return (
@@ -160,11 +165,19 @@ export default function DriverDetails() {
             </div>
           </motion.div>
 
-          {/* ── Day selector (below Driver Information, above Cargo/Sales) ── */}
+          {/* ── Day selector (below Driver Information, above Cargo/Sales) ──
+              Navigation bounds (per spec):
+                - First available week = account-creation week (minDate).
+                - Last available week  = current week (maxDate = today).
+                - Prev/Next arrows enable/disable correctly.
+                - Day cells outside [minDate, maxDate] render disabled.
+                - No fake empty weeks. */}
           <WeekDaySelector
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             earliestDate={earliestSnapshotDate}
+            minDate={minDate}
+            maxDate={maxDate}
           />
 
           {/* ── Section 2: Cargo ──
@@ -172,11 +185,16 @@ export default function DriverDetails() {
               in the Driver Statistics tab (same styling, animations,
               labels, colors, behavior). This call site passes no
               `onEditItem`, so the pencil buttons are omitted (read-only
-              view from the Company Dashboard). */}
+              view from the Company Dashboard).
+
+              For FUTURE days, `displayCargo` is empty per spec (future
+              days never inherit inventory); the card shows the
+              empty-state message and the title resolves to
+              "الحمولة الحالية". */}
           <CargoCard
             title={cargoTitle}
             items={displayCargo}
-            isLiveDay={isLiveDay}
+            isLiveDay={isLiveDay || isFuture}
             motionDelay={0.05}
           />
 
@@ -190,7 +208,7 @@ export default function DriverDetails() {
             <SectionTitle icon={ShoppingCart} title="المبيعات" />
             {daySales.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2 text-center">
-                {isLiveDay ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
+                {(isLiveDay || isFuture) ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
               </p>
             ) : (
               <>
