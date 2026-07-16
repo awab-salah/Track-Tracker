@@ -17,7 +17,7 @@ import {
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
 import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
-import { reverseGeocode } from '@/services/geocode';
+import { useResolvedLocation } from '@/hooks/useResolvedLocation';
 import type { CargoItem } from '@/data/mockData';
 
 const BAGHDAD_TZ = 'Asia/Baghdad';
@@ -107,31 +107,12 @@ export default function DriverDetails() {
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
 
   // ── Resolved location text ──
-  // driver.location may be a raw "${lat}, ${lng}" string written by the
-  // driver's useLocationTracking hook. We reverse-geocode those coords into
-  // a human-readable Arabic city/region label for display. If driver.location
-  // already looks like a city name (no commas that look like coordinates),
-  // we just use it as-is. Per spec: do NOT change how the location is stored.
-  const [resolvedLocation, setResolvedLocation] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!driver) return;
-    let cancelled = false;
-    const raw = driver.location?.trim() ?? '';
-    // Detect "lat, lng" pattern: two numbers separated by a comma.
-    const coordMatch = raw.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-    if (!coordMatch) {
-      // Already a city name — use as-is.
-      setResolvedLocation(raw || '—');
-      return;
-    }
-    const lat = Number(coordMatch[1]);
-    const lng = Number(coordMatch[2]);
-    void reverseGeocode(lat, lng).then((label) => {
-      if (!cancelled) setResolvedLocation(label);
-    });
-    return () => { cancelled = true; };
-  }, [driver]);
+  // Shared hook: detects "lat, lng" pattern and reverse-geocodes via the
+  // cached/throttled `reverseGeocode` service. Already-readable strings
+  // pass through unchanged. Per spec: do NOT change how the location is
+  // stored. The same hook is reused by DriverCard in the Drivers tab —
+  // do NOT duplicate this logic.
+  const resolvedLocation = useResolvedLocation(driver?.location);
 
   useEffect(() => {
     if (!driver) return;
