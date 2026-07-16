@@ -20,6 +20,28 @@ import {
 import { useApp } from '@/store/AppContext';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+const MultiLineTick = ({ x, y, payload }: any) => {
+  const dayName = payload.value as string;
+  // payload.index maps to the reversed chartData array, so look up date there.
+  // We use the `payload` object which Recharts populates from the data entry.
+  // The `date` field lives on the same data point — access it via the payload's payload.
+  const dateStr = payload.payload?.date as string | undefined;
+  if (!dateStr) {
+    return (
+      <text x={x} y={y} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+        {dayName}
+      </text>
+    );
+  }
+  return (
+    <text x={x} y={y} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+      <tspan x={x} dy={0}>{dayName}</tspan>
+      <tspan x={x} dy={14}>{dateStr}</tspan>
+    </text>
+  );
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
     return (
@@ -122,12 +144,7 @@ export function StatsTab() {
           <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 45 }}>
             <XAxis
               dataKey="day"
-              tickFormatter={(v: string, i: number) => {
-                const dateStr = chartData[i]?.date;
-                return dateStr ? `${v}\n${dateStr}` : v;
-              }}
-              tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
-              angle={0}
+              tick={MultiLineTick}
               axisLine={false}
               tickLine={false}
               interval={0}
