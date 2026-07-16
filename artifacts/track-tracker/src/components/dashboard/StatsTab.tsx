@@ -1,5 +1,7 @@
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -12,19 +14,35 @@ import {
 import {
   getDriverTotalSales,
   getWeeklyPerformance,
+  getStartOfWeek,
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
 
-const SHORT_DAY: Record<string, string> = {
-  'الأحد': 'أحد',
-  'الاثنين': 'اثنين',
-  'الثلاثاء': 'ثلاثاء',
-  'الأربعاء': 'أربع',
-  'الخميس': 'خميس',
-  'الجمعة': 'جمعة',
-  'السبت': 'سبت',
-};
+// Custom tick: Recharts categorical axis tick entries do NOT include
+// the original data point (no `payload.payload`). Only `value` and `index`
+// are available. We use `index` to look up the date from chartData.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const makeMultiLineTick = (data: any[]) =>
+  function MultiLineTick({ x, y, payload }: any) {
+    const dayName = payload.value as string;
+    const dateStr = data[payload.index]?.date as string | undefined;
+    const LINE_GAP = 14;
+    const TOP_OFFSET = 16;
+    if (!dateStr) {
+      return (
+        <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+          {dayName}
+        </text>
+      );
+    }
+    return (
+      <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+        <tspan x={x} dy={0}>{dayName}</tspan>
+        <tspan x={x} dy={LINE_GAP}>{dateStr}</tspan>
+      </text>
+    );
+  };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -54,7 +72,36 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function StatsTab() {
   const [, setLocation] = useLocation();
   const { drivers, sales } = useApp();
-  const weeklyData = getWeeklyPerformance(sales);
+
+  const [weekOffset, setWeekOffset] = useState(0);
+  const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
+
+  // Earliest week that has any sales (gate for "previous" button)
+  const earliestWeekStart = useMemo(() => {
+    if (sales.length === 0) return thisSunday;
+    const minTime = Math.min(...sales.map((s) => new Date(s.date + 'T00:00:00').getTime()));
+    return getStartOfWeek(new Date(minTime));
+  }, [sales, thisSunday]);
+
+  const weekStart = useMemo(() => {
+    const d = new Date(thisSunday);
+    d.setDate(d.getDate() + weekOffset * 7);
+    return d;
+  }, [thisSunday, weekOffset]);
+  const weekYear = weekStart.getFullYear();
+  const isCurrentWeek = weekOffset === 0;
+  const isEarliestWeek = weekStart.getTime() === earliestWeekStart.getTime();
+
+  const weeklyData = useMemo(
+    () => getWeeklyPerformance(sales, undefined, weekStart),
+    [sales, weekStart],
+  );
+
+  // RTL: reverse so Saturday (newest) renders leftmost, Sunday (oldest) rightmost.
+  // Recharts always renders data[0] on the left → data[6] on the right.
+  // After reverse: index 0 = Saturday (newest/left), index 6 = Sunday (oldest/right).
+  const chartData = useMemo(() => [...weeklyData].reverse(), [weeklyData]);
+
   const sortedDrivers = [...drivers].sort(
     (a, b) => getDriverTotalSales(sales, b.id) - getDriverTotalSales(sales, a.id)
   );
@@ -71,26 +118,48 @@ export function StatsTab() {
       {/* ── Weekly chart ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <p className="font-extrabold text-foreground text-[15px]">إجمالي المبيعات الأسبوعية</p>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-4">
+        <p className="text-xs text-muted-foreground mt-0.5 mb-3">
           جميع السواق • بالدينار العراقي
         </p>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={weeklyData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+
+        {/* ── Week navigation ── */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setWeekOffset((o) => o - 1)}
+            disabled={isEarliestWeek}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="الأسبوع السابق"
+          >
+            <ChevronRight size={18} />
+          </button>
+          <span className="text-sm font-bold text-foreground tabular-nums">{weekYear}</span>
+          <button
+            onClick={() => setWeekOffset((o) => o + 1)}
+            disabled={isCurrentWeek}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="الأسبوع التالي"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
+
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 55 }}>
             <XAxis
               dataKey="day"
-              tickFormatter={(v) => SHORT_DAY[v] ?? v}
-              tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
+              tick={makeMultiLineTick(chartData)}
               axisLine={false}
               tickLine={false}
+              interval={0}
             />
             <YAxis hide />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(13,77,90,0.06)' }} />
             <Bar dataKey="sales" radius={[6, 6, 0, 0]} maxBarSize={36}>
-              {weeklyData.map((_, i) => (
+              {chartData.map((_, i) => (
                 <Cell
                   key={i}
-                  fill={i === weeklyData.length - 1 ? '#C97A56' : '#0D4D5A'}
-                  fillOpacity={i === weeklyData.length - 1 ? 1 : 0.85}
+                  fill={i === 0 ? '#C97A56' : '#0D4D5A'}
+                  fillOpacity={i === 0 ? 1 : 0.85}
                 />
               ))}
             </Bar>
@@ -107,10 +176,6 @@ export function StatsTab() {
           {sortedDrivers.map((driver, i) => {
             const total = getDriverTotalSales(sales, driver.id);
             return (
-              // No per-item entrance animation (the parent motion.div already
-              // fades/slides the whole list in) — stacking a second JS-driven
-              // opacity animation on every item held its own GPU compositing
-              // layer, which produced seam/banding artifacts while scrolling.
               <motion.button
                 key={driver.id}
                 whileTap={{ scale: 0.98 }}
