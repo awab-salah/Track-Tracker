@@ -5,27 +5,19 @@ import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { InfoRow } from '@/components/InfoRow';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
 import { WeekDaySelector } from '@/components/WeekDaySelector';
+import { WeeklySalesChart } from '@/components/driver/WeeklySalesChart';
 import {
   getDriverCargo,
   getDriverSales,
-  getWeeklyPerformance,
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
 import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
+import { reverseGeocode } from '@/services/geocode';
 import type { CargoItem } from '@/data/mockData';
 
 const BAGHDAD_TZ = 'Asia/Baghdad';
@@ -75,16 +67,16 @@ function makeSingleMarker(initial: string) {
   });
 }
 
-const SHORT_DAY: Record<string, string> = {
-  'الأحد': 'أحد', 'الاثنين': 'اثنين', 'الثلاثاء': 'ثلاثاء',
-  'الأربعاء': 'أربع', 'الخميس': 'خميس', 'الجمعة': 'جمعة', 'السبت': 'سبت',
-};
-
-function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+function SectionTitle({ icon: Icon, title, hint }: { icon: React.ElementType; title: string; hint?: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <Icon size={16} className="text-primary shrink-0" />
       <h3 className="font-extrabold text-[15px] text-foreground">{title}</h3>
+      {hint && (
+        <span className="text-[10px] text-muted-foreground/80 font-normal leading-tight">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }
@@ -113,6 +105,33 @@ export default function DriverDetails() {
 
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
+
+  // ── Resolved location text ──
+  // driver.location may be a raw "${lat}, ${lng}" string written by the
+  // driver's useLocationTracking hook. We reverse-geocode those coords into
+  // a human-readable Arabic city/region label for display. If driver.location
+  // already looks like a city name (no commas that look like coordinates),
+  // we just use it as-is. Per spec: do NOT change how the location is stored.
+  const [resolvedLocation, setResolvedLocation] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!driver) return;
+    let cancelled = false;
+    const raw = driver.location?.trim() ?? '';
+    // Detect "lat, lng" pattern: two numbers separated by a comma.
+    const coordMatch = raw.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (!coordMatch) {
+      // Already a city name — use as-is.
+      setResolvedLocation(raw || '—');
+      return;
+    }
+    const lat = Number(coordMatch[1]);
+    const lng = Number(coordMatch[2]);
+    void reverseGeocode(lat, lng).then((label) => {
+      if (!cancelled) setResolvedLocation(label);
+    });
+    return () => { cancelled = true; };
+  }, [driver]);
 
   useEffect(() => {
     if (!driver) return;
@@ -170,7 +189,6 @@ export default function DriverDetails() {
   const driverSales = getDriverSales(sales, driver.id);
   const daySales = driverSales.filter((s) => s.date === selectedDate);
   const dayTotalSales = daySales.reduce((sum, s) => sum + s.totalPrice, 0);
-  const performance = getWeeklyPerformance(sales, driver.id);
 
   return (
     <MobileLayout>
@@ -205,7 +223,11 @@ export default function DriverDetails() {
             <div className="flex flex-col gap-2">
               <InfoRow label="الاسم" value={driver.name} />
               <InfoRow label="رقم السيارة" value={driver.vehicleNumber} />
-              <InfoRow label="الموقع" value={driver.location} accent />
+              <InfoRow
+                label="الموقع"
+                value={resolvedLocation ?? driver.location}
+                accent
+              />
             </div>
           </motion.div>
 
@@ -327,7 +349,11 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <div className="p-4 pb-3">
-              <SectionTitle icon={MapPin} title="موقع السائق" />
+              <SectionTitle
+                icon={MapPin}
+                title="موقع السائق"
+                hint="(استخدم اصبعين لتحريك الخريطة)"
+              />
             </div>
             <div style={{ height: 220 }}>
               <MapContainer
@@ -335,7 +361,7 @@ export default function DriverDetails() {
                 zoom={10}
                 style={{ width: '100%', height: '100%' }}
                 zoomControl={false}
-                dragging={false}
+                dragging={true}
                 scrollWheelZoom={false}
               >
                 <TileLayer
@@ -350,7 +376,9 @@ export default function DriverDetails() {
             </div>
           </motion.div>
 
-          {/* ── Section 5: Performance chart ── */}
+          {/* ── Section 5: Performance chart (shared component — identical to
+              the Statistics tab chart: same colors, axes, ticks, tooltip,
+              week navigation, RTL ordering, and animations). ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -358,39 +386,7 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <SectionTitle icon={BarChart2Icon} title="أداء السائق الأسبوعي" />
-            <p className="text-xs text-muted-foreground mb-4">بالدينار العراقي</p>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={performance} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                <XAxis
-                  dataKey="day"
-                  tickFormatter={(v) => SHORT_DAY[v] ?? v}
-                  tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis hide />
-                <Tooltip
-                  formatter={(val: number) => [formatIQD(val), 'المبيعات']}
-                  contentStyle={{
-                    fontFamily: 'Cairo',
-                    direction: 'rtl',
-                    borderRadius: 12,
-                    border: 'none',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  }}
-                  cursor={{ fill: 'rgba(13,77,90,0.06)' }}
-                />
-                <Bar dataKey="sales" radius={[6, 6, 0, 0]} maxBarSize={36}>
-                  {performance.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={i === performance.length - 1 ? '#C97A56' : '#0D4D5A'}
-                      fillOpacity={i === performance.length - 1 ? 1 : 0.85}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <WeeklySalesChart sales={sales} driverId={driver.id} />
           </motion.div>
 
         </div>
