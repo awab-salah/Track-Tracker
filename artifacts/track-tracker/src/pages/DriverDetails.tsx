@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowRight, MapPin, Car, Package, ShoppingCart, Receipt, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, MapPin, Car, Package, ShoppingCart, Receipt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -17,10 +17,10 @@ import {
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { InfoRow } from '@/components/InfoRow';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
+import { WeekDaySelector } from '@/components/WeekDaySelector';
 import {
   getDriverCargo,
   getDriverSales,
-  getDriverTotalSales,
   getWeeklyPerformance,
   formatIQD,
 } from '@/data/mockData';
@@ -28,23 +28,11 @@ import { useApp } from '@/store/AppContext';
 import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
 import type { CargoItem } from '@/data/mockData';
 
-/** Format a YYYY-MM-DD date for the daily nav label (Arabic day name + DD/MM). */
-const AR_DAYS_SHORT: Record<string, string> = {
-  '0': 'الأحد', '1': 'الاثنين', '2': 'الثلاثاء',
-  '3': 'الأربعاء', '4': 'الخميس', '5': 'الجمعة', '6': 'السبت',
-};
-function formatHistoryLabel(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${AR_DAYS_SHORT[String(d.getDay())] ?? ''} ${dd}/${mm}`;
-}
+const BAGHDAD_TZ = 'Asia/Baghdad';
 
-/** Returns YYYY-MM-DD for `offset` days from today in Baghdad local time. */
-function baghdadDateOffset(offset: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
+/** Returns YYYY-MM-DD for today in Baghdad local time. */
+function baghdadToday(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: BAGHDAD_TZ });
 }
 
 // Fix leaflet icons (same fix as MapTab)
@@ -93,16 +81,17 @@ export default function DriverDetails() {
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const driver = drivers.find((d) => d.id === params.id);
 
-  // ── Daily history navigation ──
-  // dayOffset: 0 = today (live cargo), -1 = yesterday, -2 = day before, etc.
-  const [dayOffset, setDayOffset] = useState(0);
+  // ── Day-based cargo/sales view ──
+  // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad). Past dates show
+  // an immutable snapshot titled "Remaining Cargo From This Day" with
+  // quantity-0 products hidden; today/future shows live "Current Cargo".
+  const today = useMemo(() => baghdadToday(), []);
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const isPastDay = selectedDate < today;
+  const isLiveDay = !isPastDay; // today or future -> live loads
+
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
-
-  const selectedDate = useMemo(() => {
-    if (dayOffset === 0) return null;
-    return baghdadDateOffset(dayOffset);
-  }, [dayOffset]);
 
   useEffect(() => {
     if (!driver) return;
@@ -114,7 +103,7 @@ export default function DriverDetails() {
   }, [driver]);
 
   useEffect(() => {
-    if (!driver || !selectedDate) {
+    if (!driver || isLiveDay) {
       setHistoryCargo(null);
       return;
     }
@@ -123,7 +112,7 @@ export default function DriverDetails() {
       if (!cancelled) setHistoryCargo(rows);
     });
     return () => { cancelled = true; };
-  }, [driver, selectedDate]);
+  }, [driver, selectedDate, isLiveDay]);
 
   if (!driver) {
     return (
@@ -142,13 +131,16 @@ export default function DriverDetails() {
   }
 
   const cargo = getDriverCargo(loads, driver.id);
-  const displayCargo = dayOffset === 0 ? cargo : (historyCargo ?? []);
-  const canGoBack =
-    earliestSnapshotDate !== null &&
-    (dayOffset === 0 || (selectedDate !== null && selectedDate > earliestSnapshotDate));
-  const canGoForward = dayOffset < 0;
+  // Plain derivations (no useMemo) — these run after the early-return guard
+  // above, so they cannot be hooks.
+  const displayCargo = isLiveDay
+    ? cargo
+    : (historyCargo ?? []).filter((item) => item.quantity > 0);
+  const cargoTitle = isLiveDay ? 'الحمولة الحالية' : 'الحمولة المتبقية من هذا اليوم';
+
   const driverSales = getDriverSales(sales, driver.id);
-  const totalSales = getDriverTotalSales(sales, driver.id);
+  const daySales = driverSales.filter((s) => s.date === selectedDate);
+  const dayTotalSales = daySales.reduce((sum, s) => sum + s.totalPrice, 0);
   const performance = getWeeklyPerformance(sales, driver.id);
 
   return (
@@ -188,6 +180,13 @@ export default function DriverDetails() {
             </div>
           </motion.div>
 
+          {/* ── Day selector (below Driver Information, above Cargo/Sales) ── */}
+          <WeekDaySelector
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            earliestDate={earliestSnapshotDate}
+          />
+
           {/* ── Section 2: Cargo ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -195,34 +194,11 @@ export default function DriverDetails() {
             transition={{ delay: 0.05 }}
             className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
-            <SectionTitle icon={Package} title="الحمولة الحالية" />
-
-            {/* ── Daily navigation (clone of DriverStatsTab pattern) ── */}
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={() => setDayOffset((o) => o - 1)}
-                disabled={!canGoBack}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                aria-label="اليوم السابق"
-              >
-                <ChevronRight size={18} />
-              </button>
-              <span className="text-xs font-bold text-foreground">
-                {dayOffset === 0 ? 'اليوم' : formatHistoryLabel(selectedDate!)}
-              </span>
-              <button
-                onClick={() => setDayOffset((o) => o + 1)}
-                disabled={!canGoForward}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                aria-label="اليوم التالي"
-              >
-                <ChevronLeft size={18} />
-              </button>
-            </div>
+            <SectionTitle icon={Package} title={cargoTitle} />
 
             {displayCargo.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2 text-center">
-                {dayOffset === 0 ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
+                {isLiveDay ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -247,7 +223,7 @@ export default function DriverDetails() {
             )}
           </motion.div>
 
-          {/* ── Section 3: Sales ── */}
+          {/* ── Section 3: Sales (for the selected day) ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -255,12 +231,14 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <SectionTitle icon={ShoppingCart} title="المبيعات" />
-            {driverSales.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2 text-center">لا توجد مبيعات بعد</p>
+            {daySales.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2 text-center">
+                {isLiveDay ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
+              </p>
             ) : (
               <>
                 <div className="flex flex-col gap-2 mb-3">
-                  {driverSales.map((sale) => (
+                  {daySales.map((sale) => (
                     <div
                       key={sale.id}
                       className="flex flex-col gap-2 bg-muted/50 rounded-xl px-3 py-2.5"
@@ -296,7 +274,7 @@ export default function DriverDetails() {
                   ))}
                 </div>
 
-                {/* Total */}
+                {/* Total for the selected day */}
                 <div className="flex items-center justify-between pt-3 border-t border-border">
                   <motion.span
                     initial={{ scale: 0.9 }}
@@ -304,9 +282,9 @@ export default function DriverDetails() {
                     className="text-lg font-extrabold"
                     style={{ color: '#C97A56' }}
                   >
-                    {formatIQD(totalSales)}
+                    {formatIQD(dayTotalSales)}
                   </motion.span>
-                  <span className="text-sm font-bold text-foreground">إجمالي المبيعات</span>
+                  <span className="text-sm font-bold text-foreground">إجمالي مبيعات اليوم</span>
                 </div>
               </>
             )}
