@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowRight, MapPin, Car, Package, ShoppingCart, Receipt } from 'lucide-react';
+import { ArrowRight, MapPin, Car, ShoppingCart, Receipt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -10,37 +10,15 @@ import { InfoRow } from '@/components/InfoRow';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
 import { WeekDaySelector } from '@/components/WeekDaySelector';
 import { WeeklySalesChart } from '@/components/driver/WeeklySalesChart';
+import { CargoCard } from '@/components/CargoCard';
 import {
   getDriverCargo,
   getDriverSales,
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
-import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
 import { useResolvedLocation } from '@/hooks/useResolvedLocation';
-import type { CargoItem } from '@/data/mockData';
-
-const BAGHDAD_TZ = 'Asia/Baghdad';
-
-/** Returns YYYY-MM-DD for today in Baghdad local time. */
-function baghdadToday(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: BAGHDAD_TZ });
-}
-
-/**
- * Add `offset` days to a YYYY-MM-DD string, returning a new YYYY-MM-DD.
- * Arithmetic is done in UTC to avoid local-timezone drift. (Local helper —
- * do not change repository APIs per spec.)
- */
-function addDays(ymd: string, offset: number): string {
-  const [y, m, d] = ymd.split('-').map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d));
-  date.setUTCDate(date.getUTCDate() + offset);
-  const yy = date.getUTCFullYear();
-  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(date.getUTCDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
-}
+import { useCargoHistory } from '@/hooks/useCargoHistory';
 
 // Fix leaflet icons (same fix as MapTab)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,28 +64,6 @@ export default function DriverDetails() {
   const params = useParams<{ id: string }>();
   const { drivers, loads, sales } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
-  const driver = drivers.find((d) => d.id === params.id);
-
-  // ── Day-based cargo/sales view ──
-  // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad).
-  //
-  // Midnight (12:00 AM) title rules (UI only — snapshot generation/storage
-  // untouched). Per spec — mirrors DriverStatsTab.tsx:
-  //   TODAY, carried-over (not edited) → "الحمولة المتبقية من اليوم السابق"
-  //   TODAY, edited or no carry-over   → "الحمولة الحالية"
-  //   YESTERDAY or ANY OLDER           → "الحمولة المتبقية من هذا اليوم"
-  //   FUTURE                            → "الحمولة الحالية" (live, empty)
-  const today = useMemo(() => baghdadToday(), []);
-  const yesterday = useMemo(() => addDays(today, -1), [today]);
-  const [selectedDate, setSelectedDate] = useState<string>(today);
-  const isToday = selectedDate === today;
-  const isLiveDay = selectedDate >= today; // today or future -> live loads
-
-  const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
-  const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
-  // Yesterday's snapshot — fetched once per driver so today's view can detect
-  // the carried-over state (spec C/D/E). Null while loading, [] if none.
-  const [yesterdaySnapshot, setYesterdaySnapshot] = useState<CargoItem[] | null>(null);
 
   // ── Resolved location text ──
   // Shared hook: detects "lat, lng" pattern and reverse-geocodes via the
@@ -115,39 +71,33 @@ export default function DriverDetails() {
   // pass through unchanged. Per spec: do NOT change how the location is
   // stored. The same hook is reused by DriverCard in the Drivers tab —
   // do NOT duplicate this logic.
+  //
+  // NOTE: `useResolvedLocation` is called UNCONDITIONALLY before the
+  // early-return guard below to respect React's rules of hooks. The
+  // hook itself handles the `undefined` case (no driver).
+  const driverIdParam = params.id;
+  const driver = drivers.find((d) => d.id === driverIdParam);
   const resolvedLocation = useResolvedLocation(driver?.location);
 
-  useEffect(() => {
-    if (!driver) return;
-    let cancelled = false;
-    void fetchEarliestSnapshotDate(driver.id).then((d) => {
-      if (!cancelled) setEarliestSnapshotDate(d);
-    });
-    return () => { cancelled = true; };
-  }, [driver]);
-
-  // Fetch yesterday's snapshot once per driver. Used to detect the
-  // "carried-over, not yet edited" state on today's view (spec C/D/E).
-  useEffect(() => {
-    if (!driver) return;
-    let cancelled = false;
-    void fetchDailySnapshots([driver.id], yesterday).then((rows) => {
-      if (!cancelled) setYesterdaySnapshot(rows);
-    });
-    return () => { cancelled = true; };
-  }, [driver, yesterday]);
-
-  useEffect(() => {
-    if (!driver || isLiveDay) {
-      setHistoryCargo(null);
-      return;
-    }
-    let cancelled = false;
-    void fetchDailySnapshots([driver.id], selectedDate).then((rows) => {
-      if (!cancelled) setHistoryCargo(rows);
-    });
-    return () => { cancelled = true; };
-  }, [driver, selectedDate, isLiveDay]);
+  // ── Day-based cargo view + midnight carry-over ──
+  // Shared with the Driver Dashboard's Statistics tab — both pages now
+  // use the EXACT same `useCargoHistory` hook for snapshot fetching,
+  // carry-over detection, displayCargo derivation, and cargo title
+  // resolution. Do NOT duplicate this logic; add new callers to
+  // `useCargoHistory` instead.
+  //
+  // Called with the resolved driverId (may be empty string when the
+  // driver is missing — the hook is a no-op in that case).
+  const driverId = driver?.id ?? '';
+  const cargo = getDriverCargo(loads, driverId);
+  const {
+    selectedDate,
+    setSelectedDate,
+    earliestSnapshotDate,
+    isLiveDay,
+    displayCargo,
+    cargoTitle,
+  } = useCargoHistory(driverId, cargo);
 
   if (!driver) {
     return (
@@ -164,66 +114,6 @@ export default function DriverDetails() {
       </MobileLayout>
     );
   }
-
-  const cargo = getDriverCargo(loads, driver.id);
-  // Plain derivations (no useMemo) — these run after the early-return guard
-  // above, so they cannot be hooks.
-  // Per spec: hide qty-0 products from the UI for BOTH live and snapshot cargo.
-  // Underlying rows in the loads table and JSONB snapshots are untouched.
-  const displayCargo = (isLiveDay ? cargo : (historyCargo ?? [])).filter(
-    (item) => item.quantity > 0,
-  );
-
-  // ── Midnight carry-over detection (spec C/D/E) ──
-  // Mirrors the logic in DriverStatsTab.tsx — see that file for the full
-  // rationale. Sales only decrement; edits/adds/removals/price-changes/
-  // quantity-increases are the signals of an actual cargo edit.
-  // Plain derivation (not a hook) because we're past the early-return guard.
-  const yesterdaySnapshotByKey = new Map<string, { quantity: number; unitPrice: number }>();
-  for (const item of (yesterdaySnapshot ?? [])) {
-    if (item.quantity > 0) {
-      yesterdaySnapshotByKey.set(item.productName.trim().toLowerCase(), {
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      });
-    }
-  }
-  let isCarriedOverToday = false;
-  if (isToday && yesterdaySnapshotByKey.size > 0) {
-    const liveByKey = new Map<string, { quantity: number; unitPrice: number }>();
-    for (const item of cargo) {
-      if (item.quantity > 0) {
-        liveByKey.set(item.productName.trim().toLowerCase(), {
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        });
-      }
-    }
-    let edited = false;
-    for (const [key, live] of liveByKey) {
-      const snap = yesterdaySnapshotByKey.get(key);
-      if (!snap) { edited = true; break; }            // added
-      if (live.unitPrice !== snap.unitPrice) { edited = true; break; } // price edited
-      if (live.quantity > snap.quantity) { edited = true; break; }     // qty increased (sale can't)
-    }
-    if (!edited) {
-      for (const key of yesterdaySnapshotByKey.keys()) {
-        if (!liveByKey.has(key)) { edited = true; break; }            // removed
-      }
-    }
-    isCarriedOverToday = !edited;
-  }
-
-  // Cargo card title:
-  //   TODAY, carried over (not edited) → الحمولة المتبقية من اليوم السابق
-  //   TODAY, edited or no carry-over   → الحمولة الحالية
-  //   YESTERDAY or ANY OLDER past day  → الحمولة المتبقية من هذا اليوم
-  //   FUTURE day                       → الحمولة الحالية (empty)
-  const cargoTitle = isToday
-    ? (isCarriedOverToday ? 'الحمولة المتبقية من اليوم السابق' : 'الحمولة الحالية')
-    : isLiveDay
-      ? 'الحمولة الحالية'
-      : 'الحمولة المتبقية من هذا اليوم';
 
   const driverSales = getDriverSales(sales, driver.id);
   const daySales = driverSales.filter((s) => s.date === selectedDate);
@@ -277,41 +167,18 @@ export default function DriverDetails() {
             earliestDate={earliestSnapshotDate}
           />
 
-          {/* ── Section 2: Cargo ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
-          >
-            <SectionTitle icon={Package} title={cargoTitle} />
-
-            {displayCargo.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2 text-center">
-                {isLiveDay ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {displayCargo.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2.5"
-                  >
-                    <div className="text-left">
-                      <p className="text-xs text-muted-foreground">السعر / وحدة</p>
-                      <p className="text-sm font-bold text-foreground">{formatIQD(item.unitPrice)}</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-right">
-                      <div>
-                        <p className="text-[13px] font-bold text-foreground">{item.productName}</p>
-                        <p className="text-xs text-muted-foreground">{item.quantity} وحدة</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
+          {/* ── Section 2: Cargo ──
+              Shared CargoCard component — IDENTICAL to the one rendered
+              in the Driver Statistics tab (same styling, animations,
+              labels, colors, behavior). This call site passes no
+              `onEditItem`, so the pencil buttons are omitted (read-only
+              view from the Company Dashboard). */}
+          <CargoCard
+            title={cargoTitle}
+            items={displayCargo}
+            isLiveDay={isLiveDay}
+            motionDelay={0.05}
+          />
 
           {/* ── Section 3: Sales (for the selected day) ── */}
           <motion.div
