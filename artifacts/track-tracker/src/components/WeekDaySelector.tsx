@@ -135,7 +135,17 @@ export function WeekDaySelector({
   return (
     <div
       dir="ltr"
-      className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06] overflow-hidden"
+      // `shrink-0` is REQUIRED here. The Statistics tab renders this
+      // selector as a flex item inside a `flex flex-col overflow-y-auto`
+      // container. Per CSS Flexbox spec, when a flex item has
+      // `overflow: hidden` (which we need for the rounded corners to
+      // clip the scrollable strip), its automatic minimum size resolves
+      // to 0 instead of its content size. Combined with the default
+      // `flex-shrink: 1`, the flex algorithm then collapses this card
+      // to ~2px tall (just the border) — making the selector invisible
+      // at runtime even though it's in the DOM. `shrink-0` opts out of
+      // flex shrinking and lets the card keep its natural 53px height.
+      className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06] overflow-hidden shrink-0"
       data-testid="week-day-selector"
     >
       {/* ── Scrollable 7-day strip (full width, days slide under arrows) ──

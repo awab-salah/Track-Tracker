@@ -69,22 +69,41 @@ export function DriverStatsTab({
   // appear only inside Statistics, NOT at the dashboard level and NOT on the
   // Load or Sales tabs).
   //
-  // Title rules (UI only — snapshot generation/storage untouched):
-  //   TODAY      → "الحمولة الحالية"                  (live loads, editable)
-  //   YESTERDAY  → "الحمولة المتبقية من اليوم السابق"   (immutable snapshot)
-  //   ANY OLDER  → "الحمولة المتبقية من هذا اليوم"      (immutable snapshot)
-  //   FUTURE     → "الحمولة الحالية"                  (live loads, empty)
+  // Midnight (12:00 AM) title rules (UI only — snapshot generation/storage
+  // untouched). Per spec:
+  //
+  //   TODAY, carried-over from yesterday (driver has NOT edited cargo yet):
+  //     → "الحمولة المتبقية من اليوم السابق"
+  //     Cargo shown = live loads (which equal yesterday's EOD snapshot at
+  //     midnight, and decrease as sales happen). Sales decrement loads but
+  //     do NOT flip the title — only edits/adds do.
+  //
+  //   TODAY, after driver edits/adds cargo:
+  //     → "الحمولة الحالية"
+  //     Cargo shown = live loads (editable).
+  //
+  //   TODAY, when yesterday's snapshot had ZERO remaining cargo:
+  //     → "الحمولة الحالية" (default state, no carry-over)
+  //     Cargo shown = live loads (empty until driver adds).
+  //
+  //   YESTERDAY or ANY OLDER past day:
+  //     → "الحمولة المتبقية من هذا اليوم" (immutable snapshot)
+  //
+  //   FUTURE day:
+  //     → "الحمولة الحالية" (live loads, empty)
   const today = useMemo(() => baghdadToday(), []);
   const yesterday = useMemo(() => addDays(today, -1), [today]);
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
 
   const isToday = selectedDate === today;
-  const isYesterday = selectedDate === yesterday;
   // "live" = today OR future: live loads table, editable, empty for future.
   const isLiveDay = selectedDate >= today;
 
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
+  // Yesterday's snapshot — fetched once per driver so today's view can detect
+  // the carried-over state. Null while loading, [] if no snapshot exists.
+  const [yesterdaySnapshot, setYesterdaySnapshot] = useState<CargoItem[] | null>(null);
 
   const driverId = currentDriver?.id ?? '';
   const cargo = getDriverCargo(loads, driverId);
@@ -99,6 +118,19 @@ export function DriverStatsTab({
     });
     return () => { cancelled = true; };
   }, [driverId]);
+
+  // Fetch yesterday's snapshot once per driver. Used to detect the
+  // "carried-over, not yet edited" state on today's view (spec C/D/E).
+  // Re-fetches when the driver changes. Safe to keep cached across selectedDate
+  // changes — yesterday is always relative to `today`, not selectedDate.
+  useEffect(() => {
+    if (!driverId) return;
+    let cancelled = false;
+    void fetchDailySnapshots([driverId], yesterday).then((rows) => {
+      if (!cancelled) setYesterdaySnapshot(rows);
+    });
+    return () => { cancelled = true; };
+  }, [driverId, yesterday]);
 
   // Fetch snapshot only for past days; clear when viewing today/future.
   useEffect(() => {
@@ -128,18 +160,82 @@ export function DriverStatsTab({
     [driverSales, selectedDate],
   );
 
-  // Cargo card title switches based on day type:
-  //   TODAY     → الحمولة الحالية
-  //   YESTERDAY → الحمولة المتبقية من اليوم السابق
-  //   OLDER     → الحمولة المتبقية من هذا اليوم
-  //   FUTURE    → الحمولة الحالية (same as today, but cargo will be empty)
+  // ── Midnight carry-over detection (spec C/D/E) ──
+  //
+  // On TODAY's view, the title depends on whether the driver has edited
+  // cargo since midnight. We detect "carried-over, not yet edited" by
+  // comparing live loads to yesterday's snapshot:
+  //
+  //   - If yesterday's snapshot is missing OR has zero items → spec E:
+  //     no carry-over. Title = "الحمولة الحالية" (default).
+  //   - If live loads differ from yesterday's snapshot in a way that can
+  //     ONLY be caused by an edit/add (not a sale) → spec D: edited.
+  //     Title = "الحمولة الحالية".
+  //   - Otherwise → spec C: carried over. Title = "الحمولة المتبقية من اليوم السابق".
+  //
+  // Sales only DECREMENT quantities (never add products, never change
+  // prices, never increase a quantity). So we treat the cargo as "edited"
+  // only when:
+  //   - a product exists in live but not in snapshot (added), OR
+  //   - a product exists in snapshot but not in live (removed), OR
+  //   - a product's unitPrice differs (price edited), OR
+  //   - a product's quantity in live is GREATER than in snapshot
+  //     (a sale can only decrease, so an increase means an edit).
+  //
+  // A quantity decrease alone is treated as a sale (not an edit) — this
+  // matches spec C's statement that "This state continues until the driver
+  // edits cargo" even as sales happen.
+  const yesterdaySnapshotByKey = useMemo(() => {
+    const map = new Map<string, { quantity: number; unitPrice: number }>();
+    for (const item of (yesterdaySnapshot ?? [])) {
+      if (item.quantity > 0) {
+        map.set(item.productName.trim().toLowerCase(), {
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        });
+      }
+    }
+    return map;
+  }, [yesterdaySnapshot]);
+
+  const isCarriedOverToday = useMemo(() => {
+    if (!isToday) return false;
+    // No yesterday snapshot → no carry-over (spec E: zero/missing cargo).
+    if (yesterdaySnapshotByKey.size === 0) return false;
+    const liveByKey = new Map<string, { quantity: number; unitPrice: number }>();
+    for (const item of cargo) {
+      if (item.quantity > 0) {
+        liveByKey.set(item.productName.trim().toLowerCase(), {
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        });
+      }
+    }
+    // Edited if any live product is not in snapshot (added).
+    for (const [key, live] of liveByKey) {
+      const snap = yesterdaySnapshotByKey.get(key);
+      if (!snap) return false; // added → edited → not carried over
+      if (live.unitPrice !== snap.unitPrice) return false; // price edited
+      if (live.quantity > snap.quantity) return false; // quantity increased (sale can't)
+    }
+    // Edited if any snapshot product is not in live (removed).
+    for (const key of yesterdaySnapshotByKey.keys()) {
+      if (!liveByKey.has(key)) return false; // removed → edited
+    }
+    // Quantities may have decreased (sales) — that's still carried over.
+    return true;
+  }, [isToday, cargo, yesterdaySnapshotByKey]);
+
+  // Cargo card title switches based on day type and carry-over state:
+  //   TODAY, carried over (not edited) → الحمولة المتبقية من اليوم السابق
+  //   TODAY, edited or no carry-over   → الحمولة الحالية
+  //   YESTERDAY or ANY OLDER past day  → الحمولة المتبقية من هذا اليوم
+  //   FUTURE day                       → الحمولة الحالية (empty)
   const cargoTitle = isToday
-    ? 'الحمولة الحالية'
-    : isYesterday
-      ? 'الحمولة المتبقية من اليوم السابق'
-      : isLiveDay
-        ? 'الحمولة الحالية'
-        : 'الحمولة المتبقية من هذا اليوم';
+    ? (isCarriedOverToday ? 'الحمولة المتبقية من اليوم السابق' : 'الحمولة الحالية')
+    : isLiveDay
+      ? 'الحمولة الحالية'
+      : 'الحمولة المتبقية من هذا اليوم';
 
   /**
    * Handle a pencil tap on a HISTORICAL cargo item. Per spec, editing any
