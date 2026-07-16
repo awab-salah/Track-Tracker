@@ -135,6 +135,50 @@ export async function removeLoad(id: string): Promise<void> {
   if (error) console.error('[loadRepository] removeLoad error:', error.message);
 }
 
+/**
+ * Atomically replace ALL loads for a driver with the provided items.
+ * Used when promoting a historical snapshot to live cargo — the snapshot
+ * items become the new live `loads` rows (with fresh client-generated IDs),
+ * and any previous live loads for that driver are deleted.
+ *
+ * Order: delete existing → insert new. Not wrapped in a DB transaction
+ * (Supabase REST API doesn't expose them), but the caller has already
+ * updated local state optimistically, so a partial failure leaves the DB
+ * out of sync with local state only until the next bootstrap refetch.
+ */
+export async function replaceDriverLoads(
+  driverId: string,
+  newItems: CargoItem[]
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  // (1) Delete all existing loads for this driver.
+  const { error: delErr } = await supabase
+    .from('loads')
+    .delete()
+    .eq('driver_id', driverId);
+  if (delErr) {
+    console.error('[loadRepository] replaceDriverLoads (delete):', delErr.message);
+    return;
+  }
+
+  if (newItems.length === 0) return;
+
+  // (2) Insert the new items with their caller-provided IDs.
+  const rows = newItems.map((item) => ({
+    id: item.id,
+    driver_id: driverId,
+    product_name: item.productName,
+    quantity: item.quantity,
+    unit_price: item.unitPrice,
+  }));
+
+  const { error: insErr } = await supabase.from('loads').insert(rows);
+  if (insErr) {
+    console.error('[loadRepository] replaceDriverLoads (insert):', insErr.message);
+  }
+}
+
 // ── Daily snapshots ───────────────────────────────────────────────────────────
 //
 // Immutable end-of-day inventory history. One row per (driver, snapshot_date),
