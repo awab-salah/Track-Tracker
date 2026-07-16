@@ -19,31 +19,30 @@ import {
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
 
+// Custom tick: Recharts categorical axis tick entries do NOT include
+// the original data point (no `payload.payload`). Only `value` and `index`
+// are available. We use `index` to look up the date from chartData.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MultiLineTick = ({ x, y, payload }: any) => {
-  const dayName = payload.value as string;
-  // payload.index maps to the reversed chartData array, so look up date there.
-  // We use the `payload` object which Recharts populates from the data entry.
-  // The `date` field lives on the same data point — access it via the payload's payload.
-  const dateStr = payload.payload?.date as string | undefined;
-  // y is at the axis line (bottom of bars). Push first line 16px below it
-  // so both lines sit entirely within the bottom margin.
-  const LINE_GAP = 14;
-  const TOP_OFFSET = 16;
-  if (!dateStr) {
+const makeMultiLineTick = (data: any[]) =>
+  function MultiLineTick({ x, y, payload }: any) {
+    const dayName = payload.value as string;
+    const dateStr = data[payload.index]?.date as string | undefined;
+    const LINE_GAP = 14;
+    const TOP_OFFSET = 16;
+    if (!dateStr) {
+      return (
+        <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+          {dayName}
+        </text>
+      );
+    }
     return (
       <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
-        {dayName}
+        <tspan x={x} dy={0}>{dayName}</tspan>
+        <tspan x={x} dy={LINE_GAP}>{dateStr}</tspan>
       </text>
     );
-  }
-  return (
-    <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
-      <tspan x={x} dy={0}>{dayName}</tspan>
-      <tspan x={x} dy={LINE_GAP}>{dateStr}</tspan>
-    </text>
-  );
-};
+  };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -148,7 +147,7 @@ export function StatsTab() {
           <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 55 }}>
             <XAxis
               dataKey="day"
-              tick={MultiLineTick}
+              tick={makeMultiLineTick(chartData)}
               axisLine={false}
               tickLine={false}
               interval={0}
