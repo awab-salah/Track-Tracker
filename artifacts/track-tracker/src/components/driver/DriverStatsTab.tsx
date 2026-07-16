@@ -28,17 +28,21 @@ import {
 const MultiLineTick = ({ x, y, payload }: any) => {
   const dayName = payload.value as string;
   const dateStr = payload.payload?.date as string | undefined;
+  // y is at the axis line (bottom of bars). Push first line 16px below it
+  // so both lines sit entirely within the bottom margin.
+  const LINE_GAP = 14;
+  const TOP_OFFSET = 16;
   if (!dateStr) {
     return (
-      <text x={x} y={y} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+      <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
         {dayName}
       </text>
     );
   }
   return (
-    <text x={x} y={y} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
+    <text x={x} y={y + TOP_OFFSET} textAnchor="middle" fill="#888" fontSize={11} fontFamily="Cairo">
       <tspan x={x} dy={0}>{dayName}</tspan>
-      <tspan x={x} dy={14}>{dateStr}</tspan>
+      <tspan x={x} dy={LINE_GAP}>{dateStr}</tspan>
     </text>
   );
 };
@@ -212,8 +216,8 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
           </button>
         </div>
 
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 45 }}>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 55 }}>
             <XAxis
               dataKey="day"
               tick={MultiLineTick}
