@@ -91,20 +91,23 @@ export default function DriverDetails() {
   // ── Day-based cargo/sales view ──
   // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad).
   //
-  // Title rules (UI only — snapshot generation/storage untouched):
-  //   TODAY      → "الحمولة الحالية"
-  //   YESTERDAY  → "الحمولة المتبقية من اليوم السابق"
-  //   ANY OLDER  → "الحمولة المتبقية من هذا اليوم"
-  //   FUTURE     → "الحمولة الحالية" (live, empty)
+  // Midnight (12:00 AM) title rules (UI only — snapshot generation/storage
+  // untouched). Per spec — mirrors DriverStatsTab.tsx:
+  //   TODAY, carried-over (not edited) → "الحمولة المتبقية من اليوم السابق"
+  //   TODAY, edited or no carry-over   → "الحمولة الحالية"
+  //   YESTERDAY or ANY OLDER           → "الحمولة المتبقية من هذا اليوم"
+  //   FUTURE                            → "الحمولة الحالية" (live, empty)
   const today = useMemo(() => baghdadToday(), []);
   const yesterday = useMemo(() => addDays(today, -1), [today]);
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const isToday = selectedDate === today;
-  const isYesterday = selectedDate === yesterday;
   const isLiveDay = selectedDate >= today; // today or future -> live loads
 
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
   const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
+  // Yesterday's snapshot — fetched once per driver so today's view can detect
+  // the carried-over state (spec C/D/E). Null while loading, [] if none.
+  const [yesterdaySnapshot, setYesterdaySnapshot] = useState<CargoItem[] | null>(null);
 
   // ── Resolved location text ──
   // Shared hook: detects "lat, lng" pattern and reverse-geocodes via the
@@ -122,6 +125,17 @@ export default function DriverDetails() {
     });
     return () => { cancelled = true; };
   }, [driver]);
+
+  // Fetch yesterday's snapshot once per driver. Used to detect the
+  // "carried-over, not yet edited" state on today's view (spec C/D/E).
+  useEffect(() => {
+    if (!driver) return;
+    let cancelled = false;
+    void fetchDailySnapshots([driver.id], yesterday).then((rows) => {
+      if (!cancelled) setYesterdaySnapshot(rows);
+    });
+    return () => { cancelled = true; };
+  }, [driver, yesterday]);
 
   useEffect(() => {
     if (!driver || isLiveDay) {
@@ -159,13 +173,57 @@ export default function DriverDetails() {
   const displayCargo = (isLiveDay ? cargo : (historyCargo ?? [])).filter(
     (item) => item.quantity > 0,
   );
+
+  // ── Midnight carry-over detection (spec C/D/E) ──
+  // Mirrors the logic in DriverStatsTab.tsx — see that file for the full
+  // rationale. Sales only decrement; edits/adds/removals/price-changes/
+  // quantity-increases are the signals of an actual cargo edit.
+  // Plain derivation (not a hook) because we're past the early-return guard.
+  const yesterdaySnapshotByKey = new Map<string, { quantity: number; unitPrice: number }>();
+  for (const item of (yesterdaySnapshot ?? [])) {
+    if (item.quantity > 0) {
+      yesterdaySnapshotByKey.set(item.productName.trim().toLowerCase(), {
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      });
+    }
+  }
+  let isCarriedOverToday = false;
+  if (isToday && yesterdaySnapshotByKey.size > 0) {
+    const liveByKey = new Map<string, { quantity: number; unitPrice: number }>();
+    for (const item of cargo) {
+      if (item.quantity > 0) {
+        liveByKey.set(item.productName.trim().toLowerCase(), {
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        });
+      }
+    }
+    let edited = false;
+    for (const [key, live] of liveByKey) {
+      const snap = yesterdaySnapshotByKey.get(key);
+      if (!snap) { edited = true; break; }            // added
+      if (live.unitPrice !== snap.unitPrice) { edited = true; break; } // price edited
+      if (live.quantity > snap.quantity) { edited = true; break; }     // qty increased (sale can't)
+    }
+    if (!edited) {
+      for (const key of yesterdaySnapshotByKey.keys()) {
+        if (!liveByKey.has(key)) { edited = true; break; }            // removed
+      }
+    }
+    isCarriedOverToday = !edited;
+  }
+
+  // Cargo card title:
+  //   TODAY, carried over (not edited) → الحمولة المتبقية من اليوم السابق
+  //   TODAY, edited or no carry-over   → الحمولة الحالية
+  //   YESTERDAY or ANY OLDER past day  → الحمولة المتبقية من هذا اليوم
+  //   FUTURE day                       → الحمولة الحالية (empty)
   const cargoTitle = isToday
-    ? 'الحمولة الحالية'
-    : isYesterday
-      ? 'الحمولة المتبقية من اليوم السابق'
-      : isLiveDay
-        ? 'الحمولة الحالية'
-        : 'الحمولة المتبقية من هذا اليوم';
+    ? (isCarriedOverToday ? 'الحمولة المتبقية من اليوم السابق' : 'الحمولة الحالية')
+    : isLiveDay
+      ? 'الحمولة الحالية'
+      : 'الحمولة المتبقية من هذا اليوم';
 
   const driverSales = getDriverSales(sales, driver.id);
   const daySales = driverSales.filter((s) => s.date === selectedDate);
@@ -333,7 +391,7 @@ export default function DriverDetails() {
               <SectionTitle
                 icon={MapPin}
                 title="موقع السائق"
-                hint="(استخدم اصبعين لتحريك الخريطة)"
+                hint="(استخدم اصبعين لتكبير وتصغير الخريطة)"
               />
             </div>
             <div style={{ height: 220 }}>
