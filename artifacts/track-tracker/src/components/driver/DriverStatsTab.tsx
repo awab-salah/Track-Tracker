@@ -11,6 +11,7 @@ import {
   Cell,
 } from 'recharts';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
+import { WeekDaySelector } from '@/components/WeekDaySelector';
 import { LiveLocationMap } from './LiveLocationMap';
 import { useApp } from '@/store/AppContext';
 import type { LocationCoords, TrackingStatus } from '@/hooks/useLocationTracking';
@@ -23,13 +24,29 @@ import {
   pluralizeUnit,
   type CargoItem,
 } from '@/data/mockData';
-import { fetchDailySnapshots } from '@/services/loadRepository';
+import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
 
 const BAGHDAD_TZ = 'Asia/Baghdad';
 
 /** Returns YYYY-MM-DD for today in Baghdad local time. */
 function baghdadToday(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: BAGHDAD_TZ });
+}
+
+/**
+ * Add `offset` days to a YYYY-MM-DD string, returning a new YYYY-MM-DD.
+ * Arithmetic is done in UTC to avoid local-timezone drift. (Mirrors the
+ * helper used inside WeekDaySelector — kept local to avoid changing
+ * repository APIs per spec.)
+ */
+function addDays(ymd: string, offset: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + offset);
+  const yy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
 }
 
 // Custom tick: Recharts categorical axis tick entries do NOT include
@@ -67,12 +84,6 @@ function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: s
 }
 
 interface DriverStatsTabProps {
-  /** Currently selected day (YYYY-MM-DD). Lifted to the dashboard so the week
-   *  selector stays in sync across tabs. */
-  selectedDate: string;
-  /** Lifted state setter — used to snap back to today after a historical
-   *  cargo is promoted to live. */
-  onSelectDate: (ymd: string) => void;
   onEditLoad: (item: CargoItem) => void;
   locationState: {
     status: TrackingStatus;
@@ -82,8 +93,6 @@ interface DriverStatsTabProps {
 }
 
 export function DriverStatsTab({
-  selectedDate,
-  onSelectDate,
   onEditLoad,
   locationState,
 }: DriverStatsTabProps) {
@@ -94,19 +103,40 @@ export function DriverStatsTab({
   const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
 
   // ── Day-based cargo/sales view ──
-  // isPastDay = a strictly-prior Baghdad day. isLiveDay = today OR future.
-  // Past days show an immutable snapshot titled "Remaining Cargo From This
-  // Day" with quantity-0 products hidden; today/future shows live "Current
-  // Cargo" and is editable.
+  // selectedDate lives INSIDE the Statistics tab (per spec: the selector must
+  // appear only inside Statistics, NOT at the dashboard level and NOT on the
+  // Load or Sales tabs).
+  //
+  // Title rules (UI only — snapshot generation/storage untouched):
+  //   TODAY      → "الحمولة الحالية"                  (live loads, editable)
+  //   YESTERDAY  → "الحمولة المتبقية من اليوم السابق"   (immutable snapshot)
+  //   ANY OLDER  → "الحمولة المتبقية من هذا اليوم"      (immutable snapshot)
+  //   FUTURE     → "الحمولة الحالية"                  (live loads, empty)
   const today = useMemo(() => baghdadToday(), []);
-  const isPastDay = selectedDate < today;
-  const isLiveDay = !isPastDay;
+  const yesterday = useMemo(() => addDays(today, -1), [today]);
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
+
+  const isToday = selectedDate === today;
+  const isYesterday = selectedDate === yesterday;
+  // "live" = today OR future: live loads table, editable, empty for future.
+  const isLiveDay = selectedDate >= today;
 
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
 
   const driverId = currentDriver?.id ?? '';
   const cargo = getDriverCargo(loads, driverId);
   const driverSales = getDriverSales(sales, driverId);
+
+  // Fetch earliest snapshot date once per driver (gates the prev-week arrow).
+  useEffect(() => {
+    if (!driverId) return;
+    let cancelled = false;
+    void fetchEarliestSnapshotDate(driverId).then((d) => {
+      if (!cancelled) setEarliestSnapshotDate(d);
+    });
+    return () => { cancelled = true; };
+  }, [driverId]);
 
   // Fetch snapshot only for past days; clear when viewing today/future.
   useEffect(() => {
@@ -121,11 +151,13 @@ export function DriverStatsTab({
     return () => { cancelled = true; };
   }, [driverId, selectedDate, isLiveDay]);
 
-  // Cargo source: live loads for today/future; snapshot (qty-0 filtered) for
-  // past days.
+  // Cargo source: live loads for today/future; snapshot for past days.
+  // Per spec: items whose quantity == 0 must NEVER be rendered — apply this
+  // to BOTH live and snapshot cargo. The underlying rows in the loads table
+  // and the JSONB snapshots are left untouched; this is a UI filter only.
   const displayCargo = useMemo(() => {
-    if (isLiveDay) return cargo;
-    return (historyCargo ?? []).filter((item) => item.quantity > 0);
+    const source = isLiveDay ? cargo : (historyCargo ?? []);
+    return source.filter((item) => item.quantity > 0);
   }, [isLiveDay, cargo, historyCargo]);
 
   // Sales follow the selected day.
@@ -134,20 +166,31 @@ export function DriverStatsTab({
     [driverSales, selectedDate],
   );
 
-  // Cargo card title switches based on day type.
-  const cargoTitle = isLiveDay ? 'الحمولة الحالية' : 'الحمولة المتبقية من هذا اليوم';
+  // Cargo card title switches based on day type:
+  //   TODAY     → الحمولة الحالية
+  //   YESTERDAY → الحمولة المتبقية من اليوم السابق
+  //   OLDER     → الحمولة المتبقية من هذا اليوم
+  //   FUTURE    → الحمولة الحالية (same as today, but cargo will be empty)
+  const cargoTitle = isToday
+    ? 'الحمولة الحالية'
+    : isYesterday
+      ? 'الحمولة المتبقية من اليوم السابق'
+      : isLiveDay
+        ? 'الحمولة الحالية'
+        : 'الحمولة المتبقية من هذا اليوم';
 
   /**
    * Handle a pencil tap on a HISTORICAL cargo item. Per spec, editing any
    * product from "Remaining Cargo From This Day" immediately promotes that
    * day's snapshot to live Current Cargo. We then snap selectedDate to today
-   * and open the Load tab with the matching (now-live) item prefilled.
+   * (the historical day is now live) and open the Load tab with the matching
+   * (now-live) item prefilled.
    */
   const handleEditFromHistory = async (item: CargoItem) => {
     if (!currentDriver) return;
     const newCargo = await promoteSnapshotToLive(currentDriver.id, selectedDate);
     // Snap to today — the historical day is now live.
-    onSelectDate(today);
+    setSelectedDate(today);
     // Find the matching live item by product name (case-insensitive, trimmed).
     const liveItem = newCargo.find(
       (c) =>
@@ -193,6 +236,13 @@ export function DriverStatsTab({
       transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8"
     >
+      {/* ── Week / day selector (Statistics tab only, per spec) ── */}
+      <WeekDaySelector
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        earliestDate={earliestSnapshotDate}
+      />
+
       {/* ── Cargo (Current / Remaining) ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <SectionTitle icon={Package} title={cargoTitle} />
