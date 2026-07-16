@@ -17,6 +17,8 @@ import {
   upsertLoad as dbUpsertLoad,
   decrementLoad,
   removeLoad as dbRemoveLoad,
+  replaceDriverLoads,
+  fetchDailySnapshots,
   fetchSales,
   createSale,
   finalizeYesterdayIfNeeded,
@@ -48,6 +50,16 @@ interface AppContextType {
   updateDriverProfile: (data: Partial<Pick<Driver, 'name' | 'email' | 'vehicleNumber' | 'profilePictureUrl'>>) => void;
   upsertLoad: (input: { id?: string; productName: string; quantity: number; unitPrice: number }) => void;
   removeLoad: (id: string) => void;
+  /**
+   * Promote a historical day's snapshot to live cargo. Replaces all current
+   * live loads for the driver with the snapshot's items (filtered to qty > 0),
+   * assigning fresh UUIDs. Returns the new live CargoItem[] so the caller can
+   * open the Load tab with the matching item prefilled.
+   *
+   * Per spec: "If the driver edits any product from that remaining cargo...
+   * It immediately becomes Current Cargo."
+   */
+  promoteSnapshotToLive: (driverId: string, snapshotDate: string) => Promise<CargoItem[]>;
   addSale: (items: SaleLineItem[], receiptImageUrl?: string | null) => void;
 
   // Sale notifications (company owner) — Web Notifications API + Supabase Realtime
@@ -365,6 +377,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
   };
 
+  // ── Historical snapshot → live cargo promotion ─────────────────────────────
+  //
+  // Per spec: when the driver edits any product from a past day's "Remaining
+  // Cargo From This Day", that snapshot immediately becomes the live Current
+  // Cargo. We:
+  //   1. Fetch the snapshot for the given date.
+  //   2. Filter out qty-0 items (already hidden in the UI, but defensive).
+  //   3. Assign fresh UUIDs to each item (new live rows, not snapshot rows).
+  //   4. Optimistically replace the driver's loads in local state.
+  //   5. Atomically replace the driver's loads in the DB.
+  //   6. Return the new live CargoItem[] so the caller can find the matching
+  //      item and open the Load tab with it prefilled.
+  //
+  // Note: this is destructive — the driver's previous live loads are lost.
+  // This is the intended behavior per spec ("It immediately becomes Current
+  // Cargo because it is now the active working inventory again").
+  const promoteSnapshotToLive = async (
+    driverId: string,
+    snapshotDate: string
+  ): Promise<CargoItem[]> => {
+    const snapshotItems = await fetchDailySnapshots([driverId], snapshotDate);
+    const itemsToPromote = snapshotItems.filter((item) => item.quantity > 0);
+
+    const newCargo: CargoItem[] = itemsToPromote.map((item) => ({
+      id: generateId(),
+      driverId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    }));
+
+    // Optimistic local state update: remove old loads for this driver, add new.
+    setLoads((prev) => [
+      ...prev.filter((l) => l.driverId !== driverId),
+      ...newCargo,
+    ]);
+
+    // DB: atomically replace the driver's loads.
+    await replaceDriverLoads(driverId, newCargo);
+
+    return newCargo;
+  };
+
   // ── Sales ─────────────────────────────────────────────────────────────────
 
   const addSale = (items: SaleLineItem[], receiptImageUrl?: string | null) => {
@@ -501,6 +556,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateDriverProfile,
         upsertLoad,
         removeLoad,
+        promoteSnapshotToLive,
         addSale,
         notificationsEnabled,
         notificationPermission,

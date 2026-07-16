@@ -12,7 +12,6 @@ import {
 } from 'recharts';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
 import { LiveLocationMap } from './LiveLocationMap';
-import { WeekDaySelector } from '@/components/WeekDaySelector';
 import { useApp } from '@/store/AppContext';
 import type { LocationCoords, TrackingStatus } from '@/hooks/useLocationTracking';
 import {
@@ -24,7 +23,7 @@ import {
   pluralizeUnit,
   type CargoItem,
 } from '@/data/mockData';
-import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
+import { fetchDailySnapshots } from '@/services/loadRepository';
 
 const BAGHDAD_TZ = 'Asia/Baghdad';
 
@@ -68,6 +67,12 @@ function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: s
 }
 
 interface DriverStatsTabProps {
+  /** Currently selected day (YYYY-MM-DD). Lifted to the dashboard so the week
+   *  selector stays in sync across tabs. */
+  selectedDate: string;
+  /** Lifted state setter — used to snap back to today after a historical
+   *  cargo is promoted to live. */
+  onSelectDate: (ymd: string) => void;
   onEditLoad: (item: CargoItem) => void;
   locationState: {
     status: TrackingStatus;
@@ -76,38 +81,32 @@ interface DriverStatsTabProps {
   };
 }
 
-export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProps) {
-  const { currentDriver, loads, sales } = useApp();
+export function DriverStatsTab({
+  selectedDate,
+  onSelectDate,
+  onEditLoad,
+  locationState,
+}: DriverStatsTabProps) {
+  const { currentDriver, loads, sales, promoteSnapshotToLive } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   const [weekOffset, setWeekOffset] = useState(0);
   const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
 
   // ── Day-based cargo/sales view ──
-  // selectedDate: YYYY-MM-DD. Defaults to today (Baghdad). Past dates show
-  // an immutable snapshot titled "Remaining Cargo From This Day" with
-  // quantity-0 products hidden; today/future shows live "Current Cargo".
+  // isPastDay = a strictly-prior Baghdad day. isLiveDay = today OR future.
+  // Past days show an immutable snapshot titled "Remaining Cargo From This
+  // Day" with quantity-0 products hidden; today/future shows live "Current
+  // Cargo" and is editable.
   const today = useMemo(() => baghdadToday(), []);
-  const [selectedDate, setSelectedDate] = useState<string>(today);
   const isPastDay = selectedDate < today;
-  const isLiveDay = !isPastDay; // today or future -> live loads, editable
+  const isLiveDay = !isPastDay;
 
   const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
-  const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
 
   const driverId = currentDriver?.id ?? '';
   const cargo = getDriverCargo(loads, driverId);
   const driverSales = getDriverSales(sales, driverId);
-
-  // Fetch earliest snapshot date once per driver (gates the prev-week arrow).
-  useEffect(() => {
-    if (!driverId) return;
-    let cancelled = false;
-    void fetchEarliestSnapshotDate(driverId).then((d) => {
-      if (!cancelled) setEarliestSnapshotDate(d);
-    });
-    return () => { cancelled = true; };
-  }, [driverId]);
 
   // Fetch snapshot only for past days; clear when viewing today/future.
   useEffect(() => {
@@ -122,8 +121,8 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
     return () => { cancelled = true; };
   }, [driverId, selectedDate, isLiveDay]);
 
-  // Cargo source: live loads for today/future, snapshot (with qty-0 filtered)
-  // for past days.
+  // Cargo source: live loads for today/future; snapshot (qty-0 filtered) for
+  // past days.
   const displayCargo = useMemo(() => {
     if (isLiveDay) return cargo;
     return (historyCargo ?? []).filter((item) => item.quantity > 0);
@@ -138,7 +137,28 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   // Cargo card title switches based on day type.
   const cargoTitle = isLiveDay ? 'الحمولة الحالية' : 'الحمولة المتبقية من هذا اليوم';
 
-  // ── Weekly chart (unchanged — independent of day selector) ──
+  /**
+   * Handle a pencil tap on a HISTORICAL cargo item. Per spec, editing any
+   * product from "Remaining Cargo From This Day" immediately promotes that
+   * day's snapshot to live Current Cargo. We then snap selectedDate to today
+   * and open the Load tab with the matching (now-live) item prefilled.
+   */
+  const handleEditFromHistory = async (item: CargoItem) => {
+    if (!currentDriver) return;
+    const newCargo = await promoteSnapshotToLive(currentDriver.id, selectedDate);
+    // Snap to today — the historical day is now live.
+    onSelectDate(today);
+    // Find the matching live item by product name (case-insensitive, trimmed).
+    const liveItem = newCargo.find(
+      (c) =>
+        c.productName.trim().toLowerCase() === item.productName.trim().toLowerCase(),
+    );
+    if (liveItem) {
+      onEditLoad(liveItem);
+    }
+  };
+
+  // ── Weekly chart (unchanged — independent of day selector per spec) ──
 
   // Earliest week that has any sales for THIS driver
   const earliestWeekStart = useMemo(() => {
@@ -173,13 +193,6 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
       transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8"
     >
-      {/* ── Week / day selector (below the top tabs, above cargo) ── */}
-      <WeekDaySelector
-        selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
-        earliestDate={earliestSnapshotDate}
-      />
-
       {/* ── Cargo (Current / Remaining) ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <SectionTitle icon={Package} title={cargoTitle} />
@@ -195,17 +208,19 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
                 key={item.id}
                 className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2.5 gap-4"
               >
-                {isLiveDay ? (
-                  <button
-                    onClick={() => onEditLoad(item)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 transition-colors shrink-0"
-                    data-testid={`btn-edit-load-${item.id}`}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                ) : (
-                  <div className="w-8 h-8 shrink-0" aria-hidden />
-                )}
+                {/* Pencil — visible on BOTH live and historical days.
+                    On historical days, tapping it promotes the snapshot to
+                    live Current Cargo before opening the editor. */}
+                <button
+                  onClick={() =>
+                    isLiveDay ? onEditLoad(item) : void handleEditFromHistory(item)
+                  }
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 transition-colors shrink-0"
+                  data-testid={`btn-edit-load-${item.id}`}
+                  aria-label={isLiveDay ? 'تعديل المنتج' : 'تعديل وتحويل إلى حمولة حالية'}
+                >
+                  <Pencil size={14} />
+                </button>
                 <div className="flex flex-col gap-1 text-left shrink-0">
                   <p className="text-xs text-muted-foreground">السعر / وحدة</p>
                   <p className="text-sm font-bold text-foreground">{formatIQD(item.unitPrice)}</p>
