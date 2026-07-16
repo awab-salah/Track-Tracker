@@ -173,7 +173,12 @@ export function WeekDaySelector({
         </div>
       </div>
 
-      {/* ── Fixed arrow overlay (opaque, pins to left edge as boundary) ── */}
+      {/* ── Fixed arrow overlay (opaque, pins to left edge as boundary) ──
+          Arrow direction (per spec):
+            - Top button (ChevronRight) → previous week
+            - Bottom button (ChevronLeft) → next week
+          The RTL day strip below is unchanged; only the week-nav direction
+          was reversed. */}
       <div
         className="absolute top-0 bottom-0 left-0 flex flex-col items-center justify-center gap-1 bg-white dark:bg-zinc-900 z-10"
         style={{ width: ARROW_OVERLAY_WIDTH }}
@@ -185,7 +190,7 @@ export function WeekDaySelector({
           aria-label="الأسبوع السابق"
           data-testid="btn-prev-week"
         >
-          <ChevronLeft size={16} />
+          <ChevronRight size={16} />
         </button>
         <button
           onClick={handleNext}
@@ -194,7 +199,7 @@ export function WeekDaySelector({
           aria-label="الأسبوع التالي"
           data-testid="btn-next-week"
         >
-          <ChevronRight size={16} />
+          <ChevronLeft size={16} />
         </button>
       </div>
     </div>
