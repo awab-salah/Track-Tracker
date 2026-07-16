@@ -19,16 +19,6 @@ import {
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
 
-const SHORT_DAY: Record<string, string> = {
-  'الأحد': 'أحد',
-  'الاثنين': 'اثنين',
-  'الثلاثاء': 'ثلاثاء',
-  'الأربعاء': 'أربع',
-  'الخميس': 'خميس',
-  'الجمعة': 'جمعة',
-  'السبت': 'سبت',
-};
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
@@ -128,16 +118,15 @@ export function StatsTab() {
           </button>
         </div>
 
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 45 }}>
             <XAxis
               dataKey="day"
               tickFormatter={(v: string, i: number) => {
-                const short = SHORT_DAY[v] ?? v;
                 const dateStr = chartData[i]?.date;
-                return dateStr ? `${short}\n${dateStr}` : short;
+                return dateStr ? `${v}\n${dateStr}` : v;
               }}
-              tick={{ fontFamily: 'Cairo', fontSize: 10, fill: '#888' }}
+              tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
               angle={0}
               axisLine={false}
               tickLine={false}

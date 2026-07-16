@@ -24,11 +24,6 @@ import {
   type CargoItem,
 } from '@/data/mockData';
 
-const SHORT_DAY: Record<string, string> = {
-  'الأحد': 'أحد', 'الاثنين': 'اثنين', 'الثلاثاء': 'ثلاثاء',
-  'الأربعاء': 'أربع', 'الخميس': 'خميس', 'الجمعة': 'جمعة', 'السبت': 'سبت',
-};
-
 function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
@@ -198,16 +193,15 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
           </button>
         </div>
 
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 30 }}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 45 }}>
             <XAxis
               dataKey="day"
               tickFormatter={(v: string, i: number) => {
-                const short = SHORT_DAY[v] ?? v;
                 const dateStr = chartData[i]?.date;
-                return dateStr ? `${short}\n${dateStr}` : short;
+                return dateStr ? `${v}\n${dateStr}` : v;
               }}
-              tick={{ fontFamily: 'Cairo', fontSize: 10, fill: '#888' }}
+              tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
               angle={0}
               axisLine={false}
               tickLine={false}
