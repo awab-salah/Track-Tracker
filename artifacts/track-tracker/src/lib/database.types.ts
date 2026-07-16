@@ -82,9 +82,29 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['sale_items']['Insert']>;
       };
+      daily_load_snapshots: {
+        Row: {
+          id: string;
+          driver_id: string;
+          snapshot_date: string;
+          items: DailyLoadSnapshotItem[];
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['daily_load_snapshots']['Row'], 'id' | 'created_at'> & {
+          id?: string;
+        };
+        Update: Partial<Database['public']['Tables']['daily_load_snapshots']['Insert']>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;
   };
+}
+
+/** Single product line inside a daily_load_snapshots.items JSONB array. */
+export interface DailyLoadSnapshotItem {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
 }

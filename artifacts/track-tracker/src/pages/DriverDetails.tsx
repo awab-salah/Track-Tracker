@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowRight, MapPin, Car, Package, ShoppingCart, Receipt } from 'lucide-react';
+import { ArrowRight, MapPin, Car, Package, ShoppingCart, Receipt, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -25,6 +25,27 @@ import {
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
+import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
+import type { CargoItem } from '@/data/mockData';
+
+/** Format a YYYY-MM-DD date for the daily nav label (Arabic day name + DD/MM). */
+const AR_DAYS_SHORT: Record<string, string> = {
+  '0': 'الأحد', '1': 'الاثنين', '2': 'الثلاثاء',
+  '3': 'الأربعاء', '4': 'الخميس', '5': 'الجمعة', '6': 'السبت',
+};
+function formatHistoryLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${AR_DAYS_SHORT[String(d.getDay())] ?? ''} ${dd}/${mm}`;
+}
+
+/** Returns YYYY-MM-DD for `offset` days from today in Baghdad local time. */
+function baghdadDateOffset(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
+}
 
 // Fix leaflet icons (same fix as MapTab)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,6 +93,38 @@ export default function DriverDetails() {
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const driver = drivers.find((d) => d.id === params.id);
 
+  // ── Daily history navigation ──
+  // dayOffset: 0 = today (live cargo), -1 = yesterday, -2 = day before, etc.
+  const [dayOffset, setDayOffset] = useState(0);
+  const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
+  const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
+
+  const selectedDate = useMemo(() => {
+    if (dayOffset === 0) return null;
+    return baghdadDateOffset(dayOffset);
+  }, [dayOffset]);
+
+  useEffect(() => {
+    if (!driver) return;
+    let cancelled = false;
+    void fetchEarliestSnapshotDate(driver.id).then((d) => {
+      if (!cancelled) setEarliestSnapshotDate(d);
+    });
+    return () => { cancelled = true; };
+  }, [driver]);
+
+  useEffect(() => {
+    if (!driver || !selectedDate) {
+      setHistoryCargo(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchDailySnapshots([driver.id], selectedDate).then((rows) => {
+      if (!cancelled) setHistoryCargo(rows);
+    });
+    return () => { cancelled = true; };
+  }, [driver, selectedDate]);
+
   if (!driver) {
     return (
       <MobileLayout>
@@ -89,6 +142,11 @@ export default function DriverDetails() {
   }
 
   const cargo = getDriverCargo(loads, driver.id);
+  const displayCargo = dayOffset === 0 ? cargo : (historyCargo ?? []);
+  const canGoBack =
+    earliestSnapshotDate !== null &&
+    (dayOffset === 0 || (selectedDate !== null && selectedDate > earliestSnapshotDate));
+  const canGoForward = dayOffset < 0;
   const driverSales = getDriverSales(sales, driver.id);
   const totalSales = getDriverTotalSales(sales, driver.id);
   const performance = getWeeklyPerformance(sales, driver.id);
@@ -138,11 +196,37 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <SectionTitle icon={Package} title="الحمولة الحالية" />
-            {cargo.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2 text-center">لا توجد حمولة حالياً</p>
+
+            {/* ── Daily navigation (clone of DriverStatsTab pattern) ── */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={() => setDayOffset((o) => o - 1)}
+                disabled={!canGoBack}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                aria-label="اليوم السابق"
+              >
+                <ChevronRight size={18} />
+              </button>
+              <span className="text-xs font-bold text-foreground">
+                {dayOffset === 0 ? 'اليوم' : formatHistoryLabel(selectedDate!)}
+              </span>
+              <button
+                onClick={() => setDayOffset((o) => o + 1)}
+                disabled={!canGoForward}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                aria-label="اليوم التالي"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </div>
+
+            {displayCargo.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2 text-center">
+                {dayOffset === 0 ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
+              </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {cargo.map((item) => (
+                {displayCargo.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2.5"

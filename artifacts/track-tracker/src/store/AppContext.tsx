@@ -19,6 +19,7 @@ import {
   removeLoad as dbRemoveLoad,
   fetchSales,
   createSale,
+  finalizeYesterdayIfNeeded,
 } from '@/services';
 import { useAuth } from '@/store/AuthContext';
 import type { CompanyProfile } from '@/types';
@@ -178,6 +179,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
       setCurrentDriverId(null);
+
+      // Finalize yesterday's snapshot for each driver. Fire-and-forget —
+      // each call is idempotent (unique constraint + ON CONFLICT DO NOTHING).
+      // Reads current DB loads (no mutation has happened today yet at bootstrap).
+      void Promise.all(
+        remoteDrivers.map((d) => finalizeYesterdayIfNeeded(d.id))
+      );
     })();
 
     return () => { cancelled = true; };
@@ -208,6 +216,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
+
+      // Finalize yesterday's snapshot for this driver. Fire-and-forget —
+      // idempotent. Reads current DB loads (no mutation today yet).
+      void finalizeYesterdayIfNeeded(authDriverId);
     })();
 
     return () => { cancelled = true; };
@@ -290,6 +302,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!currentDriverId) return;
     const productName = input.productName.trim();
 
+    // Capture pre-mutation cargo so the finalize call below freezes yesterday's
+    // EOD state, not the post-edit state. UI updates synchronously via setLoads.
+    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
+
     setLoads((prev) => {
       const existingIdx = prev.findIndex(
         (l) =>
@@ -334,17 +350,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return [...prev, newItem];
     });
+
+    // Finalize yesterday's snapshot AFTER local state update, using captured
+    // pre-mutation state. Fire-and-forget — idempotent.
+    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
   };
 
   const removeLoad = (id: string) => {
+    if (!currentDriverId) return;
+    // Capture pre-mutation cargo for the finalize call below.
+    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
     setLoads((prev) => prev.filter((l) => l.id !== id));
     void dbRemoveLoad(id);
+    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
   };
 
   // ── Sales ─────────────────────────────────────────────────────────────────
 
   const addSale = (items: SaleLineItem[], receiptImageUrl?: string | null) => {
     if (!currentDriverId) return;
+
+    // Capture pre-mutation cargo so the finalize call below freezes yesterday's
+    // EOD state, not the post-sale (decremented) state. UI updates synchronously.
+    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
 
     setLoads((prev) =>
       prev.map((load) => {
@@ -359,8 +387,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     );
 
+    // Finalize yesterday's snapshot AFTER local state update, using captured
+    // pre-mutation state. Fire-and-forget — idempotent. Must come before the
+    // createSale call so yesterday's EOD is frozen before today's first sale
+    // is recorded, but it doesn't need to be awaited (the snapshot insert is
+    // independent of the sale insert; both are async DB writes).
+    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+
     const totalPrice = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-    const date = new Date().toISOString().split('T')[0];
+    // Baghdad local date (UTC+3, no DST). en-CA → 'YYYY-MM-DD'.
+    // Previously used UTC which mis-stamped sales made between 00:00–03:00 Baghdad.
+    const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
 
     const newSale: SaleRecord = {
       id: generateId(),

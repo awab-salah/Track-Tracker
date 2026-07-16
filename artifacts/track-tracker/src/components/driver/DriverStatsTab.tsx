@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Package, ShoppingCart, Receipt, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -23,6 +23,26 @@ import {
   pluralizeUnit,
   type CargoItem,
 } from '@/data/mockData';
+import { fetchDailySnapshots, fetchEarliestSnapshotDate } from '@/services/loadRepository';
+
+/** Format a YYYY-MM-DD date for the daily nav label (Arabic day name + DD/MM). */
+const AR_DAYS_SHORT: Record<string, string> = {
+  '0': 'الأحد', '1': 'الاثنين', '2': 'الثلاثاء',
+  '3': 'الأربعاء', '4': 'الخميس', '5': 'الجمعة', '6': 'السبت',
+};
+function formatHistoryLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${AR_DAYS_SHORT[String(d.getDay())] ?? ''} ${dd}/${mm}`;
+}
+
+/** Returns YYYY-MM-DD for `offset` days from today in Baghdad local time. */
+function baghdadDateOffset(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
+}
 
 // Custom tick: Recharts categorical axis tick entries do NOT include
 // the original data point (no `payload.payload`). Only `value` and `index`
@@ -74,9 +94,50 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
   const [weekOffset, setWeekOffset] = useState(0);
   const thisSunday = useMemo(() => getStartOfWeek(new Date()), []);
 
+  // ── Daily history navigation ──
+  // dayOffset: 0 = today (live cargo), -1 = yesterday, -2 = day before, etc.
+  const [dayOffset, setDayOffset] = useState(0);
+  const [historyCargo, setHistoryCargo] = useState<CargoItem[] | null>(null);
+  const [earliestSnapshotDate, setEarliestSnapshotDate] = useState<string | null>(null);
+
   const driverId = currentDriver?.id ?? '';
   const cargo = getDriverCargo(loads, driverId);
   const driverSales = getDriverSales(sales, driverId);
+
+  // Selected date for history (null when viewing today/live).
+  const selectedDate = useMemo(() => {
+    if (dayOffset === 0) return null;
+    return baghdadDateOffset(dayOffset);
+  }, [dayOffset]);
+
+  // Fetch earliest snapshot date once per driver (gates the "previous" button).
+  useEffect(() => {
+    if (!driverId) return;
+    let cancelled = false;
+    void fetchEarliestSnapshotDate(driverId).then((d) => {
+      if (!cancelled) setEarliestSnapshotDate(d);
+    });
+    return () => { cancelled = true; };
+  }, [driverId]);
+
+  // Fetch snapshots when a past date is selected; clear when viewing today.
+  useEffect(() => {
+    if (!driverId || !selectedDate) {
+      setHistoryCargo(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchDailySnapshots([driverId], selectedDate).then((rows) => {
+      if (!cancelled) setHistoryCargo(rows);
+    });
+    return () => { cancelled = true; };
+  }, [driverId, selectedDate]);
+
+  const displayCargo = dayOffset === 0 ? cargo : (historyCargo ?? []);
+  const canGoBack =
+    earliestSnapshotDate !== null &&
+    (dayOffset === 0 || (selectedDate !== null && selectedDate > earliestSnapshotDate));
+  const canGoForward = dayOffset < 0;
 
   // Earliest week that has any sales for THIS driver
   const earliestWeekStart = useMemo(() => {
@@ -114,22 +175,52 @@ export function DriverStatsTab({ onEditLoad, locationState }: DriverStatsTabProp
       {/* ── Current load ── */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">
         <SectionTitle icon={Package} title="الحمولة الحالية" />
-        {cargo.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2 text-center">لا توجد حمولة حالياً</p>
+
+        {/* ── Daily navigation (clone of weekly chevron pattern) ── */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setDayOffset((o) => o - 1)}
+            disabled={!canGoBack}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="اليوم السابق"
+          >
+            <ChevronRight size={18} />
+          </button>
+          <span className="text-xs font-bold text-foreground">
+            {dayOffset === 0 ? 'اليوم' : formatHistoryLabel(selectedDate!)}
+          </span>
+          <button
+            onClick={() => setDayOffset((o) => o + 1)}
+            disabled={!canGoForward}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="اليوم التالي"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
+
+        {displayCargo.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2 text-center">
+            {dayOffset === 0 ? 'لا توجد حمولة حالياً' : 'لا توجد بيانات لهذا اليوم'}
+          </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {cargo.map((item) => (
+            {displayCargo.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2.5 gap-4"
               >
-                <button
-                  onClick={() => onEditLoad(item)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 transition-colors shrink-0"
-                  data-testid={`btn-edit-load-${item.id}`}
-                >
-                  <Pencil size={14} />
-                </button>
+                {dayOffset === 0 ? (
+                  <button
+                    onClick={() => onEditLoad(item)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-primary hover:bg-primary/10 transition-colors shrink-0"
+                    data-testid={`btn-edit-load-${item.id}`}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                ) : (
+                  <div className="w-8 h-8 shrink-0" aria-hidden />
+                )}
                 <div className="flex flex-col gap-1 text-left shrink-0">
                   <p className="text-xs text-muted-foreground">السعر / وحدة</p>
                   <p className="text-sm font-bold text-foreground">{formatIQD(item.unitPrice)}</p>

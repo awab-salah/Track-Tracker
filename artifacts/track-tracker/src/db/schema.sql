@@ -529,3 +529,76 @@ begin
     alter publication supabase_realtime add table public.sales;
   end if;
 end $;
+
+-- ── 11. Daily load snapshots ─────────────────────────────────────────────────
+--
+-- Immutable end-of-day inventory snapshot. One row per (driver, snapshot_date).
+-- `items` is a JSONB array of { productName, quantity, unitPrice } — same shape
+-- the UI renders for live loads, so no new render component is needed.
+--
+-- Written by the client (loadRepository.finalizeYesterdayIfNeeded) under RLS.
+-- The unique (driver_id, snapshot_date) constraint + ON CONFLICT DO NOTHING
+-- is the sole idempotency guarantee — no RPC, no locks, no transactions.
+
+create table if not exists daily_load_snapshots (
+  id            uuid        primary key default gen_random_uuid(),
+  driver_id     uuid        not null references drivers(id) on delete cascade,
+  snapshot_date date        not null,
+  items         jsonb       not null,  -- [{productName, quantity, unitPrice}, ...]
+  created_at    timestamptz not null default now(),
+  unique (driver_id, snapshot_date)
+);
+
+create index if not exists daily_load_snapshots_driver_date_idx
+  on daily_load_snapshots(driver_id, snapshot_date);
+
+alter table daily_load_snapshots enable row level security;
+
+-- Driver can read their own snapshots.
+create policy daily_load_snapshots_driver_own on daily_load_snapshots
+  for select
+  using (
+    exists (
+      select 1 from drivers
+       where drivers.id = daily_load_snapshots.driver_id
+         and drivers.auth_user_id = auth.uid()
+    )
+  );
+
+-- Company owner can read all snapshots in their company.
+create policy daily_load_snapshots_company_owner_all on daily_load_snapshots
+  for select
+  using (
+    exists (
+      select 1 from drivers d
+        join companies c on c.id = d.company_id
+       where d.id = daily_load_snapshots.driver_id
+         and c.auth_user_id = auth.uid()
+    )
+  );
+
+-- Driver can insert their own snapshots (for the day just completed).
+create policy daily_load_snapshots_driver_insert on daily_load_snapshots
+  for insert
+  with check (
+    exists (
+      select 1 from drivers
+       where drivers.id = daily_load_snapshots.driver_id
+         and drivers.auth_user_id = auth.uid()
+    )
+  );
+
+-- Company owner can insert snapshots for any driver in their company
+-- (covers the company-bootstrap path that finalizes all drivers at once).
+create policy daily_load_snapshots_company_owner_insert on daily_load_snapshots
+  for insert
+  with check (
+    exists (
+      select 1 from drivers d
+        join companies c on c.id = d.company_id
+       where d.id = daily_load_snapshots.driver_id
+         and c.auth_user_id = auth.uid()
+    )
+  );
+
+-- No UPDATE or DELETE policies — snapshots are immutable by design.
