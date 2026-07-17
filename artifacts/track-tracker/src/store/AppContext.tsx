@@ -393,12 +393,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Note: this is destructive — the driver's previous live loads are lost.
   // This is the intended behavior per spec ("It immediately becomes Current
   // Cargo because it is now the active working inventory again").
+  //
+  // SAFETY: if the snapshot for `snapshotDate` does not exist (or is empty),
+  // we ABORT the promotion and return the current live cargo unchanged.
+  // Without this guard, a missing snapshot would cause `setLoads` to delete
+  // ALL of the driver's current live cargo — a destructive no-op. See Bug 4
+  // in the worklog.
   const promoteSnapshotToLive = async (
     driverId: string,
     snapshotDate: string
   ): Promise<CargoItem[]> => {
     const snapshotItems = await fetchDailySnapshots([driverId], snapshotDate);
     const itemsToPromote = snapshotItems.filter((item) => item.quantity > 0);
+
+    // SAFETY: no snapshot (or all-qty-0 snapshot) → abort promotion.
+    // Return the driver's CURRENT live cargo unchanged so the caller can
+    // still open the editor against the matching product. Without this
+    // guard, a missing snapshot would cause `setLoads` to delete ALL of
+    // the driver's current live cargo — a destructive no-op. See Bug 4
+    // in the worklog.
+    if (itemsToPromote.length === 0) {
+      return loads.filter((l) => l.driverId === driverId);
+    }
 
     const newCargo: CargoItem[] = itemsToPromote.map((item) => ({
       id: generateId(),

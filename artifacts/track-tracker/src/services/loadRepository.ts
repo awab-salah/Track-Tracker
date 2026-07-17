@@ -244,15 +244,20 @@ async function hadActivityOn(driverId: string, dateStr: string): Promise<boolean
  *
  * - If `cargoSnapshot` is supplied (called from a mutation path), uses that
  *   captured pre-mutation state — provably correct regardless of concurrent
- *   DB writes.
+ *   DB writes. The "first-deployment safety" check (step 3) is SKIPPED in
+ *   this case, because the captured state IS yesterday's EOD by construction
+ *   (mutations can only happen today, so pre-mutation == end-of-yesterday).
  * - If `cargoSnapshot` is omitted (called from bootstrap), fetches current
  *   `loads` from DB — correct because no mutation has happened today yet
- *   (verified by the activity-today check).
+ *   (verified by the activity-today check at step 3).
  *
  * Skips silently when:
  *   - snapshot for yesterday already exists (idempotency)
  *   - no activity yesterday (driver inactive — honest skip, no fabrication)
- *   - activity today already exists (first-deployment mid-day safety)
+ *   - (bootstrap path only) activity today already exists (first-deployment
+ *     mid-day safety)
+ *
+ * Returns `true` iff a new snapshot row was actually written.
  *
  * Idempotency is guaranteed by the unique (driver_id, snapshot_date) constraint
  * + ON CONFLICT DO NOTHING, NOT by the read-then-write check at step 1.
@@ -260,8 +265,8 @@ async function hadActivityOn(driverId: string, dateStr: string): Promise<boolean
 export async function finalizeYesterdayIfNeeded(
   driverId: string,
   cargoSnapshot?: CargoItem[]
-): Promise<void> {
-  if (!isSupabaseConfigured) return;
+): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
 
   const today = baghdadToday();
   const yesterday = baghdadYesterday();
@@ -273,16 +278,27 @@ export async function finalizeYesterdayIfNeeded(
     .eq('driver_id', driverId)
     .eq('snapshot_date', yesterday)
     .limit(1);
-  if (existing && existing.length > 0) return;
+  if (existing && existing.length > 0) return false;
 
   // (2) Activity yesterday? If neither sales nor loads touched yesterday,
   //     there is nothing to freeze — skip silently (driver was inactive).
-  if (!(await hadActivityOn(driverId, yesterday))) return;
+  if (!(await hadActivityOn(driverId, yesterday))) return false;
 
-  // (3) First-deployment safety: has anything mutated today already? If yes,
-  //     current loads state is no longer "yesterday's EOD" — skip silently
-  //     rather than write a wrong value.
-  if (await hadActivityOn(driverId, today)) return;
+  // (3) First-deployment safety: has anything mutated today already?
+  //
+  //     This check is ONLY correct for the bootstrap path (no `cargoSnapshot`
+  //     supplied) — in that case current loads state is no longer
+  //     "yesterday's EOD" because a mutation already happened today, so we
+  //     would write a wrong value. Skip silently.
+  //
+  //     For the mutation paths (addSale / upsertLoad / removeLoad), the
+  //     caller has already captured the PRE-mutation cargo and passed it
+  //     as `cargoSnapshot`. That captured state IS yesterday's EOD
+  //     (mutations can only happen today, so pre-mutation == end-of-yesterday).
+  //     We MUST write it regardless of today's activity — otherwise the very
+  //     first sale/edit of the day never writes yesterday's snapshot, and
+  //     the carry-over title never appears the next morning.
+  if (!cargoSnapshot && (await hadActivityOn(driverId, today))) return false;
 
   // (4) Build the items array. Use captured pre-mutation state when available;
   //     otherwise fetch current loads (which == yesterday's EOD at this point).
@@ -302,7 +318,7 @@ export async function finalizeYesterdayIfNeeded(
       .eq('driver_id', driverId);
     if (error) {
       console.error('[loadRepository] finalizeYesterdayIfNeeded (fetch loads):', error.message);
-      return;
+      return false;
     }
     items = (currentLoads ?? []).map((l: DbLoad) => ({
       productName: l.product_name,
@@ -310,7 +326,7 @@ export async function finalizeYesterdayIfNeeded(
       unitPrice: l.unit_price,
     }));
   }
-  if (items.length === 0) return;
+  if (items.length === 0) return false;
 
   // (5) Insert with ON CONFLICT DO NOTHING — the sole idempotency guarantee.
   //     A second concurrent caller that passed step 1 will hit the unique
@@ -325,7 +341,9 @@ export async function finalizeYesterdayIfNeeded(
   );
   if (error) {
     console.error('[loadRepository] finalizeYesterdayIfNeeded (insert):', error.message);
+    return false;
   }
+  return true;
 }
 
 /**
