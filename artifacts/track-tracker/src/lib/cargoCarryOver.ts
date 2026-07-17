@@ -76,6 +76,30 @@ export function indexCargoByKey(items: CargoItem[]): Map<string, CargoByKey> {
  * - `liveCargo` — current `loads` rows for this driver.
  * - `yesterdaySnapshot` — `daily_load_snapshots` row for yesterday, parsed
  *   back into `CargoItem[]`. `null`/`[]` means "no snapshot" (spec E).
+ *
+ * IMPORTANT: qty-0 items in the SNAPSHOT are filtered out (a snapshot row
+ * with qty 0 is a phantom that should not participate in the comparison).
+ *
+ * But qty-0 items in LIVE cargo are KEPT for the comparison — a product
+ * that was fully sold out today (live qty=0, snapshot qty>0) is STILL
+ * "carried over", not "removed". Per spec: "a sale is not an edit;
+ * quantities may decrease, even to 0, and the title stays as carried-over
+ * until the driver edits cargo". Treating a sold-out product as "removed"
+ * (the previous behaviour) flipped the title to "الحمولة الحالية" the
+ * moment any product sold out — see Bug 3 in the worklog.
+ *
+ * Sales only DECREMENT quantities (never add products, never change prices,
+ * never increase a quantity). So we treat the cargo as "edited" only when:
+ *   - a product exists in live (any qty, including 0) but not in snapshot (added), OR
+ *   - a product exists in snapshot (qty>0) but not in live at all (removed —
+ *     NOT "live qty=0"; that's a sell-out, treated as sale), OR
+ *   - a product's unitPrice differs (price edited), OR
+ *   - a product's quantity in live is GREATER than in snapshot
+ *     (a sale can only decrease, so an increase means an edit).
+ *
+ * A quantity decrease alone is treated as a sale (not an edit) — this
+ * matches spec C's statement that "This state continues until the driver
+ * edits cargo" even as sales happen.
  */
 export function isCargoCarriedOverToday(
   isToday: boolean,
@@ -84,11 +108,29 @@ export function isCargoCarriedOverToday(
 ): boolean {
   if (!isToday) return false;
 
-  const snapByKey = indexCargoByKey(yesterdaySnapshot ?? []);
+  // Snapshot: drop qty-0 entries — they're phantoms and must not participate.
+  const snapByKey = new Map<string, CargoByKey>();
+  for (const item of yesterdaySnapshot ?? []) {
+    if (item.quantity > 0) {
+      snapByKey.set(item.productName.trim().toLowerCase(), {
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      });
+    }
+  }
   // No yesterday snapshot → no carry-over (spec E: zero/missing cargo).
   if (snapByKey.size === 0) return false;
 
-  const liveByKey = indexCargoByKey(liveCargo);
+  // Live: KEEP qty-0 entries. A sold-out product is "still present, qty 0"
+  // — it's a sale, not an edit. Only filter out items that don't exist in
+  // live AT ALL (truly removed by an edit).
+  const liveByKey = new Map<string, CargoByKey>();
+  for (const item of liveCargo) {
+    liveByKey.set(item.productName.trim().toLowerCase(), {
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    });
+  }
 
   // Edited if any live product is not in snapshot (added),
   // if any price differs, or if any live quantity is GREATER than the
@@ -100,9 +142,11 @@ export function isCargoCarriedOverToday(
     if (live.quantity > snap.quantity) return false; // quantity increased (sale can't)
   }
 
-  // Edited if any snapshot product is not in live (removed).
+  // Edited if any snapshot product is not in live AT ALL (removed by edit).
+  // A product that IS in live but with qty=0 is NOT "removed" — it's a
+  // sell-out (sale), which is still carry-over.
   for (const key of snapByKey.keys()) {
-    if (!liveByKey.has(key)) return false; // removed → edited
+    if (!liveByKey.has(key)) return false; // truly removed → edited
   }
 
   // Quantities may have decreased (sales) — that's still carried over.

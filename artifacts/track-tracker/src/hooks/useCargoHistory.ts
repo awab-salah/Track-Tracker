@@ -128,6 +128,25 @@ export function useCargoHistory(
   // detect the carried-over state. Null while loading, [] if no snapshot.
   const [yesterdaySnapshot, setYesterdaySnapshot] = useState<CargoItem[] | null>(null);
 
+  // ── Cargo source signature ──
+  //
+  // A stable string signature of the live cargo content (id+qty+price per
+  // row). Used as a useEffect dependency so the yesterday-snapshot refetch
+  // fires whenever live cargo changes — without it, the hook would fetch
+  // yesterday's snapshot ONCE on mount and never re-fetch, even after the
+  // bootstrap's fire-and-forget `finalizeYesterdayIfNeeded` writes the
+  // snapshot. That race left `yesterdaySnapshot` stuck at `[]` and the
+  // carry-over title never appeared, even though the snapshot existed in
+  // the DB. See Bug 2 in the worklog.
+  const liveCargoSig = useMemo(
+    () =>
+      liveCargo
+        .map((l) => `${l.id}:${l.quantity}:${l.unitPrice}`)
+        .sort()
+        .join('|'),
+    [liveCargo],
+  );
+
   // Fetch earliest snapshot date once per driver (gates the prev-week arrow).
   useEffect(() => {
     if (!driverId) return;
@@ -138,17 +157,38 @@ export function useCargoHistory(
     return () => { cancelled = true; };
   }, [driverId]);
 
-  // Fetch yesterday's snapshot once per driver. Re-fetches when the driver
-  // changes. Safe to keep cached across selectedDate changes — yesterday
-  // is always relative to `today`, not selectedDate.
+  // Fetch yesterday's snapshot. Re-fetches when:
+  //   - the driver changes, OR
+  //   - the calendar day rolls over (yesterday changes), OR
+  //   - live cargo content changes (a mutation happened → bootstrap's
+  //     fire-and-forget finalizeYesterdayIfNeeded may have just written
+  //     the snapshot; refetch to pick it up).
+  //
+  // The refetch is delayed by 500ms to give the finalize write a chance
+  // to commit to the DB before we read it. Without the delay, the refetch
+  // would race with the write and might still see the old (empty) state.
+  //
+  // Additionally, we schedule ONE follow-up refetch 2.5s after every
+  // live-cargo change. This catches the case where finalize takes longer
+  // than 500ms (it does 3-4 Supabase round-trips; on slow connections
+  // that can exceed 500ms). The follow-up is a no-op if the snapshot
+  // hasn't changed since the previous fetch.
   useEffect(() => {
     if (!driverId) return;
     let cancelled = false;
-    void fetchDailySnapshots([driverId], yesterday).then((rows) => {
-      if (!cancelled) setYesterdaySnapshot(rows);
-    });
-    return () => { cancelled = true; };
-  }, [driverId, yesterday]);
+    const doFetch = () => {
+      void fetchDailySnapshots([driverId], yesterday).then((rows) => {
+        if (!cancelled) setYesterdaySnapshot(rows);
+      });
+    };
+    const primary = setTimeout(doFetch, 500);
+    const followup = setTimeout(doFetch, 2500);
+    return () => {
+      cancelled = true;
+      clearTimeout(primary);
+      clearTimeout(followup);
+    };
+  }, [driverId, yesterday, liveCargoSig]);
 
   // Fetch snapshot only for PAST days; clear when viewing today/future.
   useEffect(() => {
