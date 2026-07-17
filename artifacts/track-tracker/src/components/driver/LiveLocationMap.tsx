@@ -163,6 +163,22 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
   // Update marker + pan when coords change. Guard against a detached
   // container (can happen during unmount if a GPS update fires after
   // React has started removing the DOM node).
+  //
+  // TWITCH FIX: We do NOT call `map.setView()` on every GPS update.
+  // `useLocationTracking` fires `setCoords(...)` on EVERY `watchPosition`
+  // callback (only the Supabase write is throttled), which with
+  // `enableHighAccuracy: true` means roughly once per second. Calling
+  // `setView(pos, 15, { animate: true })` on every update starts a ~250ms
+  // pan animation that gets interrupted by the next update before it can
+  // finish — the visible result is a continuously jittering map.
+  //
+  // Instead:
+  //   - First fix (no marker yet): snap immediately with `animate: false`
+  //     so the map centres on the user with zero animation.
+  //   - Subsequent fixes (marker exists): move ONLY the marker via
+  //     `setLatLng()`. The map stays put — exactly how Google/Apple Maps
+  //     behave (the blue dot moves, the camera does not re-centre on
+  //     every GPS blip).
   useEffect(() => {
     const map = mapRef.current;
     const el = containerRef.current;
@@ -173,11 +189,13 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
 
     const pos: L.LatLngExpression = [coords.lat, coords.lng];
     if (markerRef.current) {
+      // Marker exists — just slide it. No map re-centre, no animation.
       markerRef.current.setLatLng(pos);
     } else {
+      // First fix — create marker AND snap the view to it instantly.
       markerRef.current = L.marker(pos, { icon: makeSelfIcon() }).addTo(map);
+      map.setView(pos, 15, { animate: false });
     }
-    map.setView(pos, 15, { animate: true });
   }, [coords]);
 
   // ── Permission-denied: full-card error state ──────────────────────────
