@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Redirect } from 'wouter';
 import { motion } from 'framer-motion';
 import { ArrowRight, LogOut, User, Pencil, Check, X } from 'lucide-react';
 import { MobileLayout } from '@/layouts/MobileLayout';
@@ -18,9 +18,10 @@ export default function DriverProfilePage() {
   const [editEmail, setEditEmail] = useState('');
   const [editVehicle, setEditVehicle] = useState('');
 
+  // Render-loop safety: use <Redirect> instead of setLocation() during
+  // render. See DriverDashboard.tsx for the full explanation.
   if (!currentDriver) {
-    setLocation('/driver-auth');
-    return null;
+    return <Redirect to="/driver-auth" />;
   }
 
   const startEdit = () => {
