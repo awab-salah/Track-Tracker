@@ -8,6 +8,25 @@
  *   - A general error state for GPS/timeout failures
  *
  * No start/stop controls — tracking is automatic and always on.
+ *
+ * ── Leaflet lifecycle safety ──
+ *
+ * The map container `<div ref={containerRef}>` is ALWAYS mounted (even when
+ * the `denied` card is shown on top). This is critical: Leaflet caches DOM
+ * references via `el._leaflet_pos` and crashes with
+ * "Cannot read properties of undefined (reading '_leaflet_pos')" if its
+ * container is removed from the DOM while internal pan/zoom handlers are
+ * still scheduled. By keeping the container mounted for the component's
+ * entire lifetime, Leaflet always has a stable DOM node to talk to.
+ *
+ * The cleanup path additionally:
+ *   - nulls `mapRef.current` BEFORE calling `map.remove()` so any pending
+ *     effect that re-enters during teardown early-exits;
+ *   - wraps `map.remove()` in try/catch so a partial-DOM-state during
+ *     React 19 strict-mode double-invoke or AnimatePresence exit never
+ *     propagates a runtime error to the preview;
+ *   - verifies `document.body.contains(el)` before any post-mount map
+ *     operation (`setView`, marker updates) to skip work on detached nodes.
  */
 import { useEffect, useRef } from 'react';
 import { MapPin, AlertCircle, Loader2, LocateFixed } from 'lucide-react';
@@ -91,7 +110,13 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
   const mapRef       = useRef<L.Map | null>(null);
   const markerRef    = useRef<L.Marker | null>(null);
 
-  // Initialise Leaflet once
+  // Initialise Leaflet once. The container `<div ref={containerRef}>` is
+  // ALWAYS mounted (see render below) so this effect can safely assume
+  // the node exists. Cleanup nulls the ref BEFORE `map.remove()` so any
+  // pending effect that re-enters during teardown early-exits, and wraps
+  // `map.remove()` in try/catch so partial-DOM-state during React 19
+  // strict-mode double-invoke or AnimatePresence exit never propagates a
+  // runtime error.
   useEffect(() => {
     const el = containerRef.current;
     if (!el || mapRef.current) return;
@@ -116,16 +141,35 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
     mapRef.current = map;
 
     return () => {
-      map.remove();
-      mapRef.current  = null;
+      // Null the ref FIRST so the coords effect (which depends on
+      // `mapRef.current`) early-exits if it fires during teardown.
+      const m = mapRef.current;
+      mapRef.current = null;
       markerRef.current = null;
+      if (!m) return;
+      // `map.remove()` can throw if the container has already been
+      // detached from the document (e.g. AnimatePresence exit + a pending
+      // Leaflet animation frame). Swallow the error — the map instance is
+      // unreachable after this point anyway, and React will GC the DOM
+      // node immediately after.
+      try {
+        m.remove();
+      } catch {
+        // no-op — Leaflet was already torn down or the DOM is gone.
+      }
     };
   }, []);
 
-  // Update marker + pan when coords change
+  // Update marker + pan when coords change. Guard against a detached
+  // container (can happen during unmount if a GPS update fires after
+  // React has started removing the DOM node).
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !coords) return;
+    const el = containerRef.current;
+    if (!map || !coords || !el) return;
+    // Skip if the container has been removed from the document — Leaflet
+    // would try to read `_leaflet_pos` off a detached node and crash.
+    if (!document.body.contains(el)) return;
 
     const pos: L.LatLngExpression = [coords.lat, coords.lng];
     if (markerRef.current) {
@@ -136,36 +180,12 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
     map.setView(pos, 15, { animate: true });
   }, [coords]);
 
-  // ── Permission-denied: full-card error state (skip map) ──────────────────
-
-  if (status === 'denied') {
-    return (
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-        <div className="p-4 pb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin size={16} className="text-primary shrink-0" />
-            <h3 className="font-extrabold text-[15px] text-foreground">موقعي المباشر</h3>
-          </div>
-          <StatusPill status={status} />
-        </div>
-        <div className="px-4 pb-5 flex flex-col items-center gap-3 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mt-1">
-            <AlertCircle size={28} className="text-red-500" />
-          </div>
-          <div>
-            <p className="font-bold text-sm text-foreground">إذن الموقع مرفوض</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              يحتاج التطبيق إلى إذن الموقع لمشاركة موقعك مع الشركة.
-              <br />
-              افتح إعدادات المتصفح، فعّل إذن الموقع لهذا الموقع، ثم أعد تحميل الصفحة.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Normal card with embedded map ────────────────────────────────────────
+  // ── Permission-denied: full-card error state ──────────────────────────
+  // The map container `<div ref={containerRef}>` is STILL rendered below
+  // (just visually hidden) so Leaflet has a stable DOM node. Removing it
+  // from the DOM here would crash Leaflet with `_leaflet_pos` of
+  // undefined the next time a pan/zoom handler fires.
+  const isDenied = status === 'denied';
 
   // Decide what to show in the map overlay
   const showOverlay = !coords;
@@ -205,7 +225,10 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
         <StatusPill status={status} />
       </div>
 
-      {/* Map — always mounted so Leaflet has a stable DOM node */}
+      {/* Map — ALWAYS mounted so Leaflet has a stable DOM node.
+          When `denied`, the error overlay below covers the map visually
+          (the map stays in the DOM so Leaflet doesn't crash on its next
+          scheduled pan/zoom). */}
       <div
         className="mx-4 rounded-xl overflow-hidden border border-border relative"
         style={{ height: 160 }}
@@ -213,9 +236,28 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
         <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
         {/* Overlay when no GPS fix yet */}
-        {showOverlay && (
+        {showOverlay && !isDenied && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/85 gap-2 pointer-events-none">
             {overlayContent}
+          </div>
+        )}
+
+        {/* Permission-denied overlay — covers the map with the error
+            card. The map stays mounted underneath so Leaflet doesn’t
+            crash on its next scheduled pan/zoom. */}
+        {isDenied && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center bg-white dark:bg-zinc-900 px-4">
+            <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mt-1">
+              <AlertCircle size={28} className="text-red-500" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-foreground">إذن الموقع مرفوض</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                يحتاج التطبيق إلى إذن الموقع لمشاركة موقعك مع الشركة.
+                <br />
+                افتح إعدادات المتصفح، فعّل إذن الموقع لهذا الموقع، ثم أعد تحميل الصفحة.
+              </p>
+            </div>
           </div>
         )}
       </div>
