@@ -84,14 +84,17 @@ export async function fetchSales(driverIds: string[]): Promise<SaleRecord[]> {
  * batch). The caller supplies a client-generated UUID for `id` so that local
  * state and DB always share the same id without any reconciliation.
  *
- * Note: receiptImageUrl is a blob URL — not persisted (cleared on reload).
+ * `receiptImageUrl` is the durable Supabase Storage public URL of the uploaded
+ * receipt image (obtained via uploadReceiptImage). May be null when the driver
+ * didn't attach a receipt.
  */
 export async function createSale(
   id: string,
   driverId: string,
   date: string,
   items: SaleLineItem[],
-  totalPrice: number
+  totalPrice: number,
+  receiptImageUrl: string | null = null
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
 
@@ -102,7 +105,7 @@ export async function createSale(
       driver_id: driverId,
       date,
       total_price: totalPrice,
-      receipt_image_url: null, // blob URLs are ephemeral
+      receipt_image_url: receiptImageUrl,
     });
 
   if (saleErr) {
