@@ -3,8 +3,8 @@
 // Supabase Storage upload helpers for profile images and sale receipts.
 //
 // Path convention (REQUIRED by storage RLS — see src/db/storage_setup.sql):
-//   avatars bucket:      "{auth.uid()}/{kind}-{timestamp}.{ext}"
-//   sale-receipts bucket: "{auth.uid()}/receipt-{timestamp}-{rand}.{ext}"
+//   avatars bucket: "{auth.uid()}/{kind}-{timestamp}.{ext}"
+//   receipts bucket: "{auth.uid()}/receipt-{timestamp}-{rand}.{ext}"
 //
 // RLS policies (storage_setup.sql) require the FIRST path segment to equal
 // the authenticated user's auth.uid(). Any other prefix is rejected with
@@ -18,7 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image';
 
 export const AVATARS_BUCKET = 'avatars';
-export const RECEIPTS_BUCKET = 'sale-receipts';
+export const RECEIPTS_BUCKET = 'receipts';
 
 /**
  * Resolve the current authenticated user's id (auth.uid()).
@@ -98,7 +98,7 @@ export async function uploadProfileImage(
 // ── Sale receipts ─────────────────────────────────────────────────────────────
 
 /**
- * Upload a sale receipt image to the `sale-receipts` bucket. Compresses the
+ * Upload a sale receipt image to the `receipts` bucket. Compresses the
  * image before upload. Returns the public URL, or null on failure.
  *
  * `saleId` (optional) is included in the filename for traceability in the

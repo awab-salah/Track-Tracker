@@ -18,7 +18,7 @@
 //     4. Upload a PNG to `avatars/{driverAuthUid}/driver-{ts}.png`
 //     5. UPDATE drivers.profile_picture_url = publicUrl
 //     6. Re-fetch driver → verify profile_picture_url persisted
-//     7. Create a sale with a receipt PNG → upload to `sale-receipts/...`
+//     7. Create a sale with a receipt PNG → upload to `receipts/...`
 //     8. INSERT sales row with receipt_image_url = publicUrl
 //     9. Re-fetch sales → verify receipt_image_url persisted
 //
@@ -32,7 +32,7 @@
 //   Flow A step 5: SUCCEEDS (companies RLS allows owner to UPDATE logo_url)
 //   Flow B step 4: 403 RLS error
 //   Flow B step 6: SUCCEEDS (drivers RLS allows owner to UPDATE profile_picture_url)
-//   Flow B step 7: 404 bucket not found (sale-receipts bucket doesn't exist)
+//   Flow B step 7: 404 bucket not found (receipts bucket doesn't exist)
 //   Flow B step 9: receipt_image_url = null in DB
 //
 // Expected output AFTER storage_setup.sql is applied:
@@ -244,10 +244,10 @@ async function flowB(flowA) {
   }
 
   // ── Receipt flow ──
-  console.log('\nStep B7 — Upload PNG to sale-receipts bucket at "{driverAuthUid}/receipt-{saleId}-{ts}.png"');
+  console.log('\nStep B7 — Upload PNG to receipts bucket at "{driverAuthUid}/receipt-{saleId}-{ts}.png"');
   const saleId = randomUUID();
   const receiptPath = `${signUp.user.id}/receipt-${saleId.slice(0,8)}-${stamp}.png`;
-  const upR = await drv.storage.from('sale-receipts').upload(receiptPath, pngBlob(), {
+  const upR = await drv.storage.from('receipts').upload(receiptPath, pngBlob(), {
     contentType: 'image/png', upsert: true,
   });
   if (upR.error) {
@@ -255,7 +255,7 @@ async function flowB(flowA) {
   } else {
     check('B7 upload receipt', true, `path=${upR.data.path}`);
   }
-  const receiptUrl = upR.data ? publicUrlFor('sale-receipts', upR.data.path) : null;
+  const receiptUrl = upR.data ? publicUrlFor('receipts', upR.data.path) : null;
 
   console.log('\nStep B8 — INSERT sales row with receipt_image_url = publicUrl');
   const today = new Date().toISOString().split('T')[0];
