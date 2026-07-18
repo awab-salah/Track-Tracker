@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X } from 'lucide-react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -398,6 +398,22 @@ export default function ProfilePage() {
                 </motion.span>
               </div>
             </div>
+
+            {/* ── Subscriptions card ── */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setLocation('/subscriptions')}
+              className="w-full bg-white dark:bg-zinc-900 rounded-2xl p-4
+                         shadow-[0_2px_12px_rgba(0,0,0,0.06)]
+                         border border-black/[0.04] dark:border-white/[0.06]
+                         flex items-center justify-between
+                         transition-shadow duration-300
+                         hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
+              data-testid="btn-subscriptions"
+            >
+              <ChevronLeft size={18} className="text-muted-foreground" />
+              <span className="font-semibold text-foreground">الاشتراكات</span>
+            </motion.button>
 
             {/* ── Settings card ── */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden
