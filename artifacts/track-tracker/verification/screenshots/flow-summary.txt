@@ -1,0 +1,19 @@
+TrackTracker — End-to-end browser verification
+Generated: 2026-07-18T22:29:32Z
+
+Company:
+  email:      verify-co+mrqxvxu2@track-tracker.test
+  uid:        73e6ad68-3427-422c-bb30-b85bb11764a8
+  company_id: b71ed87e-63bc-4c01-a3b7-5c6d900338e2
+  join_code:  VCVXU2
+
+Driver:
+  email:     verify-drv+mrqxvxu2@track-tracker.test
+  uid:       54a2da3b-c4ae-4a44-b6e5-5b686fd3926a
+  driver_id: ad84fcce-c3f9-4cf9-b111-b031f09c2142
+
+Company logo_url (from DB after refresh): https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/avatars/73e6ad68-3427-422c-bb30-b85bb11764a8/company-1784413793062.png
+Driver profile_picture_url (from DB after refresh): https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/avatars/54a2da3b-c4ae-4a44-b6e5-5b686fd3926a/driver-1784413825804.png
+
+Latest sale record (from DB):
+[{"id":"ac9bf91b-a8ef-4b53-8e84-e338e20429e2","receipt_image_url":"https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/receipts/54a2da3b-c4ae-4a44-b6e5-5b686fd3926a/receipt-1784413854766.png","total_price":500,"created_at":"2026-07-18T22:31:06.443335+00:00"}]
