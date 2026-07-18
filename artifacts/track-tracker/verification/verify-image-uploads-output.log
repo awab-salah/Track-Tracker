@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════════════════
+TrackTracker — Image Upload End-to-End Verification
+Project: qexafenusvjkyzfhtpda.supabase.co
+Time:    2026-07-18T22:31:34.802Z
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
+Flow A — Company logo upload (ProfilePage.tsx → updateLogo → companies.logo_url)
+═══════════════════════════════════════════════════════════════════════
+
+Step A1 — Sign up company
+  [PASS] A1 signUp — authUid=351169c2-01a2-4741-b4fa-f734acd80628
+
+Step A2 — Resolve company row (handle_new_user trigger should have created it)
+  [PASS] A2 fetch company — id=72238011-c12b-4ce8-b0d6-f0b69e7f95fb joinCode=E2ECL5G
+
+Step A3 — Upload PNG to avatars bucket at path "{authUid}/company-{ts}.png"
+  [PASS] A3 upload — path=351169c2-01a2-4741-b4fa-f734acd80628/company-mrqxyl5g.png
+
+Step A4 — UPDATE companies.logo_url = publicUrl (RLS: companies_owner)
+  [PASS] A4 update companies.logo_url
+
+Step A5 — Re-fetch company (simulates page refresh)
+  [PASS] A5 logo_url persisted after refresh — expected=https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/avatars/351169c2-01a2-4741-b4fa-f734acd80628/company-mrqxyl5g.png got=https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/avatars/351169c2-01a2-4741-b4fa-f734acd80628/company-mrqxyl5g.png
+
+Step A6 — Verify the public URL is fetchable via HTTP GET
+  [PASS] A6 GET publicUrl — HTTP 200 69 bytes
+
+═══════════════════════════════════════════════════════════════════════
+Flow B — Driver avatar + receipt upload (DriverProfilePage + SalesTab)
+═══════════════════════════════════════════════════════════════════════
+
+Step B1 — Validate join code via RPC (validate_join_code)
+  [PASS] B1 validate_join_code — companyId=72238011-c12b-4ce8-b0d6-f0b69e7f95fb
+
+Step B2 — Sign up driver (handle_new_user trigger creates drivers row)
+  [PASS] B2 signUp — authUid=f124eead-c481-4121-9c7b-af969a836c58
+
+Step B3 — Resolve driver row
+  [PASS] B3 fetch driver — id=c21859af-cd82-48c1-8e23-56977250fbba
+
+Step B4 — Upload PNG to avatars bucket at "{driverAuthUid}/driver-{ts}.png"
+  [PASS] B4 upload avatar — path=f124eead-c481-4121-9c7b-af969a836c58/driver-mrqxym9s.png
+
+Step B5 — UPDATE drivers.profile_picture_url = publicUrl (RLS: drivers_own_row_update)
+  [PASS] B5 update drivers.profile_picture_url
+
+Step B6 — Re-fetch driver (simulates page refresh)
+  [PASS] B6 profile_picture_url persisted after refresh — expected=https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/avatars/f124eead-c481-4121-9c7b-af969a836c58/driver-mrqxym9s.png got=https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/avatars/f124eead-c481-4121-9c7b-af969a836c58/driver-mrqxym9s.png
+
+Step B7 — Upload PNG to receipts bucket at "{driverAuthUid}/receipt-{saleId}-{ts}.png"
+  [PASS] B7 upload receipt — path=f124eead-c481-4121-9c7b-af969a836c58/receipt-5a3be2b6-mrqxym9s.png
+
+Step B8 — INSERT sales row with receipt_image_url = publicUrl
+  [PASS] B8 insert sales
+
+Step B9 — Re-fetch sale (simulates page refresh)
+  [PASS] B9 receipt_image_url persisted after refresh — expected=https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/receipts/f124eead-c481-4121-9c7b-af969a836c58/receipt-5a3be2b6-mrqxym9s.png got=https://qexafenusvjkyzfhtpda.supabase.co/storage/v1/object/public/receipts/f124eead-c481-4121-9c7b-af969a836c58/receipt-5a3be2b6-mrqxym9s.png
+
+═══════════════════════════════════════════════════════════════════════
+Summary: 15 PASS / 0 FAIL
+═══════════════════════════════════════════════════════════════════════
