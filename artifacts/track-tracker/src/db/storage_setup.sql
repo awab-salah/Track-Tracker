@@ -11,7 +11,7 @@
 --
 -- What this script does:
 --   1. Creates the `avatars` bucket (driver profile pictures + company logos)
---      and the `sale-receipts` bucket (sale receipt images) if missing.
+--      and the `receipts` bucket (sale receipt images) if missing.
 --   2. Sets both buckets to PUBLIC read (anyone can fetch an image by URL)
 --      while requiring authentication for writes.
 --   3. Creates RLS policies on storage.objects that enforce path-based
@@ -19,11 +19,18 @@
 --      whose FIRST path segment equals their own auth.uid().
 --
 -- Path convention (must be enforced by the frontend — see src/lib/storage.ts):
---   avatars bucket:      "{auth.uid()}/{kind}-{timestamp}.{ext}"
---   sale-receipts bucket: "{auth.uid()}/receipt-{timestamp}-{rand}.{ext}"
+--   avatars bucket: "{auth.uid()}/{kind}-{timestamp}.{ext}"
+--   receipts bucket: "{auth.uid()}/receipt-{timestamp}-{rand}.{ext}"
 --
 -- The first path segment is the auth.uid() — this is what the RLS policies
 -- below check via (storage.foldername(name))[1] = auth.uid()::text.
+--
+-- HISTORY:
+--   An earlier draft of this file used the bucket name `sale-receipts`. The
+--   React app now uses `receipts` to match the bucket that already exists on
+--   the live Supabase project. The drop statements in section 2 also clean up
+--   the legacy `sale_receipts_*` policy names so a re-run on a project that
+--   previously applied the old script will leave no orphan policies behind.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── 1. Create buckets ─────────────────────────────────────────────────────────
@@ -35,19 +42,28 @@
 insert into storage.buckets (id, name, public)
 values
   ('avatars', 'avatars', true),
-  ('sale-receipts', 'sale-receipts', true)
+  ('receipts', 'receipts', true)
 on conflict (id) do update set public = true;
 
 -- ── 2. Drop existing storage.objects policies (idempotent) ────────────────────
 --
 -- Drop by name so re-runs are safe even if a previous version of this script
--- created policies with different expressions.
+-- created policies with different names or expressions.
+-- We also drop the legacy `sale_receipts_*` policies from the earlier draft
+-- that used the bucket name `sale-receipts`.
 
 drop policy if exists "avatars_select_public"        on storage.objects;
 drop policy if exists "avatars_insert_owner"         on storage.objects;
 drop policy if exists "avatars_update_owner"         on storage.objects;
 drop policy if exists "avatars_delete_owner"         on storage.objects;
 
+drop policy if exists "receipts_select_public"       on storage.objects;
+drop policy if exists "receipts_insert_owner"        on storage.objects;
+drop policy if exists "receipts_update_owner"        on storage.objects;
+drop policy if exists "receipts_delete_owner"        on storage.objects;
+
+-- Legacy policies from the earlier draft (bucket was `sale-receipts`).
+-- Kept here so a re-run on a project that applied the old version cleans up.
 drop policy if exists "sale_receipts_select_public"  on storage.objects;
 drop policy if exists "sale_receipts_insert_owner"   on storage.objects;
 drop policy if exists "sale_receipts_update_owner"   on storage.objects;
@@ -64,9 +80,9 @@ create policy "avatars_select_public"
   on storage.objects for select
   using (bucket_id = 'avatars');
 
-create policy "sale_receipts_select_public"
+create policy "receipts_select_public"
   on storage.objects for select
-  using (bucket_id = 'sale-receipts');
+  using (bucket_id = 'receipts');
 
 -- ── 4. Owner-write policies ───────────────────────────────────────────────────
 --
@@ -104,28 +120,28 @@ create policy "avatars_delete_owner"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
-create policy "sale_receipts_insert_owner"
+create policy "receipts_insert_owner"
   on storage.objects for insert to authenticated
   with check (
-    bucket_id = 'sale-receipts'
+    bucket_id = 'receipts'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
-create policy "sale_receipts_update_owner"
+create policy "receipts_update_owner"
   on storage.objects for update to authenticated
   using (
-    bucket_id = 'sale-receipts'
+    bucket_id = 'receipts'
     and (storage.foldername(name))[1] = auth.uid()::text
   )
   with check (
-    bucket_id = 'sale-receipts'
+    bucket_id = 'receipts'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
-create policy "sale_receipts_delete_owner"
+create policy "receipts_delete_owner"
   on storage.objects for delete to authenticated
   using (
-    bucket_id = 'sale-receipts'
+    bucket_id = 'receipts'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
@@ -135,7 +151,7 @@ create policy "sale_receipts_delete_owner"
 -- place. They return rows when the setup succeeded.
 
 -- Buckets (expect 2 rows, both public=true):
---   select id, name, public from storage.buckets where id in ('avatars', 'sale-receipts');
+--   select id, name, public from storage.buckets where id in ('avatars', 'receipts');
 
 -- Policies (expect 8 rows total — 4 per bucket):
 --   select name, command, qual, with_check
