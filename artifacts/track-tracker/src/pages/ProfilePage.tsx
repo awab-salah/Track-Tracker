@@ -219,7 +219,14 @@ export default function ProfilePage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    updateLogo(URL.createObjectURL(file));
+    // FileReader produces a data: URL which works inside cross-origin iframes;
+    // blob: URLs (URL.createObjectURL) are blocked in that context.
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') updateLogo(result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCopy = () => {

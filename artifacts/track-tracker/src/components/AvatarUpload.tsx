@@ -28,7 +28,15 @@ export function AvatarUpload({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    onChange(URL.createObjectURL(file));
+    // Use FileReader (base64 data URL) instead of URL.createObjectURL —
+    // blob: URLs are blocked by browsers inside cross-origin iframes (e.g.
+    // Replit Preview), whereas data: URLs have no origin restrictions.
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') onChange(result);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
