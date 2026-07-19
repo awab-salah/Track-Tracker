@@ -310,24 +310,33 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* label activates the file input natively — works in sandboxed iframes */}
+              {/*
+                input inside the label, hidden via opacity+position (not display:none).
+                iOS Safari won't open a file picker for display:none inputs even
+                when triggered by a label — opacity-hidden inputs work on all platforms.
+              */}
               <motion.label
-                htmlFor="input-logo"
                 whileTap={{ scale: 0.88 }}
                 className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center
-                           justify-center border-2 border-white shadow-md cursor-pointer"
+                           justify-center border-2 border-white shadow-md cursor-pointer overflow-hidden"
                 style={{ background: '#C97A56' }}
               >
-                <Camera size={13} color="white" />
+                <Camera size={13} color="white" style={{ pointerEvents: 'none' }} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  data-testid="input-logo"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    cursor: 'pointer',
+                  }}
+                />
               </motion.label>
-              <input
-                id="input-logo"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleLogoChange}
-                data-testid="input-logo"
-              />
             </div>
 
             {isEditing ? (

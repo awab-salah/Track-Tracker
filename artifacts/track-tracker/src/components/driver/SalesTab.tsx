@@ -261,38 +261,55 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* labels activate file inputs natively — works in sandboxed iframes */}
+                {/*
+                  Inputs sit inside each label and are hidden via opacity+position (not
+                  display:none). iOS Safari refuses to open a file picker for display:none
+                  inputs even when triggered by a label — opacity-hidden inputs work on all
+                  platforms including Replit Preview iframes.
+                */}
                 <label
-                  htmlFor="receipt-camera"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                  className="flex-1 relative flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer overflow-hidden"
                   data-testid="btn-capture-camera"
                 >
-                  <Camera size={16} /> كاميرا
+                  <Camera size={16} style={{ pointerEvents: 'none' }} />
+                  <span style={{ pointerEvents: 'none' }}>كاميرا</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleReceiptFile}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      opacity: 0,
+                      cursor: 'pointer',
+                    }}
+                  />
                 </label>
                 <label
-                  htmlFor="receipt-gallery"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                  className="flex-1 relative flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer overflow-hidden"
                   data-testid="btn-capture-gallery"
                 >
-                  <ImageIcon size={16} /> المعرض
+                  <ImageIcon size={16} style={{ pointerEvents: 'none' }} />
+                  <span style={{ pointerEvents: 'none' }}>المعرض</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptFile}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      opacity: 0,
+                      cursor: 'pointer',
+                    }}
+                  />
                 </label>
               </div>
             )}
-            <input
-              id="receipt-camera"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleReceiptFile}
-            />
-            <input
-              id="receipt-gallery"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleReceiptFile}
-            />
           </div>
 
           {/* ── Total & submit ── */}
