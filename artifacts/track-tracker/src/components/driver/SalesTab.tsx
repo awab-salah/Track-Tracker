@@ -260,13 +260,13 @@ export function SalesTab() {
                 </button>
               </div>
             ) : (
-              {/*
-                Inputs sit inside each label and are hidden via opacity+position (not
-                display:none). iOS Safari refuses to open a file picker for display:none
-                inputs even when triggered by a label — opacity-hidden inputs work on all
-                platforms including Replit Preview iframes.
-              */}
               <div className="flex gap-2">
+                {/*
+                  Inputs sit inside each label and are hidden via opacity+position (not
+                  display:none). iOS Safari refuses to open a file picker for display:none
+                  inputs even when triggered by a label — opacity-hidden inputs work on all
+                  platforms including Replit Preview iframes.
+                */}
                 <label
                   className="flex-1 relative flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer overflow-hidden"
                   data-testid="btn-capture-camera"
