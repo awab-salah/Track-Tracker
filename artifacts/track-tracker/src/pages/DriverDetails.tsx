@@ -62,7 +62,7 @@ function SectionTitle({ icon: Icon, title, hint }: { icon: React.ElementType; ti
 export default function DriverDetails() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
-  const { drivers, loads, sales } = useApp();
+  const { drivers, loads, sales, cargoEditedToday } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   // ── Resolved location text ──
@@ -102,7 +102,7 @@ export default function DriverDetails() {
     isFuture,
     displayCargo,
     cargoTitle,
-  } = useCargoHistory(driverId, cargo, driver?.createdAt);
+  } = useCargoHistory(driverId, cargo, driver?.createdAt, cargoEditedToday);
 
   if (!driver) {
     return (

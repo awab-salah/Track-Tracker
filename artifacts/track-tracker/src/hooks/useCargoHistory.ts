@@ -92,12 +92,27 @@ export interface UseCargoHistoryResult {
  * (from `Driver.createdAt`). This hook does NOT mutate cargo — it only
  * reads from AppContext + the snapshot repository.
  *
+ * The optional `cargoEditedToday` flag (latched by AppContext on the first
+ * cargo mutation of the day — add/remove/sell/qty-change/promote-snapshot —
+ * and persisted to localStorage keyed by `(driverId, today)`) OVERRIDES the
+ * carry-over detection: when true, `isCarriedOverToday` is forced to false
+ * and the title resolves to "الحمولة الحالية" (Current cargo). This is the
+ * mechanism that flips the Day-2 carry-over title back to "Current cargo"
+ * the moment the user edits the carried-over cargo — without modifying the
+ * carry-over algorithm itself (`isCargoCarriedOverToday`).
+ *
  * Do NOT duplicate this logic — add new callers here.
  */
 export function useCargoHistory(
   driverId: string,
   liveCargo: CargoItem[],
   driverCreatedAt?: string | null,
+  /**
+   * Optional override: when true, forces `isCarriedOverToday = false` and
+   * makes `cargoTitle` resolve to "الحمولة الحالية" for today. Default
+   * `false` preserves the original behavior for callers that don't pass it.
+   */
+  cargoEditedToday: boolean = false,
 ): UseCargoHistoryResult {
   const today = useMemo(() => baghdadToday(), []);
   const yesterday = useMemo(() => addDays(today, -1), [today]);
@@ -221,9 +236,29 @@ export function useCargoHistory(
   }, [isToday, isFuture, liveCargo, historyCargo]);
 
   // ── Midnight carry-over detection (spec C/D/E) ──
+  //
+  // The pure carry-over algorithm (`isCargoCarriedOverToday`) compares live
+  // cargo against yesterday's snapshot. By design it returns `true` even
+  // after a sale (qty decrease) because sales only decrement — that's the
+  // original spec interpretation.
+  //
+  // The revised spec, however, requires the title to flip to "Current cargo"
+  // on the FIRST cargo mutation of the day — including sales and quantity
+  // decreases. We achieve this WITHOUT modifying the carry-over algorithm
+  // by overriding its result here when the AppContext-reported
+  // `cargoEditedToday` latch is set. The latch is persisted to localStorage
+  // keyed by `(driverId, today)`, so it survives page refresh and auto-resets
+  // at midnight.
+  //
+  // The override ONLY affects the today view (carry-over is only meaningful
+  // for today); past days show immutable snapshots, future days show empty
+  // cargo — neither is affected by the latch.
   const isCarriedOverToday = useMemo(
-    () => isCargoCarriedOverToday(isToday, liveCargo, yesterdaySnapshot),
-    [isToday, liveCargo, yesterdaySnapshot],
+    () =>
+      isToday && !cargoEditedToday
+        ? isCargoCarriedOverToday(isToday, liveCargo, yesterdaySnapshot)
+        : false,
+    [isToday, cargoEditedToday, liveCargo, yesterdaySnapshot],
   );
 
   const cargoTitle = useMemo(
