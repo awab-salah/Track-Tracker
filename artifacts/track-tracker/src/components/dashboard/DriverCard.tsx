@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { MapPin, Car } from 'lucide-react';
 import type { Driver } from '@/data/mockData';
+import { useResolvedLocation } from '@/hooks/useResolvedLocation';
 
 interface DriverCardProps {
   driver: Driver;
@@ -8,6 +9,13 @@ interface DriverCardProps {
 }
 
 export function DriverCard({ driver, onClick }: DriverCardProps) {
+  // Reuse the same reverse-geocoding logic as Driver Details so the card
+  // shows a human-readable Arabic city/region label (e.g. "الأنبار، هيت")
+  // instead of raw GPS coordinates. Falls back to the raw string while the
+  // geocode request is in flight. Do NOT duplicate this logic — see
+  // `useResolvedLocation`.
+  const resolvedLocation = useResolvedLocation(driver.location);
+
   return (
     <motion.button
       whileTap={{ scale: 0.98 }}
@@ -29,7 +37,7 @@ export function DriverCard({ driver, onClick }: DriverCardProps) {
         <div className="flex items-center gap-1 mt-[2px]">
           <MapPin size={13} className="shrink-0" style={{ color: '#C97A56' }} />
           <span className="text-sm font-semibold truncate" style={{ color: '#C97A56' }}>
-            {driver.location}
+            {resolvedLocation ?? driver.location}
           </span>
         </div>
       </div>

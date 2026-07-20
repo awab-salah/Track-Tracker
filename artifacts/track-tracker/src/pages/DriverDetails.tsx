@@ -1,30 +1,24 @@
 import { useState } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowRight, MapPin, Car, Package, ShoppingCart, Receipt } from 'lucide-react';
+import { ArrowRight, MapPin, Car, ShoppingCart, Receipt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { InfoRow } from '@/components/InfoRow';
 import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
+import { WeekDaySelector } from '@/components/WeekDaySelector';
+import { WeeklySalesChart } from '@/components/driver/WeeklySalesChart';
+import { CargoCard } from '@/components/CargoCard';
 import {
   getDriverCargo,
   getDriverSales,
-  getDriverTotalSales,
-  getWeeklyPerformance,
   formatIQD,
 } from '@/data/mockData';
 import { useApp } from '@/store/AppContext';
+import { useResolvedLocation } from '@/hooks/useResolvedLocation';
+import { useCargoHistory } from '@/hooks/useCargoHistory';
 
 // Fix leaflet icons (same fix as MapTab)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,16 +45,16 @@ function makeSingleMarker(initial: string) {
   });
 }
 
-const SHORT_DAY: Record<string, string> = {
-  'الأحد': 'أحد', 'الاثنين': 'اثنين', 'الثلاثاء': 'ثلاثاء',
-  'الأربعاء': 'أربع', 'الخميس': 'خميس', 'الجمعة': 'جمعة', 'السبت': 'سبت',
-};
-
-function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+function SectionTitle({ icon: Icon, title, hint }: { icon: React.ElementType; title: string; hint?: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <Icon size={16} className="text-primary shrink-0" />
       <h3 className="font-extrabold text-[15px] text-foreground">{title}</h3>
+      {hint && (
+        <span className="text-[10px] text-muted-foreground/80 font-normal leading-tight">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }
@@ -68,9 +62,47 @@ function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: s
 export default function DriverDetails() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
-  const { drivers, loads, sales } = useApp();
+  const { drivers, loads, sales, cargoEditedToday } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
-  const driver = drivers.find((d) => d.id === params.id);
+
+  // ── Resolved location text ──
+  // Shared hook: detects "lat, lng" pattern and reverse-geocodes via the
+  // cached/throttled `reverseGeocode` service. Already-readable strings
+  // pass through unchanged. Per spec: do NOT change how the location is
+  // stored. The same hook is reused by DriverCard in the Drivers tab —
+  // do NOT duplicate this logic.
+  //
+  // NOTE: `useResolvedLocation` is called UNCONDITIONALLY before the
+  // early-return guard below to respect React's rules of hooks. The
+  // hook itself handles the `undefined` case (no driver).
+  const driverIdParam = params.id;
+  const driver = drivers.find((d) => d.id === driverIdParam);
+  const resolvedLocation = useResolvedLocation(driver?.location);
+
+  // ── Day-based cargo view + midnight carry-over ──
+  // Shared with the Driver Dashboard's Statistics tab — both pages now
+  // use the EXACT same `useCargoHistory` hook for snapshot fetching,
+  // carry-over detection, displayCargo derivation, and cargo title
+  // resolution. Do NOT duplicate this logic; add new callers to
+  // `useCargoHistory` instead.
+  //
+  // Called with the resolved driverId (may be empty string when the
+  // driver is missing — the hook is a no-op in that case). The driver's
+  // `createdAt` ISO timestamp is passed so the week selector can clamp
+  // navigation to [account-creation-week .. current-week].
+  const driverId = driver?.id ?? '';
+  const cargo = getDriverCargo(loads, driverId);
+  const {
+    selectedDate,
+    setSelectedDate,
+    earliestSnapshotDate,
+    minDate,
+    maxDate,
+    isLiveDay,
+    isFuture,
+    displayCargo,
+    cargoTitle,
+  } = useCargoHistory(driverId, cargo, driver?.createdAt, cargoEditedToday);
 
   if (!driver) {
     return (
@@ -88,10 +120,9 @@ export default function DriverDetails() {
     );
   }
 
-  const cargo = getDriverCargo(loads, driver.id);
   const driverSales = getDriverSales(sales, driver.id);
-  const totalSales = getDriverTotalSales(sales, driver.id);
-  const performance = getWeeklyPerformance(sales, driver.id);
+  const daySales = driverSales.filter((s) => s.date === selectedDate);
+  const dayTotalSales = daySales.reduce((sum, s) => sum + s.totalPrice, 0);
 
   return (
     <MobileLayout>
@@ -126,44 +157,48 @@ export default function DriverDetails() {
             <div className="flex flex-col gap-2">
               <InfoRow label="الاسم" value={driver.name} />
               <InfoRow label="رقم السيارة" value={driver.vehicleNumber} />
-              <InfoRow label="الموقع" value={driver.location} accent />
+              <InfoRow
+                label="الموقع"
+                value={resolvedLocation ?? driver.location}
+                accent
+              />
             </div>
           </motion.div>
 
-          {/* ── Section 2: Cargo ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
-          >
-            <SectionTitle icon={Package} title="الحمولة الحالية" />
-            {cargo.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2 text-center">لا توجد حمولة حالياً</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {cargo.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between bg-muted/50 rounded-xl px-3 py-2.5"
-                  >
-                    <div className="text-left">
-                      <p className="text-xs text-muted-foreground">السعر / وحدة</p>
-                      <p className="text-sm font-bold text-foreground">{formatIQD(item.unitPrice)}</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-right">
-                      <div>
-                        <p className="text-[13px] font-bold text-foreground">{item.productName}</p>
-                        <p className="text-xs text-muted-foreground">{item.quantity} وحدة</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
+          {/* ── Day selector (below Driver Information, above Cargo/Sales) ──
+              Navigation bounds (per spec):
+                - First available week = account-creation week (minDate).
+                - Last available week  = current week (maxDate = today).
+                - Prev/Next arrows enable/disable correctly.
+                - Day cells outside [minDate, maxDate] render disabled.
+                - No fake empty weeks. */}
+          <WeekDaySelector
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            earliestDate={earliestSnapshotDate}
+            minDate={minDate}
+            maxDate={maxDate}
+          />
 
-          {/* ── Section 3: Sales ── */}
+          {/* ── Section 2: Cargo ──
+              Shared CargoCard component — IDENTICAL to the one rendered
+              in the Driver Statistics tab (same styling, animations,
+              labels, colors, behavior). This call site passes no
+              `onEditItem`, so the pencil buttons are omitted (read-only
+              view from the Company Dashboard).
+
+              For FUTURE days, `displayCargo` is empty per spec (future
+              days never inherit inventory); the card shows the
+              empty-state message and the title resolves to
+              "الحمولة الحالية". */}
+          <CargoCard
+            title={cargoTitle}
+            items={displayCargo}
+            isLiveDay={isLiveDay || isFuture}
+            motionDelay={0.05}
+          />
+
+          {/* ── Section 3: Sales (for the selected day) ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -171,12 +206,14 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <SectionTitle icon={ShoppingCart} title="المبيعات" />
-            {driverSales.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2 text-center">لا توجد مبيعات بعد</p>
+            {daySales.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2 text-center">
+                {(isLiveDay || isFuture) ? 'لا توجد مبيعات بعد' : 'لا توجد مبيعات في هذا اليوم'}
+              </p>
             ) : (
               <>
                 <div className="flex flex-col gap-2 mb-3">
-                  {driverSales.map((sale) => (
+                  {daySales.map((sale) => (
                     <div
                       key={sale.id}
                       className="flex flex-col gap-2 bg-muted/50 rounded-xl px-3 py-2.5"
@@ -212,7 +249,7 @@ export default function DriverDetails() {
                   ))}
                 </div>
 
-                {/* Total */}
+                {/* Total for the selected day */}
                 <div className="flex items-center justify-between pt-3 border-t border-border">
                   <motion.span
                     initial={{ scale: 0.9 }}
@@ -220,9 +257,9 @@ export default function DriverDetails() {
                     className="text-lg font-extrabold"
                     style={{ color: '#C97A56' }}
                   >
-                    {formatIQD(totalSales)}
+                    {formatIQD(dayTotalSales)}
                   </motion.span>
-                  <span className="text-sm font-bold text-foreground">إجمالي المبيعات</span>
+                  <span className="text-sm font-bold text-foreground">إجمالي مبيعات اليوم</span>
                 </div>
               </>
             )}
@@ -236,7 +273,11 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <div className="p-4 pb-3">
-              <SectionTitle icon={MapPin} title="موقع السائق" />
+              <SectionTitle
+                icon={MapPin}
+                title="موقع السائق"
+                hint="(استخدم اصبعين لتكبير وتصغير الخريطة)"
+              />
             </div>
             <div style={{ height: 220 }}>
               <MapContainer
@@ -244,7 +285,7 @@ export default function DriverDetails() {
                 zoom={10}
                 style={{ width: '100%', height: '100%' }}
                 zoomControl={false}
-                dragging={false}
+                dragging={true}
                 scrollWheelZoom={false}
               >
                 <TileLayer
@@ -259,7 +300,9 @@ export default function DriverDetails() {
             </div>
           </motion.div>
 
-          {/* ── Section 5: Performance chart ── */}
+          {/* ── Section 5: Performance chart (shared component — identical to
+              the Statistics tab chart: same colors, axes, ticks, tooltip,
+              week navigation, RTL ordering, and animations). ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -267,39 +310,7 @@ export default function DriverDetails() {
             className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
           >
             <SectionTitle icon={BarChart2Icon} title="أداء السائق الأسبوعي" />
-            <p className="text-xs text-muted-foreground mb-4">بالدينار العراقي</p>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={performance} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                <XAxis
-                  dataKey="day"
-                  tickFormatter={(v) => SHORT_DAY[v] ?? v}
-                  tick={{ fontFamily: 'Cairo', fontSize: 11, fill: '#888' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis hide />
-                <Tooltip
-                  formatter={(val: number) => [formatIQD(val), 'المبيعات']}
-                  contentStyle={{
-                    fontFamily: 'Cairo',
-                    direction: 'rtl',
-                    borderRadius: 12,
-                    border: 'none',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  }}
-                  cursor={{ fill: 'rgba(13,77,90,0.06)' }}
-                />
-                <Bar dataKey="sales" radius={[6, 6, 0, 0]} maxBarSize={36}>
-                  {performance.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={i === performance.length - 1 ? '#C97A56' : '#0D4D5A'}
-                      fillOpacity={i === performance.length - 1 ? 1 : 0.85}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <WeeklySalesChart sales={sales} driverId={driver.id} />
           </motion.div>
 
         </div>

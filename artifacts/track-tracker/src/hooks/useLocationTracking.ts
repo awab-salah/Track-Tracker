@@ -13,8 +13,20 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MIN_DISTANCE_M = 50;       // metres
-const MIN_INTERVAL_MS = 30_000;  // 30 s
+const MIN_DISTANCE_M = 50;       // metres — Supabase write threshold
+const MIN_INTERVAL_MS = 30_000;  // 30 s   — Supabase write threshold
+
+// Local-state throttle. `watchPosition` with `enableHighAccuracy: true`
+// can fire every ~1 s with sub-metre jitter. Updating React `coords`
+// state on every callback causes the whole DriverDashboard →
+// DriverStatsTab → LiveLocationMap subtree to re-render ~1×/sec, which
+// (combined with `setView({ animate: true })`) was the root cause of the
+// map "twitching". These thresholds filter out GPS noise BEFORE it
+// reaches React state — they are intentionally much smaller than the
+// Supabase thresholds so the on-screen marker still tracks the driver
+// smoothly, just without sub-metre jitter.
+const LOCAL_MIN_DISTANCE_M = 5;       // metres
+const LOCAL_MIN_INTERVAL_MS = 5_000;  // 5 s
 
 // ── Haversine ─────────────────────────────────────────────────────────────────
 
@@ -50,6 +62,13 @@ export function useLocationTracking(driverId: string | null) {
   const lastPushedRef = useRef<{ lat: number; lng: number; ts: number } | null>(null);
 
   /**
+   * Last position committed to local React `coords` state. Used by the
+   * local-state throttle (LOCAL_MIN_DISTANCE_M / LOCAL_MIN_INTERVAL_MS)
+   * to filter out sub-metre GPS jitter BEFORE it triggers a re-render.
+   */
+  const lastLocalFixRef = useRef<{ lat: number; lng: number; ts: number } | null>(null);
+
+  /**
    * Keep driverId in a ref so pushLocation never needs to be re-created
    * when driverId changes — this keeps handlePosition stable and prevents
    * the watchPosition effect from restarting unnecessarily.
@@ -80,12 +99,28 @@ export function useLocationTracking(driverId: string | null) {
 
   const handlePosition = useCallback((pos: GeolocationPosition) => {
     const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-    setCoords({ lat, lng, accuracy });
+
+    // ── Local-state throttle ──────────────────────────────────────────
+    // Only commit to React `coords` state if the driver has moved at
+    // least LOCAL_MIN_DISTANCE_M OR LOCAL_MIN_INTERVAL_MS has elapsed
+    // since the last commit. This filters out sub-metre GPS jitter
+    // before it can trigger a re-render of the dashboard subtree (which
+    // was the root cause of the map "twitching" — see LiveLocationMap).
+    const lastLocal = lastLocalFixRef.current;
+    const now       = Date.now();
+    const localMoved = lastLocal !== null
+      && haversineMetres(lastLocal.lat, lastLocal.lng, lat, lng) >= LOCAL_MIN_DISTANCE_M;
+    const localStale = lastLocal === null || now - lastLocal.ts >= LOCAL_MIN_INTERVAL_MS;
+
+    if (lastLocal === null || localMoved || localStale) {
+      setCoords({ lat, lng, accuracy });
+      lastLocalFixRef.current = { lat, lng, ts: now };
+    }
+
     setStatus('tracking');
     setLocationError(null);
 
     const last  = lastPushedRef.current;
-    const now   = Date.now();
     const moved = last !== null && haversineMetres(last.lat, last.lng, lat, lng) >= MIN_DISTANCE_M;
     const stale = last === null || now - last.ts >= MIN_INTERVAL_MS;
 

@@ -1,0 +1,6 @@
+- [Supabase Auth Architecture](supabase-auth-arch.md) — Auth is split across AuthContext (session/profile) + AppContext (data bootstrap); both import from @/types to avoid circular deps.
+- [RLS Policies](rls-policies.md) — All five tables have RLS enabled; schema.sql is the single source of truth; companies has NO public SELECT policy — join-code validation uses validate_join_code() RPC instead.
+- [Auth Bootstrap Race Fixes](auth-bootstrap-race.md) — AuthContext uses a loadVersionRef counter; AppContext uses three separate effects with cancellation flags; see these files before modifying either context.
+- [Atomic Signup via DB Trigger](atomic-signup-trigger.md) — Company/driver rows are created by handle_new_user trigger on auth.users, not by client-side INSERT; eliminates orphaned auth accounts and email-confirmation bugs.
+- [SQL dollar-quote stripping](sql-dollar-quote-stripping.md) — $$ in schema.sql PL/pgSQL bodies can get stripped to bare $ by some editors/agents; always grep-verify before telling user to run it.
+- [RLS cross-table recursion](rls-cross-table-recursion.md) — companies/drivers policies referencing each other via subqueries cause "infinite recursion" (42P17); use security-definer helper functions to break the cycle.

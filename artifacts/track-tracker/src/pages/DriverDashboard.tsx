@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Redirect } from 'wouter';
 import { AnimatePresence } from 'framer-motion';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { Logo } from '@/components/Logo';
@@ -24,9 +24,19 @@ export default function DriverDashboard() {
   // means the hook is a no-op until currentDriver is available.
   const locationState = useLocationTracking(currentDriverId ?? null);
 
+  // ── Render-loop safety ───────────────────────────────────────────────
+  // Do NOT call `setLocation(...)` here during render. There is a window
+  // between auth resolving (role='driver') and the AppContext bootstrap
+  // effect populating `currentDriver` (runs AFTER the first render). During
+  // that window `currentDriver` is null. Calling `setLocation()` during
+  // render triggers React's "Cannot update a component while rendering a
+  // different component" error and bounces the user between /driver-dashboard
+  // and /driver-auth in a loop.
+  //
+  // `<Redirect>` is safe because it navigates via `useLayoutEffect`
+  // (after render commits), not synchronously during render.
   if (!currentDriver) {
-    setLocation('/driver-auth');
-    return null;
+    return <Redirect to="/driver-auth" />;
   }
 
   const handleEditLoad = (item: CargoItem) => {
@@ -100,7 +110,11 @@ export default function DriverDashboard() {
             )}
             {activeTab === 'sales' && <SalesTab key="sales" />}
             {activeTab === 'stats' && (
-              <DriverStatsTab key="stats" onEditLoad={handleEditLoad} locationState={locationState} />
+              <DriverStatsTab
+                key="stats"
+                onEditLoad={handleEditLoad}
+                locationState={locationState}
+              />
             )}
           </AnimatePresence>
         </div>
