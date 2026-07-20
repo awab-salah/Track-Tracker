@@ -1,0 +1,45 @@
+# Netlify deployment configuration for TrackTracker
+# Docs: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+# ── Build settings ──────────────────────────────────────────────────────────
+# The monorepo root `pnpm build` runs typecheck + builds every workspace
+# project. Required env vars at build time:
+#   PORT=3000           (any non-empty value — required by vite.config.ts)
+#   BASE_PATH=/         (served from Netlify root domain)
+#   VITE_SUPABASE_URL   (production Supabase project URL)
+#   VITE_SUPABASE_ANON_KEY (production Supabase anon/publishable key)
+[build]
+  command = "pnpm install --no-frozen-lockfile && pnpm build"
+  publish = "artifacts/track-tracker/dist/public"
+
+[build.environment]
+  PORT = "3000"
+  BASE_PATH = "/"
+  NODE_VERSION = "20"
+
+# ── SPA fallback ────────────────────────────────────────────────────────────
+# The app uses wouter for client-side routing. Direct navigations to routes
+# like /driver-dashboard must fall back to index.html so the SPA can take over.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ── Cache headers for hashed assets ─────────────────────────────────────────
+# Vite emits content-hashed filenames in /assets/*, so they're safe to cache
+# aggressively.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Service worker should not be cached by the browser — it manages its own cache.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/workbox-*.js"
+  [headers.values]
+    Cache-Control = "no-cache"

@@ -11,7 +11,6 @@ import DriverAuth from '@/pages/DriverAuth';
 import CompanyAuth from '@/pages/CompanyAuth';
 import OwnerDashboard from '@/pages/OwnerDashboard';
 import ProfilePage from '@/pages/ProfilePage';
-import SubscriptionsPage from '@/pages/SubscriptionsPage';
 import DriverDetails from '@/pages/DriverDetails';
 import DriverDashboard from '@/pages/DriverDashboard';
 import DriverProfilePage from '@/pages/DriverProfilePage';
@@ -75,7 +74,6 @@ function Router() {
       {/* Company-protected routes */}
       <Route path="/owner-dashboard" component={() => <ProtectedRoute component={OwnerDashboard} requiredRole="company" />} />
       <Route path="/profile" component={() => <ProtectedRoute component={ProfilePage} requiredRole="company" />} />
-      <Route path="/subscriptions" component={() => <ProtectedRoute component={SubscriptionsPage} requiredRole="company" />} />
       <Route path="/driver/:id" component={() => <ProtectedRoute component={DriverDetails} requiredRole="company" />} />
 
       {/* Driver-protected routes */}

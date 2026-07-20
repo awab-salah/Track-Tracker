@@ -17,11 +17,15 @@ import {
   upsertLoad as dbUpsertLoad,
   decrementLoad,
   removeLoad as dbRemoveLoad,
+  replaceDriverLoads,
+  fetchDailySnapshots,
   fetchSales,
   createSale,
+  finalizeYesterdayIfNeeded,
 } from '@/services';
 import { useAuth } from '@/store/AuthContext';
 import type { CompanyProfile } from '@/types';
+import { baghdadToday } from '@/lib/dateUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,7 +51,37 @@ interface AppContextType {
   updateDriverProfile: (data: Partial<Pick<Driver, 'name' | 'email' | 'vehicleNumber' | 'profilePictureUrl'>>) => void;
   upsertLoad: (input: { id?: string; productName: string; quantity: number; unitPrice: number }) => void;
   removeLoad: (id: string) => void;
+  /**
+   * Promote a historical day's snapshot to live cargo. Replaces all current
+   * live loads for the driver with the snapshot's items (filtered to qty > 0),
+   * assigning fresh UUIDs. Returns the new live CargoItem[] so the caller can
+   * open the Load tab with the matching item prefilled.
+   *
+   * Per spec: "If the driver edits any product from that remaining cargo...
+   * It immediately becomes Current Cargo."
+   */
+  promoteSnapshotToLive: (driverId: string, snapshotDate: string) => Promise<CargoItem[]>;
   addSale: (items: SaleLineItem[], receiptImageUrl?: string | null) => void;
+
+  /**
+   * Latched "the current driver has edited cargo at least once today" flag.
+   *
+   * Per the revised midnight-logic spec: on Day 2, the cargo title starts as
+   * "الحمولة المتبقية من اليوم السابق" (carried over from yesterday). The
+   * moment the driver performs ANY mutation (add, remove, sell, change
+   * quantity, edit price, or promote a historical snapshot to live), the
+   * title MUST immediately flip to "الحمولة الحالية" and stay there for
+   * the rest of the day — even across page refresh.
+   *
+   * Implementation: this flag is persisted in localStorage, keyed by
+   * `(driverId, today)`, so it survives refresh and auto-resets at
+   * midnight (a new day = a new key = flag starts false again).
+   *
+   * The carry-over algorithm itself (`isCargoCarriedOverToday`) is NOT
+   * modified — this flag overrides its result at the title-resolution
+   * layer (see `useCargoHistory`).
+   */
+  cargoEditedToday: boolean;
 
   // Sale notifications (company owner) — Web Notifications API + Supabase Realtime
   notificationsEnabled: boolean;
@@ -81,6 +115,47 @@ const DEFAULT_COMPANY: CompanyProfile = {
 // concept (not a company-level setting), so it is intentionally not persisted
 // to Supabase. Kept in localStorage like the dark-mode toggle.
 const NOTIFICATIONS_STORAGE_KEY = 'tt_notifications_enabled';
+
+/**
+ * Build the localStorage key for the "cargo edited today" latch.
+ *
+ * Keyed by `(driverId, today)` so the flag:
+ *   - auto-resets at midnight (today changes → new key → flag starts false),
+ *   - is per-driver (multiple drivers on the same browser don't collide),
+ *   - survives page refresh (same key → same value).
+ *
+ * This latch is the mechanism that flips Day-2's cargo title from
+ * "الحمولة المتبقية من اليوم السابق" to "الحمولة الحالية" after the driver's
+ * FIRST cargo mutation of the day. The carry-over algorithm itself is NOT
+ * modified — only the title-resolution layer consumes this flag.
+ */
+function cargoEditedTodayStorageKey(driverId: string, today: string): string {
+  return `tt_cargo_edited_${driverId}_${today}`;
+}
+
+/** Read the latch from localStorage. Returns false if not set or unavailable. */
+function readCargoEditedToday(driverId: string, today: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(cargoEditedTodayStorageKey(driverId, today)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Write the latch to localStorage. Silently no-op if storage is unavailable. */
+function writeCargoEditedToday(driverId: string, today: string, value: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value) {
+      localStorage.setItem(cargoEditedTodayStorageKey(driverId, today), '1');
+    } else {
+      localStorage.removeItem(cargoEditedTodayStorageKey(driverId, today));
+    }
+  } catch {
+    /* ignore storage failures — flag is also kept in React state */
+  }
+}
 
 function getNotificationPermission(): NotificationPermission | 'unsupported' {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
@@ -126,6 +201,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loads, setLoads] = useState<CargoItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
+
+  // ── Cargo-edited-today latch ───────────────────────────────────────────────
+  //
+  // Latched flag: true iff the current driver has performed ANY cargo mutation
+  // (add / remove / sell / change quantity / edit price / promote snapshot to
+  // live) since midnight. Used by `useCargoHistory` to flip the Day-2 carry-over
+  // title from "الحمولة المتبقية من اليوم السابق" to "الحمولة الحالية" on
+  // the first mutation of the day. See the type-doc on `cargoEditedToday`
+  // above for the full spec.
+  //
+  // `today` is recomputed on every render; if the calendar day rolls over
+  // while the dashboard is open, the latch re-reads from localStorage under
+  // the new key (which starts unset), effectively resetting the flag at
+  // midnight without an explicit timer.
+  const today = baghdadToday();
+  const [cargoEditedToday, setCargoEditedToday] = useState<boolean>(() =>
+    currentDriverId ? readCargoEditedToday(currentDriverId, today) : false,
+  );
+
+  // Re-read the latch whenever the driver or the calendar day changes.
+  useEffect(() => {
+    if (!currentDriverId) {
+      setCargoEditedToday(false);
+      return;
+    }
+    setCargoEditedToday(readCargoEditedToday(currentDriverId, today));
+  }, [currentDriverId, today]);
+
+  // Helper: latch the flag to true and persist. Called from every cargo
+  // mutation handler below. No-op if no driver is signed in.
+  const markCargoEditedToday = () => {
+    if (!currentDriverId) return;
+    writeCargoEditedToday(currentDriverId, today, true);
+    setCargoEditedToday(true);
+  };
 
   // ── Sale notifications ────────────────────────────────────────────────────
   const [notificationsEnabled, setNotificationsEnabled] = useState(
@@ -178,6 +288,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
       setCurrentDriverId(null);
+
+      // Finalize yesterday's snapshot for each driver. Fire-and-forget —
+      // each call is idempotent (unique constraint + ON CONFLICT DO NOTHING).
+      // Reads current DB loads (no mutation has happened today yet at bootstrap).
+      void Promise.all(
+        remoteDrivers.map((d) => finalizeYesterdayIfNeeded(d.id))
+      );
     })();
 
     return () => { cancelled = true; };
@@ -208,6 +325,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
+
+      // Finalize yesterday's snapshot for this driver. Fire-and-forget —
+      // idempotent. Reads current DB loads (no mutation today yet).
+      void finalizeYesterdayIfNeeded(authDriverId);
     })();
 
     return () => { cancelled = true; };
@@ -290,6 +411,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!currentDriverId) return;
     const productName = input.productName.trim();
 
+    // Capture pre-mutation cargo so the finalize call below freezes yesterday's
+    // EOD state, not the post-edit state. UI updates synchronously via setLoads.
+    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
+
     setLoads((prev) => {
       const existingIdx = prev.findIndex(
         (l) =>
@@ -334,17 +459,105 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return [...prev, newItem];
     });
+
+    // Finalize yesterday's snapshot AFTER local state update, using captured
+    // pre-mutation state. Fire-and-forget — idempotent.
+    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+
+    // Latch the "cargo edited today" flag so the Day-2 carry-over title
+    // immediately flips from "الحمولة المتبقية من اليوم السابق" to
+    // "الحمولة الحالية". See the type-doc on `cargoEditedToday`.
+    markCargoEditedToday();
   };
 
   const removeLoad = (id: string) => {
+    if (!currentDriverId) return;
+    // Capture pre-mutation cargo for the finalize call below.
+    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
     setLoads((prev) => prev.filter((l) => l.id !== id));
     void dbRemoveLoad(id);
+    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+    // Latch the "cargo edited today" flag — removing a product is an edit.
+    markCargoEditedToday();
+  };
+
+  // ── Historical snapshot → live cargo promotion ─────────────────────────────
+  //
+  // Per spec: when the driver edits any product from a past day's "Remaining
+  // Cargo From This Day", that snapshot immediately becomes the live Current
+  // Cargo. We:
+  //   1. Fetch the snapshot for the given date.
+  //   2. Filter out qty-0 items (already hidden in the UI, but defensive).
+  //   3. Assign fresh UUIDs to each item (new live rows, not snapshot rows).
+  //   4. Optimistically replace the driver's loads in local state.
+  //   5. Atomically replace the driver's loads in the DB.
+  //   6. Return the new live CargoItem[] so the caller can find the matching
+  //      item and open the Load tab with it prefilled.
+  //
+  // Note: this is destructive — the driver's previous live loads are lost.
+  // This is the intended behavior per spec ("It immediately becomes Current
+  // Cargo because it is now the active working inventory again").
+  //
+  // SAFETY: if the snapshot for `snapshotDate` does not exist (or is empty),
+  // we ABORT the promotion and return the current live cargo unchanged.
+  // Without this guard, a missing snapshot would cause `setLoads` to delete
+  // ALL of the driver's current live cargo — a destructive no-op. See Bug 4
+  // in the worklog.
+  const promoteSnapshotToLive = async (
+    driverId: string,
+    snapshotDate: string
+  ): Promise<CargoItem[]> => {
+    const snapshotItems = await fetchDailySnapshots([driverId], snapshotDate);
+    const itemsToPromote = snapshotItems.filter((item) => item.quantity > 0);
+
+    // SAFETY: no snapshot (or all-qty-0 snapshot) → abort promotion.
+    // Return the driver's CURRENT live cargo unchanged so the caller can
+    // still open the editor against the matching product. Without this
+    // guard, a missing snapshot would cause `setLoads` to delete ALL of
+    // the driver's current live cargo — a destructive no-op. See Bug 4
+    // in the worklog.
+    if (itemsToPromote.length === 0) {
+      return loads.filter((l) => l.driverId === driverId);
+    }
+
+    const newCargo: CargoItem[] = itemsToPromote.map((item) => ({
+      id: generateId(),
+      driverId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    }));
+
+    // Optimistic local state update: remove old loads for this driver, add new.
+    setLoads((prev) => [
+      ...prev.filter((l) => l.driverId !== driverId),
+      ...newCargo,
+    ]);
+
+    // DB: atomically replace the driver's loads.
+    await replaceDriverLoads(driverId, newCargo);
+
+    // Promoting a historical snapshot to live IS a cargo edit — latch the
+    // "cargo edited today" flag so today's title becomes "الحمولة الحالية".
+    // Only latches when the promotion targets the current driver (the
+    // company-dashboard case where `driverId === currentDriverId`); the
+    // company dashboard is read-only and never calls this with another
+    // driver's id, but we guard anyway for safety.
+    if (driverId === currentDriverId) {
+      markCargoEditedToday();
+    }
+
+    return newCargo;
   };
 
   // ── Sales ─────────────────────────────────────────────────────────────────
 
   const addSale = (items: SaleLineItem[], receiptImageUrl?: string | null) => {
     if (!currentDriverId) return;
+
+    // Capture pre-mutation cargo so the finalize call below freezes yesterday's
+    // EOD state, not the post-sale (decremented) state. UI updates synchronously.
+    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
 
     setLoads((prev) =>
       prev.map((load) => {
@@ -359,8 +572,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     );
 
+    // Finalize yesterday's snapshot AFTER local state update, using captured
+    // pre-mutation state. Fire-and-forget — idempotent. Must come before the
+    // createSale call so yesterday's EOD is frozen before today's first sale
+    // is recorded, but it doesn't need to be awaited (the snapshot insert is
+    // independent of the sale insert; both are async DB writes).
+    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+
     const totalPrice = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-    const date = new Date().toISOString().split('T')[0];
+    // Baghdad local date (UTC+3, no DST). en-CA → 'YYYY-MM-DD'.
+    // Previously used UTC which mis-stamped sales made between 00:00–03:00 Baghdad.
+    const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
 
     const newSale: SaleRecord = {
       id: generateId(),
@@ -372,6 +594,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     setSales((prev) => [newSale, ...prev]);
     void createSale(newSale.id, currentDriverId, date, items, totalPrice);
+
+    // Per the revised midnight-logic spec, a sale IS a cargo mutation —
+    // it decrements live quantities. Latch the "cargo edited today" flag
+    // so the Day-2 carry-over title flips from "الحمولة المتبقية من اليوم
+    // السابق" to "الحمولة الحالية" on the first sale of the day.
+    markCargoEditedToday();
   };
 
   // Only asks for browser permission when the owner explicitly enables the
@@ -464,7 +692,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateDriverProfile,
         upsertLoad,
         removeLoad,
+        promoteSnapshotToLive,
         addSale,
+        cargoEditedToday,
         notificationsEnabled,
         notificationPermission,
         enableNotifications,

@@ -2,6 +2,7 @@
 
 # compiled output
 dist
+dev-dist
 tmp
 out-tsc
 *.tsbuildinfo
@@ -47,3 +48,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Uploaded reference files for this sync (not part of the app)
+attached_assets/

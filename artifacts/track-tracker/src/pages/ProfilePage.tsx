@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -195,6 +195,7 @@ export default function ProfilePage() {
     enableNotifications,
     disableNotifications,
   } = useApp();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [showCodeSheet, setShowCodeSheet] = useState(false);
 
@@ -219,14 +220,7 @@ export default function ProfilePage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // FileReader produces a data: URL which works inside cross-origin iframes;
-    // blob: URLs (URL.createObjectURL) are blocked in that context.
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result;
-      if (typeof result === 'string') updateLogo(result);
-    };
-    reader.readAsDataURL(file);
+    updateLogo(URL.createObjectURL(file));
   };
 
   const handleCopy = () => {
@@ -310,18 +304,17 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* label activates the file input natively — works in sandboxed iframes */}
-              <motion.label
-                htmlFor="input-logo"
+              <motion.button
                 whileTap={{ scale: 0.88 }}
+                onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center
-                           justify-center border-2 border-white shadow-md cursor-pointer"
+                           justify-center border-2 border-white shadow-md"
                 style={{ background: '#C97A56' }}
               >
                 <Camera size={13} color="white" />
-              </motion.label>
+              </motion.button>
               <input
-                id="input-logo"
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -405,22 +398,6 @@ export default function ProfilePage() {
                 </motion.span>
               </div>
             </div>
-
-            {/* ── Subscriptions card ── */}
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setLocation('/subscriptions')}
-              className="w-full bg-white dark:bg-zinc-900 rounded-2xl p-4
-                         shadow-[0_2px_12px_rgba(0,0,0,0.06)]
-                         border border-black/[0.04] dark:border-white/[0.06]
-                         flex items-center justify-between
-                         transition-shadow duration-300
-                         hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
-              data-testid="btn-subscriptions"
-            >
-              <ChevronLeft size={18} className="text-muted-foreground" />
-              <span className="font-semibold text-foreground">الاشتراكات</span>
-            </motion.button>
 
             {/* ── Settings card ── */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden

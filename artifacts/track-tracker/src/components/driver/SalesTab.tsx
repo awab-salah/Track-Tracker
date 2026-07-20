@@ -15,6 +15,8 @@ interface DraftItem extends SaleLineItem {
 export function SalesTab() {
   const { currentDriver, loads, addSale } = useApp();
   const { toast } = useToast();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const [pickerOpen, setPickerOpen] = useState(true);
@@ -79,14 +81,7 @@ export function SalesTab() {
   const handleReceiptFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // FileReader produces a data: URL which works inside cross-origin iframes;
-    // blob: URLs (URL.createObjectURL) are blocked in that context.
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result;
-      if (typeof result === 'string') setReceiptUrl(result);
-    };
-    reader.readAsDataURL(file);
+    setReceiptUrl(URL.createObjectURL(file));
   };
 
   const handleSell = () => {
@@ -261,25 +256,24 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* labels activate file inputs natively — works in sandboxed iframes */}
-                <label
-                  htmlFor="receipt-camera"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                   data-testid="btn-capture-camera"
                 >
                   <Camera size={16} /> كاميرا
-                </label>
-                <label
-                  htmlFor="receipt-gallery"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                </button>
+                <button
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                   data-testid="btn-capture-gallery"
                 >
                   <ImageIcon size={16} /> المعرض
-                </label>
+                </button>
               </div>
             )}
             <input
-              id="receipt-camera"
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
@@ -287,7 +281,7 @@ export function SalesTab() {
               onChange={handleReceiptFile}
             />
             <input
-              id="receipt-gallery"
+              ref={galleryInputRef}
               type="file"
               accept="image/*"
               className="hidden"
