@@ -77,8 +77,24 @@ export function indexCargoByKey(items: CargoItem[]): Map<string, CargoByKey> {
  * - `yesterdaySnapshot` — `daily_load_snapshots` row for yesterday, parsed
  *   back into `CargoItem[]`. `null`/`[]` means "no snapshot" (spec E).
  *
- * IMPORTANT: qty-0 items in the SNAPSHOT are filtered out (a snapshot row
- * with qty 0 is a phantom that should not participate in the comparison).
+ * The snapshot is written by `finalizeYesterdayIfNeeded` directly from the
+ * live `loads` table, which contains qty-0 rows for sold-out products
+ * (`decrementLoad` floors at 0 but does not delete the row). Those qty-0
+ * rows are NOT phantoms — they are real sell-out records.
+ *
+ * To handle this correctly, we maintain TWO snapshot maps:
+ *
+ *   • snapByKeyAll — includes qty-0 rows. Used for the "added" check so
+ *     that a live qty-0 row (a sell-out from YESTERDAY, persisted into
+ *     today's live loads table AND into yesterday's snapshot) is NOT
+ *     mis-classified as "added today". Without this, a Day-1 sell-out
+ *     causes the Day-2 carry-over title to incorrectly flip to
+ *     "الحمولة الحالية" — see Bug 5 in the worklog.
+ *
+ *   • snapByKeyPositive — qty-0 rows filtered out. Used for the "removed"
+ *     check so a snapshot qty-0 row that's missing from live (a phantom,
+ *     or a sell-out whose row was later cleaned up) is NOT mis-classified
+ *     as "removed today". Preserves the Bug-3 fix and the test-G scenario.
  *
  * But qty-0 items in LIVE cargo are KEPT for the comparison — a product
  * that was fully sold out today (live qty=0, snapshot qty>0) is STILL
@@ -90,9 +106,10 @@ export function indexCargoByKey(items: CargoItem[]): Map<string, CargoByKey> {
  *
  * Sales only DECREMENT quantities (never add products, never change prices,
  * never increase a quantity). So we treat the cargo as "edited" only when:
- *   - a product exists in live (any qty, including 0) but not in snapshot (added), OR
- *   - a product exists in snapshot (qty>0) but not in live at all (removed —
- *     NOT "live qty=0"; that's a sell-out, treated as sale), OR
+ *   - a product exists in live (any qty, including 0) but not in snapshot
+ *     at all (added), OR
+ *   - a product exists in snapshot with qty>0 but not in live at all
+ *     (removed — NOT "live qty=0"; that's a sell-out, treated as sale), OR
  *   - a product's unitPrice differs (price edited), OR
  *   - a product's quantity in live is GREATER than in snapshot
  *     (a sale can only decrease, so an increase means an edit).
@@ -108,18 +125,45 @@ export function isCargoCarriedOverToday(
 ): boolean {
   if (!isToday) return false;
 
-  // Snapshot: drop qty-0 entries — they're phantoms and must not participate.
-  const snapByKey = new Map<string, CargoByKey>();
+  // Two snapshot maps — the asymmetry is required for correctness:
+  //
+  //   • snapByKeyAll — includes qty-0 rows. Used for the "added" check so
+  //     that a live qty-0 row (a sell-out from YESTERDAY, written to the
+  //     snapshot because the snapshot is built from the live loads table)
+  //     is NOT mis-classified as "added today". Without this, a Day-1
+  //     sell-out causes the Day-2 carry-over title to fail — see the
+  //     worklog's Bug 5 (carry-over title broken after a sell-out on the
+  //     previous day).
+  //
+  //   • snapByKeyPositive — qty-0 rows filtered out. Used for the "removed"
+  //     check so that a snapshot qty-0 row that's missing from live (e.g.
+  //     a phantom, or a sell-out whose row was later cleaned up) is NOT
+  //     mis-classified as "removed today". This preserves the Bug-3 fix
+  //     and the test-G scenario.
+  //
+  // The snapshot is written by `finalizeYesterdayIfNeeded` directly from
+  // the live `loads` table, which DOES contain qty-0 rows for sold-out
+  // products (`decrementLoad` floors at 0 but does not delete the row).
+  // Those qty-0 rows are NOT phantoms — they are real sell-out records
+  // and must participate in the "added" comparison.
+  const snapByKeyAll = new Map<string, CargoByKey>();
+  const snapByKeyPositive = new Map<string, CargoByKey>();
   for (const item of yesterdaySnapshot ?? []) {
+    const key = item.productName.trim().toLowerCase();
+    snapByKeyAll.set(key, {
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    });
     if (item.quantity > 0) {
-      snapByKey.set(item.productName.trim().toLowerCase(), {
+      snapByKeyPositive.set(key, {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
       });
     }
   }
-  // No yesterday snapshot → no carry-over (spec E: zero/missing cargo).
-  if (snapByKey.size === 0) return false;
+  // No yesterday snapshot with any positive qty → no carry-over
+  // (spec E: zero/missing cargo).
+  if (snapByKeyPositive.size === 0) return false;
 
   // Live: KEEP qty-0 entries. A sold-out product is "still present, qty 0"
   // — it's a sale, not an edit. Only filter out items that don't exist in
@@ -132,20 +176,24 @@ export function isCargoCarriedOverToday(
     });
   }
 
-  // Edited if any live product is not in snapshot (added),
+  // Edited if any live product is not in snapshot at all (added),
   // if any price differs, or if any live quantity is GREATER than the
   // snapshot quantity (a sale can only decrease — an increase is an edit).
+  // Uses snapByKeyAll so a live qty-0 row that matches a snap qty-0 row
+  // (yesterday's sell-out, persisted into today) is NOT "added".
   for (const [key, live] of liveByKey) {
-    const snap = snapByKey.get(key);
+    const snap = snapByKeyAll.get(key);
     if (!snap) return false; // added → edited → not carried over
     if (live.unitPrice !== snap.unitPrice) return false; // price edited
     if (live.quantity > snap.quantity) return false; // quantity increased (sale can't)
   }
 
-  // Edited if any snapshot product is not in live AT ALL (removed by edit).
-  // A product that IS in live but with qty=0 is NOT "removed" — it's a
-  // sell-out (sale), which is still carry-over.
-  for (const key of snapByKey.keys()) {
+  // Edited if any snapshot product (with qty > 0) is not in live AT ALL
+  // (removed by edit). A snap qty-0 row that's missing from live is NOT
+  // "removed" — it was already at 0. A snap qty>0 row that's missing from
+  // live IS removed (an edit). A snap qty>0 row that IS in live but with
+  // qty=0 is NOT "removed" — it's a sell-out (sale), still carry-over.
+  for (const key of snapByKeyPositive.keys()) {
     if (!liveByKey.has(key)) return false; // truly removed → edited
   }
 

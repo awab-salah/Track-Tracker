@@ -39,7 +39,7 @@ export function DriverStatsTab({
   onEditLoad,
   locationState,
 }: DriverStatsTabProps) {
-  const { currentDriver, loads, sales, promoteSnapshotToLive } = useApp();
+  const { currentDriver, loads, sales, promoteSnapshotToLive, cargoEditedToday } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   // ── Day-based cargo/sales view + midnight carry-over ──
@@ -75,7 +75,7 @@ export function DriverStatsTab({
     isFuture,
     displayCargo,
     cargoTitle,
-  } = useCargoHistory(driverId, cargo, currentDriver?.createdAt);
+  } = useCargoHistory(driverId, cargo, currentDriver?.createdAt, cargoEditedToday);
 
   const driverSales = getDriverSales(sales, driverId);
   // Sales follow the selected day.
