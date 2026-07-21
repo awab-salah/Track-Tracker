@@ -1,5 +1,9 @@
-import app from "./app";
-import { logger } from "./lib/logger";
+// Use explicit `.js` extensions so that when Vercel's @vercel/node
+// Express preset compiles this file with `tsc` (NOT esbuild), Node's
+// ESM loader can resolve the relative imports. See src/app.ts for the
+// full rationale.
+import app from "./app.js";
+import { logger } from "./lib/logger.js";
 
 // Vercel serverless runtime:
 //   - Vercel sets process.env.VERCEL=1 at runtime
