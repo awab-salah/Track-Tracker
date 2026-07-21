@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import { pinoHttp } from "pino-http";
 // IMPORTANT: Use explicit `.js` extensions on relative imports.
@@ -43,6 +43,42 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── Root URL handler ──────────────────────────────────────────────────────
+//
+// Vercel's `vercel.json` rewrites every path (`/(.*)`) to the `/api`
+// serverless function, so visiting the deployment root URL
+// (https://track-tracker-api-server.vercel.app/) — e.g. by clicking the
+// "Visit" button on the Vercel deployment dashboard — invokes this lambda
+// with `req.url === "/"`. Without a handler for `/`, Express returns its
+// default HTML 404 "Cannot GET /", which the user reported as
+// "500 FUNCTION_INVOCATION_FAILED" (the deployment appears broken even
+// though the function is healthy).
+//
+// This handler returns a 200 JSON status document so the deployment root
+// URL responds cleanly.
+app.get("/", (_req: Request, res: Response) => {
+  res.status(200).json({
+    name: "track-tracker-api-server",
+    status: "ok",
+    endpoints: {
+      health: "/api/healthz",
+    },
+  });
+});
+
 app.use("/api", router);
+
+// ── Catch-all 404 handler ─────────────────────────────────────────────────
+//
+// Any unmatched path (e.g. `/foo`, `/api/unknown`) returns a structured
+// JSON 404 instead of Express's default HTML "Cannot GET /" page. This
+// makes the API consistently return JSON for every route, whether the
+// route exists or not.
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: "not_found",
+    message: `Cannot ${req.method} ${req.url}`,
+  });
+});
 
 export default app;
