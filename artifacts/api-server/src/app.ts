@@ -1,48 +1,39 @@
-import express, { type Express } from "express";
-import cors from "cors";
-import { pinoHttp } from "pino-http";
-// IMPORTANT: Use explicit `.js` extensions on relative imports.
+// Thin re-export shim.
 //
-// Vercel's @vercel/node Express framework preset ALSO compiles src/app.ts
-// (the file that exports `app`) into a serverless function with `tsc` —
-// NOT esbuild. Unlike esbuild, `tsc` does NOT rewrite directory imports
-// like "./routes" to "./routes/index.js" at build time, and Node's ESM
-// loader (which Vercel uses) refuses to resolve directory imports —
-// throwing ERR_UNSUPPORTED_DIR_IMPORT and crashing the lambda with
-// FUNCTION_INVOCATION_FAILED for every request that hits this function
-// (any path NOT matched by /api/* — e.g. GET /).
+// Vercel's @vercel/express runtime detects the framework entrypoint by
+// scanning these filenames (per @vercel/express/dist/index.js):
 //
-// Adding `.js` extensions is the standard ESM-compatible pattern: TS
-// resolves `./routes/index.js` to `./routes/index.ts` at type-check time,
-// and Node resolves it to the emitted `./routes/index.js` at runtime.
-import router from "./routes/index.js";
-import { logger } from "./lib/logger.js";
-
-const app: Express = express();
-
-app.use(
-  pinoHttp({
-    logger,
-    serializers: {
-      req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
-      },
-      res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
-    },
-  }),
-);
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-app.use("/api", router);
-
-export default app;
+//   validFilenames = ["app", "index", "server", "src/app", "src/index", "src/server"]
+//   validExtensions = ["js", "cjs", "mjs", "ts", "cts", "mts"]
+//
+// ...and returning the FIRST file whose content matches the regex
+// /(?:from|require|import)\s*(?:\(\s*)?["']express["']\s*(?:\))?/ — i.e.
+// the first file that directly imports express.
+//
+// package.json#main is only consulted as a FALLBACK if NONE of the
+// validFilenames files imports express.
+//
+// Previously this file was named src/app.ts and directly imported
+// `express`, so Vercel picked it as the entrypoint — compiling it with
+// `tsc` (NOT esbuild) into src/app.js inside the lambda. That tsc
+// output could not be loaded by Node's ESM loader, because the
+// transitive import `@workspace/api-zod` only ships TypeScript sources
+// (its package.json exports "./src/index.ts"). Node ESM cannot load
+// .ts files, so the lambda crashed with ERR_MODULE_NOT_FOUND and
+// Vercel returned 500 FUNCTION_INVOCATION_FAILED for every non-/api/*
+// request (GET /, POST /, HEAD /, GET /index, ...).
+//
+// Fix: this file (src/app.ts, which IS in Vercel's validFilenames list)
+// no longer imports `express` directly — it only re-exports the app
+// from src/express-app.ts (which is NOT in validFilenames, so Vercel
+// never looks at it). With no validFilenames file importing express,
+// Vercel falls back to package.json#main ("dist/index.mjs") — the
+// esbuild-bundled file that has zero runtime imports of
+// @workspace/api-zod (it's inlined at build time). The lambda loads
+// cleanly and returns Express's default 404 ("Cannot GET /") instead
+// of crashing.
+//
+// All existing imports of `app from "./app"` (e.g., src/index.ts)
+// continue to work unchanged — they get the Express app via this
+// re-export.
+export { default } from "./express-app.js";
