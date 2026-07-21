@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "prebuild": "tsc --build ../../lib/api-zod/tsconfig.json ../../lib/db/tsconfig.json && echo \"[prebuild] api-zod dist exists:\" && ls -la ../../lib/api-zod/dist/ && echo \"[prebuild] db dist exists:\" && ls -la ../../lib/db/dist/",
+    "prebuild": "tsc --build ../../lib/api-zod/tsconfig.json ../../lib/db/tsconfig.json",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
