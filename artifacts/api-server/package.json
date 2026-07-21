@@ -7,6 +7,7 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "prebuild": "tsc --build ../../lib/api-zod/tsconfig.json ../../lib/db/tsconfig.json",
     "build": "node ./build.mjs",
+    "postbuild": "echo '=== DIAGNOSTIC: tsc --build --verbose --force ===' && tsc --build --verbose --force 2>&1 || echo '(tsc --build failed but continuing)'",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
