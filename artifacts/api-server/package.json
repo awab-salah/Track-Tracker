@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "dist/index.mjs",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "prebuild": "tsc --build ../../lib/api-zod/tsconfig.json ../../lib/db/tsconfig.json",
