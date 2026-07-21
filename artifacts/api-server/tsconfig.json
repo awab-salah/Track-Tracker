@@ -7,7 +7,9 @@
     "rootDir": "src",
     "types": ["node"],
     "esModuleInterop": true,
-    "noEmit": true
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmitOnError": false
   },
   "include": ["src"],
   "references": [
