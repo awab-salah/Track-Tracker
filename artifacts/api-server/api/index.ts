@@ -7,7 +7,9 @@
 // Once the root cause is identified and fixed, this file should be
 // replaced with the simple `export { default } from "../src/app";`.
 
-let handler;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+let handler: any;
 
 try {
   // Use dynamic import to catch any module-load error.
@@ -19,10 +21,10 @@ try {
       `Expected default export of ../src/app to be a function (Express app), got ${typeof handler}`,
     );
   }
-} catch (err) {
+} catch (err: any) {
   // Capture the error and return it as the HTTP response so we can see
   // exactly what failed at module load time.
-  handler = (req, res) => {
+  handler = (req: any, res: any) => {
     res.statusCode = 500;
     res.setHeader("Content-Type", "application/json");
     res.end(
@@ -32,7 +34,7 @@ try {
           name: err?.name,
           message: err?.message,
           stack: err?.stack,
-          cause: err?.cause,
+          cause: String(err?.cause),
           code: err?.code,
         },
         null,
