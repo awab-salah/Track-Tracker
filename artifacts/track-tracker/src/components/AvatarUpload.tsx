@@ -49,9 +49,17 @@ export function AvatarUpload({
     e.target.value = '';
     if (!file) return;
 
-    // Optimistic local preview so the user sees their image instantly.
-    const localPreview = URL.createObjectURL(file);
-    setPreviewUrl(localPreview);
+    // Optimistic local preview via FileReader (data: URL) instead of
+    // URL.createObjectURL (blob: URL) — blob: URLs are blocked by browsers
+    // inside cross-origin iframes (e.g. Replit Preview), whereas data: URLs
+    // have no origin restrictions.
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') setPreviewUrl(result);
+    };
+    reader.readAsDataURL(file);
+
     setUploading(true);
     setErrorMsg(null);
     onUploadStart?.();
@@ -61,14 +69,12 @@ export function AvatarUpload({
       if (!publicUrl) {
         throw new Error('Upload failed — see console for details.');
       }
-      // Revoke the local preview — the durable public URL is now active.
-      URL.revokeObjectURL(localPreview);
+      // Clear the local preview — the durable public URL is now active.
       setPreviewUrl(null);
       onChange(publicUrl);
       onUploadEnd?.(true);
     } catch (err) {
       console.error('[AvatarUpload] upload failed:', err);
-      URL.revokeObjectURL(localPreview);
       setPreviewUrl(null);
       const msg = err instanceof Error ? err.message : 'Upload failed';
       setErrorMsg(msg);
@@ -95,14 +101,14 @@ export function AvatarUpload({
         )}
       </div>
 
-      <motion.button
+      {/* label activates the file input natively — works inside sandboxed
+          iframes (e.g. Replit Preview) where scripted .click() is blocked. */}
+      <motion.label
+        htmlFor={testId}
         whileTap={{ scale: 0.88 }}
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
         className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center
-                   justify-center border-2 border-white shadow-md disabled:opacity-60"
-        style={{ background: '#C97A56' }}
-        type="button"
+                   justify-center border-2 border-white shadow-md cursor-pointer"
+        style={{ background: '#C97A56', opacity: uploading ? 0.6 : 1 }}
         aria-label="تغيير الصورة"
         data-testid="btn-avatar-upload"
       >
@@ -111,7 +117,7 @@ export function AvatarUpload({
         ) : (
           <Camera size={13} color="white" />
         )}
-      </motion.button>
+      </motion.label>
 
       {errorMsg && (
         <p
@@ -124,6 +130,7 @@ export function AvatarUpload({
       )}
 
       <input
+        id={testId}
         ref={fileInputRef}
         type="file"
         accept="image/*"

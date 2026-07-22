@@ -227,20 +227,24 @@ export default function ProfilePage() {
     e.target.value = '';
     if (!file) return;
 
-    const localPreview = URL.createObjectURL(file);
-    setLogoPreview(localPreview);
+    // FileReader produces a data: URL which works inside cross-origin iframes;
+    // blob: URLs (URL.createObjectURL) are blocked in that context (e.g. Replit Preview).
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') setLogoPreview(result);
+    };
+    reader.readAsDataURL(file);
     setLogoUploading(true);
 
     try {
       const publicUrl = await uploadProfileImage(file, 'company');
       if (!publicUrl) throw new Error('Upload failed');
-      URL.revokeObjectURL(localPreview);
       setLogoPreview(null);
       updateLogo(publicUrl);
       toast({ title: 'تم تحديث شعار الشركة' });
     } catch (err) {
       console.error('[ProfilePage] logo upload failed:', err);
-      URL.revokeObjectURL(localPreview);
       setLogoPreview(null);
       toast({ title: 'فشل رفع الشعار', variant: 'destructive' });
     } finally {
@@ -329,13 +333,15 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <motion.button
+              {/* label activates the file input natively — works inside
+                  sandboxed iframes (e.g. Replit Preview) where scripted
+                  .click() is blocked. */}
+              <motion.label
+                htmlFor="input-logo"
                 whileTap={{ scale: 0.88 }}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={logoUploading}
                 className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center
-                           justify-center border-2 border-white shadow-md disabled:opacity-60"
-                style={{ background: '#C97A56' }}
+                           justify-center border-2 border-white shadow-md cursor-pointer"
+                style={{ background: '#C97A56', opacity: logoUploading ? 0.6 : 1 }}
                 aria-label="تغيير الشعار"
                 data-testid="btn-logo-upload"
               >
@@ -344,8 +350,9 @@ export default function ProfilePage() {
                 ) : (
                   <Camera size={13} color="white" />
                 )}
-              </motion.button>
+              </motion.label>
               <input
+                id="input-logo"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
