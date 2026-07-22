@@ -86,19 +86,23 @@ export function SalesTab() {
     e.target.value = '';
     if (!file) return;
 
-    const localPreview = URL.createObjectURL(file);
-    setReceiptPreview(localPreview);
+    // FileReader produces a data: URL which works inside cross-origin iframes;
+    // blob: URLs (URL.createObjectURL) are blocked in that context (e.g. Replit Preview).
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') setReceiptPreview(result);
+    };
+    reader.readAsDataURL(file);
     setReceiptUploading(true);
 
     try {
       const publicUrl = await uploadReceiptImage(file);
       if (!publicUrl) throw new Error('Upload failed');
-      URL.revokeObjectURL(localPreview);
       setReceiptPreview(null);
       setReceiptUrl(publicUrl);
     } catch (err) {
       console.error('[SalesTab] receipt upload failed:', err);
-      URL.revokeObjectURL(localPreview);
       setReceiptPreview(null);
       toast({ title: 'فشل رفع صورة الإيصال', variant: 'destructive' });
     } finally {
@@ -286,25 +290,28 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                <button
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={receiptUploading}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                {/* labels activate file inputs natively — works inside sandboxed
+                    iframes (e.g. Replit Preview) where scripted .click() is blocked. */}
+                <label
+                  htmlFor="receipt-camera"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                  style={{ opacity: receiptUploading ? 0.5 : 1 }}
                   data-testid="btn-capture-camera"
                 >
                   <Camera size={16} /> كاميرا
-                </button>
-                <button
-                  onClick={() => galleryInputRef.current?.click()}
-                  disabled={receiptUploading}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                </label>
+                <label
+                  htmlFor="receipt-gallery"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                  style={{ opacity: receiptUploading ? 0.5 : 1 }}
                   data-testid="btn-capture-gallery"
                 >
                   <ImageIcon size={16} /> المعرض
-                </button>
+                </label>
               </div>
             )}
             <input
+              id="receipt-camera"
               ref={cameraInputRef}
               type="file"
               accept="image/*"
@@ -314,6 +321,7 @@ export function SalesTab() {
               disabled={receiptUploading}
             />
             <input
+              id="receipt-gallery"
               ref={galleryInputRef}
               type="file"
               accept="image/*"
