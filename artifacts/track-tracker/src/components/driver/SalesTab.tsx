@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Camera, Image as ImageIcon, X, ChevronDown, Trash2, Plus } from 'lucide-react';
+import { ShoppingCart, Camera, Image as ImageIcon, X, ChevronDown, Trash2, Plus, Loader2 } from 'lucide-react';
 import { AppButton } from '@/components/AppButton';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { useApp } from '@/store/AppContext';
 import { useToast } from '@/hooks/use-toast';
+import { uploadReceiptImage } from '@/lib/storage';
 import { getDriverProducts, formatIQD, type SaleLineItem } from '@/data/mockData';
 
 /** A product line the driver has picked for the current sale, before submitting. */
@@ -24,6 +25,8 @@ export function SalesTab() {
   const [selectedProducts, setSelectedProducts] = useState<Record<string, boolean>>({});
   const [items, setItems] = useState<DraftItem[]>([]);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [receiptUploading, setReceiptUploading] = useState(false);
 
   const products = currentDriver ? getDriverProducts(loads, currentDriver.id) : [];
   const totalAmount = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
@@ -78,10 +81,33 @@ export function SalesTab() {
     setItems((prev) => prev.filter((i) => i.productName !== productName));
   };
 
-  const handleReceiptFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReceiptFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    setReceiptUrl(URL.createObjectURL(file));
+
+    // FileReader produces a data: URL which works inside cross-origin iframes;
+    // blob: URLs (URL.createObjectURL) are blocked in that context (e.g. Replit Preview).
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') setReceiptPreview(result);
+    };
+    reader.readAsDataURL(file);
+    setReceiptUploading(true);
+
+    try {
+      const publicUrl = await uploadReceiptImage(file);
+      if (!publicUrl) throw new Error('Upload failed');
+      setReceiptPreview(null);
+      setReceiptUrl(publicUrl);
+    } catch (err) {
+      console.error('[SalesTab] receipt upload failed:', err);
+      setReceiptPreview(null);
+      toast({ title: 'فشل رفع صورة الإيصال', variant: 'destructive' });
+    } finally {
+      setReceiptUploading(false);
+    }
   };
 
   const handleSell = () => {
@@ -93,6 +119,7 @@ export function SalesTab() {
     toast({ title: 'تم تسجيل عملية البيع بنجاح' });
     setItems([]);
     setReceiptUrl(null);
+    setReceiptPreview(null);
     setPickerOpen(true);
   };
 
@@ -243,7 +270,14 @@ export function SalesTab() {
           {/* ── Receipt capture ── */}
           <div className="pt-1">
             <p className="text-xs text-muted-foreground font-semibold mb-2">صورة الإيصال (اختياري)</p>
-            {receiptUrl ? (
+            {receiptUploading && receiptPreview ? (
+              <div className="relative w-full h-36 rounded-xl overflow-hidden bg-muted">
+                <img src={receiptPreview} alt="جارٍ الرفع…" className="w-full h-full object-contain opacity-70" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <Loader2 className="animate-spin text-white" size={22} />
+                </div>
+              </div>
+            ) : receiptUrl ? (
               <div className="relative w-full h-36 rounded-xl overflow-hidden bg-muted">
                 <img src={receiptUrl} alt="الإيصال" className="w-full h-full object-contain" />
                 <button
@@ -256,36 +290,44 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                <button
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                {/* labels activate file inputs natively — works inside sandboxed
+                    iframes (e.g. Replit Preview) where scripted .click() is blocked. */}
+                <label
+                  htmlFor="receipt-camera"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                  style={{ opacity: receiptUploading ? 0.5 : 1 }}
                   data-testid="btn-capture-camera"
                 >
                   <Camera size={16} /> كاميرا
-                </button>
-                <button
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                </label>
+                <label
+                  htmlFor="receipt-gallery"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                  style={{ opacity: receiptUploading ? 0.5 : 1 }}
                   data-testid="btn-capture-gallery"
                 >
                   <ImageIcon size={16} /> المعرض
-                </button>
+                </label>
               </div>
             )}
             <input
+              id="receipt-camera"
               ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
               className="hidden"
               onChange={handleReceiptFile}
+              disabled={receiptUploading}
             />
             <input
+              id="receipt-gallery"
               ref={galleryInputRef}
               type="file"
               accept="image/*"
               className="hidden"
               onChange={handleReceiptFile}
+              disabled={receiptUploading}
             />
           </div>
 

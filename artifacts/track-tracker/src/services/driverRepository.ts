@@ -94,7 +94,9 @@ export async function fetchDriverByAuthUserId(
 }
 
 /**
- * Partially update a driver row by id.
+ * Partially update a driver row by id. Now persists profilePictureUrl — the
+ * caller passes a durable Supabase Storage public URL (NOT a blob URL)
+ * obtained via uploadProfileImage(file, 'driver').
  */
 export async function updateDriver(
   id: string,
@@ -106,7 +108,7 @@ export async function updateDriver(
   if (patch.name !== undefined) dbPatch.name = patch.name;
   if (patch.email !== undefined) dbPatch.email = patch.email;
   if (patch.vehicleNumber !== undefined) dbPatch.vehicle_number = patch.vehicleNumber;
-  // profilePictureUrl is a blob URL — not persisted to the DB (cleared on reload)
+  if (patch.profilePictureUrl !== undefined) dbPatch.profile_picture_url = patch.profilePictureUrl;
 
   if (Object.keys(dbPatch).length === 0) return;
 

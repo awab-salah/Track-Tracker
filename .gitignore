@@ -49,5 +49,11 @@ Thumbs.db
 .cache/
 .local/
 
+# Local env files (never commit Supabase credentials)
+.env
+.env.local
+.env.*.local
+
 # Uploaded reference files for this sync (not part of the app)
 attached_assets/
+.vercel

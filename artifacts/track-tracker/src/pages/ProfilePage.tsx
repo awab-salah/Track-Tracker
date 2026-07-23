@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X } from 'lucide-react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft, Loader2 } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,8 @@ import { Logo } from '@/components/Logo';
 import { AppButton } from '@/components/AppButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { useApp } from '@/store/AppContext';
+import { useToast } from '@/hooks/use-toast';
+import { uploadProfileImage } from '@/lib/storage';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -195,9 +197,12 @@ export default function ProfilePage() {
     enableNotifications,
     disableNotifications,
   } = useApp();
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [showCodeSheet, setShowCodeSheet] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -217,10 +222,34 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    updateLogo(URL.createObjectURL(file));
+
+    // FileReader produces a data: URL which works inside cross-origin iframes;
+    // blob: URLs (URL.createObjectURL) are blocked in that context (e.g. Replit Preview).
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') setLogoPreview(result);
+    };
+    reader.readAsDataURL(file);
+    setLogoUploading(true);
+
+    try {
+      const publicUrl = await uploadProfileImage(file, 'company');
+      if (!publicUrl) throw new Error('Upload failed');
+      setLogoPreview(null);
+      updateLogo(publicUrl);
+      toast({ title: 'تم تحديث شعار الشركة' });
+    } catch (err) {
+      console.error('[ProfilePage] logo upload failed:', err);
+      setLogoPreview(null);
+      toast({ title: 'فشل رفع الشعار', variant: 'destructive' });
+    } finally {
+      setLogoUploading(false);
+    }
   };
 
   const handleCopy = () => {
@@ -293,9 +322,9 @@ export default function ProfilePage() {
               <div className="w-24 h-24 rounded-full border-[3px] border-primary/25 bg-primary/10
                               flex items-center justify-center overflow-hidden
                               shadow-[0_4px_20px_rgba(13,77,90,0.15)]">
-                {company.logoUrl ? (
+                {(logoUploading && logoPreview) || company.logoUrl ? (
                   <img
-                    src={company.logoUrl}
+                    src={logoUploading && logoPreview ? logoPreview : company.logoUrl!}
                     alt="شعار الشركة"
                     className="w-full h-full object-cover"
                   />
@@ -304,22 +333,33 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <motion.button
+              {/* label activates the file input natively — works inside
+                  sandboxed iframes (e.g. Replit Preview) where scripted
+                  .click() is blocked. */}
+              <motion.label
+                htmlFor="input-logo"
                 whileTap={{ scale: 0.88 }}
-                onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 left-0 w-8 h-8 rounded-full flex items-center
-                           justify-center border-2 border-white shadow-md"
-                style={{ background: '#C97A56' }}
+                           justify-center border-2 border-white shadow-md cursor-pointer"
+                style={{ background: '#C97A56', opacity: logoUploading ? 0.6 : 1 }}
+                aria-label="تغيير الشعار"
+                data-testid="btn-logo-upload"
               >
-                <Camera size={13} color="white" />
-              </motion.button>
+                {logoUploading ? (
+                  <Loader2 size={13} color="white" className="animate-spin" />
+                ) : (
+                  <Camera size={13} color="white" />
+                )}
+              </motion.label>
               <input
+                id="input-logo"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
                 onChange={handleLogoChange}
                 data-testid="input-logo"
+                disabled={logoUploading}
               />
             </div>
 
@@ -398,6 +438,22 @@ export default function ProfilePage() {
                 </motion.span>
               </div>
             </div>
+
+            {/* ── Subscriptions card ── */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setLocation('/subscriptions')}
+              className="w-full bg-white dark:bg-zinc-900 rounded-2xl p-4
+                         shadow-[0_2px_12px_rgba(0,0,0,0.06)]
+                         border border-black/[0.04] dark:border-white/[0.06]
+                         flex items-center justify-between
+                         transition-shadow duration-300
+                         hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
+              data-testid="btn-subscriptions"
+            >
+              <ChevronLeft size={18} className="text-muted-foreground" />
+              <span className="font-semibold text-foreground">الاشتراكات</span>
+            </motion.button>
 
             {/* ── Settings card ── */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden
