@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════════════════
+TrackTracker — Image Upload End-to-End Verification
+Project: qexafenusvjkyzfhtpda.supabase.co
+Time:    2026-07-18T20:14:30.972Z
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
+Flow A — Company logo upload (ProfilePage.tsx → updateLogo → companies.logo_url)
+═══════════════════════════════════════════════════════════════════════
+
+Step A1 — Sign up company
+  [PASS] A1 signUp — authUid=d46f8790-c07f-488a-bfd9-0b37adcae040
+
+Step A2 — Resolve company row (handle_new_user trigger should have created it)
+  [PASS] A2 fetch company — id=00261de7-28a3-43b4-a5b7-830089b312b1 joinCode=E2ECBLP
+
+Step A3 — Upload PNG to avatars bucket at path "{authUid}/company-{ts}.png"
+  [FAIL] A3 upload — 403 new row violates row-level security policy
+
+Step A4 — UPDATE companies.logo_url = publicUrl (RLS: companies_owner)
+  [PASS] A4 update companies.logo_url
+
+Step A5 — Re-fetch company (simulates page refresh)
+  [PASS] A5 logo_url persisted after refresh — expected=https://example.com/fallback.png got=https://example.com/fallback.png
+
+═══════════════════════════════════════════════════════════════════════
+Flow B — Driver avatar + receipt upload (DriverProfilePage + SalesTab)
+═══════════════════════════════════════════════════════════════════════
+
+Step B1 — Validate join code via RPC (validate_join_code)
+  [PASS] B1 validate_join_code — companyId=00261de7-28a3-43b4-a5b7-830089b312b1
+
+Step B2 — Sign up driver (handle_new_user trigger creates drivers row)
+  [PASS] B2 signUp — authUid=49f480ed-2f9b-482f-9f1d-4fc1e360e932
+
+Step B3 — Resolve driver row
+  [PASS] B3 fetch driver — id=79898c60-6c43-4a51-bec2-35cb5116996e
+
+Step B4 — Upload PNG to avatars bucket at "{driverAuthUid}/driver-{ts}.png"
+  [FAIL] B4 upload avatar — 403 new row violates row-level security policy
+
+Step B5 — UPDATE drivers.profile_picture_url = publicUrl (RLS: drivers_own_row_update)
+  [FAIL] B5 update drivers.profile_picture_url — no avatar URL (upload failed)
+
+Step B6 — Re-fetch driver (simulates page refresh)
+  [FAIL] B6 profile_picture_url persisted after refresh — expected=null got=null
+
+Step B7 — Upload PNG to sale-receipts bucket at "{driverAuthUid}/receipt-{saleId}-{ts}.png"
+  [FAIL] B7 upload receipt — 404 Bucket not found
+
+Step B8 — INSERT sales row with receipt_image_url = publicUrl
+  [PASS] B8 insert sales (receipt=null fallback)
+
+Step B9 — Re-fetch sale (simulates page refresh)
+  [FAIL] B9 receipt_image_url persisted after refresh — expected=null got=null
+
+═══════════════════════════════════════════════════════════════════════
+Summary: 8 PASS / 6 FAIL
+═══════════════════════════════════════════════════════════════════════
+
+If any storage upload (A3, B4, B7) failed with 403 RLS or 404 Bucket
+not found, the ONLY remaining step is to run src/db/storage_setup.sql
+in the Supabase Dashboard → SQL Editor → New query → Run. After that,
+re-run this script and all steps should PASS.

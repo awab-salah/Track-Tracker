@@ -8,10 +8,12 @@ import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { InfoRow } from '@/components/InfoRow';
 import { AppInput } from '@/components/AppInput';
 import { useApp } from '@/store/AppContext';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DriverProfilePage() {
   const [, setLocation] = useLocation();
   const { currentDriver, updateDriverProfile, logoutDriver } = useApp();
+  const { toast } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -99,7 +101,20 @@ export default function DriverProfilePage() {
           <div className="flex flex-col items-center pt-8 pb-6 px-6">
             <AvatarUpload
               imageUrl={currentDriver.profilePictureUrl}
-              onChange={(url) => updateDriverProfile({ profilePictureUrl: url })}
+              kind="driver"
+              onChange={(url) => {
+                updateDriverProfile({ profilePictureUrl: url });
+                toast({ title: 'تم تحديث الصورة الشخصية' });
+              }}
+              onUploadEnd={(success, errorMsg) => {
+                if (!success) {
+                  toast({
+                    title: 'فشل رفع الصورة',
+                    description: errorMsg,
+                    variant: 'destructive',
+                  });
+                }
+              }}
               placeholder={<User size={36} className="text-primary/60" />}
               alt="الصورة الشخصية"
               testId="input-avatar"

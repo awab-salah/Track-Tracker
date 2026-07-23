@@ -350,8 +350,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
   const updateLogo = (url: string) => {
-    // logoUrl is a local blob URL — not persisted to DB
+    // Persist the durable public URL (from Supabase Storage) to both local
+    // state AND the companies table. The previous implementation only set
+    // local state — so logoUrl was lost on refresh.
     setCompany((prev) => ({ ...prev, logoUrl: url }));
+    if (authCompanyId) {
+      void updateCompany(authCompanyId, { logoUrl: url });
+    }
   };
 
   // ── Company profile mutations ─────────────────────────────────────────────
@@ -593,7 +598,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       receiptImageUrl: receiptImageUrl ?? null,
     };
     setSales((prev) => [newSale, ...prev]);
-    void createSale(newSale.id, currentDriverId, date, items, totalPrice);
+    void createSale(newSale.id, currentDriverId, date, items, totalPrice, receiptImageUrl ?? null);
 
     // Per the revised midnight-logic spec, a sale IS a cargo mutation —
     // it decrements live quantities. Latch the "cargo edited today" flag
