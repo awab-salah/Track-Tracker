@@ -13,4 +13,7 @@
 //
 // The `includeFiles` setting in vercel.json ensures the dist/ directory is
 // packaged into the lambda alongside the compiled function.
+// @ts-ignore — dist/index.mjs is an esbuild build artifact (JavaScript),
+// not a TypeScript source file, so it has no .d.ts declaration. The
+// default export is the Express app instance.
 export { default } from "../artifacts/api-server/dist/index.mjs";
