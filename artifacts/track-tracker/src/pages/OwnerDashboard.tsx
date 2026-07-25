@@ -7,6 +7,7 @@ import { Logo } from '@/components/Logo';
 import { DriversTab } from '@/components/dashboard/DriversTab';
 import { MapTab } from '@/components/dashboard/MapTab';
 import { StatsTab } from '@/components/dashboard/StatsTab';
+import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { useApp } from '@/store/AppContext';
 
 type TabId = 'drivers' | 'map' | 'stats';
@@ -21,6 +22,8 @@ export default function OwnerDashboard() {
   const [, setLocation] = useLocation();
   const { company } = useApp();
   const [activeTab, setActiveTab] = useState<TabId>('drivers');
+
+  const isActive = company.subscriptionActive;
 
   return (
     <MobileLayout>
@@ -98,11 +101,15 @@ export default function OwnerDashboard() {
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          <AnimatePresence mode="wait">
-            {activeTab === 'drivers' && <DriversTab key="drivers" />}
-            {activeTab === 'map'     && <MapTab     key="map"     />}
-            {activeTab === 'stats'   && <StatsTab   key="stats"   />}
-          </AnimatePresence>
+          {!isActive ? (
+            <SubscriptionGate variant="company" />
+          ) : (
+            <AnimatePresence mode="wait">
+              {activeTab === 'drivers' && <DriversTab key="drivers" />}
+              {activeTab === 'map'     && <MapTab     key="map"     />}
+              {activeTab === 'stats'   && <StatsTab   key="stats"   />}
+            </AnimatePresence>
+          )}
         </div>
 
       </div>

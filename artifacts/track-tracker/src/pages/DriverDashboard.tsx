@@ -7,7 +7,9 @@ import { SegmentedControl } from '@/components/SegmentedControl';
 import { LoadTab } from '@/components/driver/LoadTab';
 import { SalesTab } from '@/components/driver/SalesTab';
 import { DriverStatsTab } from '@/components/driver/DriverStatsTab';
+import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { useApp } from '@/store/AppContext';
+import { useAuth } from '@/store/AuthContext';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import type { CargoItem } from '@/data/mockData';
 
@@ -15,7 +17,8 @@ type TabId = 'load' | 'sales' | 'stats';
 
 export default function DriverDashboard() {
   const [, setLocation] = useLocation();
-  const { currentDriver, currentDriverId } = useApp();
+  const { currentDriver, currentDriverId, companySubscriptionActive } = useApp();
+  const { role } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('load');
   const [editingLoad, setEditingLoad] = useState<CargoItem | null>(null);
 
@@ -100,23 +103,27 @@ export default function DriverDashboard() {
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          <AnimatePresence mode="wait">
-            {activeTab === 'load' && (
-              <LoadTab
-                key="load"
-                editingLoad={editingLoad}
-                onDoneEditing={() => setEditingLoad(null)}
-              />
-            )}
-            {activeTab === 'sales' && <SalesTab key="sales" />}
-            {activeTab === 'stats' && (
-              <DriverStatsTab
-                key="stats"
-                onEditLoad={handleEditLoad}
-                locationState={locationState}
-              />
-            )}
-          </AnimatePresence>
+          {!companySubscriptionActive ? (
+            <SubscriptionGate variant="driver" />
+          ) : (
+            <AnimatePresence mode="wait">
+              {activeTab === 'load' && (
+                <LoadTab
+                  key="load"
+                  editingLoad={editingLoad}
+                  onDoneEditing={() => setEditingLoad(null)}
+                />
+              )}
+              {activeTab === 'sales' && <SalesTab key="sales" />}
+              {activeTab === 'stats' && (
+                <DriverStatsTab
+                  key="stats"
+                  onEditLoad={handleEditLoad}
+                  locationState={locationState}
+                />
+              )}
+            </AnimatePresence>
+          )}
         </div>
 
       </div>

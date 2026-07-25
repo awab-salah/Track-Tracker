@@ -29,7 +29,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
 });
 
-function makeDriverIcon(initial: string) {
+function makeDriverIcon(initial: string, profilePictureUrl?: string | null) {
+  // If a profile picture exists, show it inside the circle at the exact same size.
+  // Otherwise, fall back to the initial letter (existing behavior).
+  const imgHtml = profilePictureUrl
+    ? `<img src="${profilePictureUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="" />`
+    : initial;
+
   return L.divIcon({
     html: `
       <div style="
@@ -38,8 +44,8 @@ function makeDriverIcon(initial: string) {
         box-shadow:0 3px 10px rgba(13,77,90,0.4);
         display:flex;align-items:center;justify-content:center;
         color:#fff;font-size:17px;font-weight:800;
-        font-family:Cairo,sans-serif;
-      ">${initial}</div>
+        font-family:Cairo,sans-serif;overflow:hidden;
+      ">${imgHtml}</div>
     `,
     className: '',
     iconSize: [42, 42],
@@ -147,7 +153,7 @@ export function MapTab() {
             <Marker
               key={driver.id}
               position={[driver.lat, driver.lng]}
-              icon={makeDriverIcon(driver.name.charAt(0))}
+              icon={makeDriverIcon(driver.name.charAt(0), driver.profilePictureUrl)}
               eventHandlers={{
                 click: () => setLocation(`/driver/${driver.id}`),
               }}

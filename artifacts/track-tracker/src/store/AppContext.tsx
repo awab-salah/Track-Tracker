@@ -41,6 +41,15 @@ interface AppContextType {
   setJoinCode: (code: string) => void;
   regenerateJoinCode: () => void;
   logout: () => void;
+  /** Activate the company subscription via an activation code. Persists to DB. */
+  activateSubscription: (code: string) => Promise<boolean>;
+  /**
+   * Whether the company subscription is active. For company owners, mirrors
+   * `company.subscriptionActive`. For drivers, fetched from the parent
+   * company's `subscription_active` column. Used by the SubscriptionGate
+   * to block business operations when inactive.
+   */
+  companySubscriptionActive: boolean;
 
   drivers: Driver[];
   loads: CargoItem[];
@@ -109,6 +118,7 @@ const DEFAULT_COMPANY: CompanyProfile = {
   email: '',
   joinCode: '',
   logoUrl: null,
+  subscriptionActive: false,
 };
 
 // Local-only preference — Notification permission itself is a per-browser/device
@@ -201,6 +211,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loads, setLoads] = useState<CargoItem[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
+
+  // ── Company subscription active (driver context) ──────────────────────────
+  // For company owners: comes from `company.subscriptionActive` (set during
+  // bootstrap from AuthContext's companyProfile). For drivers: fetched from
+  // the parent company's `subscription_active` column via Supabase query
+  // during the driver bootstrap. Defaults to false so the gate blocks until
+  // the fetch completes.
+  const [driverCompanySubscriptionActive, setDriverCompanySubscriptionActive] = useState(false);
 
   // ── Cargo-edited-today latch ───────────────────────────────────────────────
   //
@@ -310,14 +328,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) {
       setCurrentDriverId(authDriverId);
       setDrivers([authDriverProfile]);
+      // Without Supabase, assume active so the app works in mock mode
+      setDriverCompanySubscriptionActive(true);
       return;
     }
 
     let cancelled = false;
     setCurrentDriverId(authDriverId);
     setDrivers([authDriverProfile]);
+    // Reset subscription until we fetch it — gate will block during load
+    setDriverCompanySubscriptionActive(false);
 
     void (async () => {
+      // Fetch the parent company's subscription status FIRST so the gate
+      // resolves quickly. If inactive, the driver sees the gate immediately.
+      // Uses select('*') so we don't fail if the subscription_active column
+      // doesn't exist yet (PostgREST omits unknown columns from select('*')
+      // instead of erroring). We then check for the field in the response.
+      const companyId = authDriverProfile.companyId;
+      const { data: companyRow, error: companyErr } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .single();
+      if (!cancelled) {
+        if (companyErr) {
+          console.error('[AppContext] failed to fetch company subscription:', companyErr.message);
+          setDriverCompanySubscriptionActive(false);
+        } else {
+          // subscription_active may be absent if the migration hasn't run yet.
+          // In that case, default to false (gate blocks until migration runs).
+          const rawRow = companyRow as Record<string, unknown>;
+          setDriverCompanySubscriptionActive((rawRow.subscription_active as boolean) ?? false);
+        }
+      }
+
       const [remoteLoads, remoteSales] = await Promise.all([
         fetchLoads([authDriverId]),
         fetchSales([authDriverId]),
@@ -343,6 +388,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoads([]);
       setSales([]);
       setCurrentDriverId(null);
+      setDriverCompanySubscriptionActive(false);
     }
   }, [role, authLoading]);
 
@@ -380,6 +426,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCompany((prev) => ({ ...prev, joinCode: newCode }));
     if (authCompanyId) {
       void updateCompany(authCompanyId, { joinCode: newCode });
+    }
+  };
+
+  // ── Subscription activation ──────────────────────────────────────────────
+  //
+  // Uses the Supabase `activate_subscription` security-definer RPC to validate
+  // the activation code and set `subscription_active = true` on the company row.
+  // This avoids the PostgREST "column not found" error if the migration hasn't
+  // run yet — the RPC is created as part of the same migration, so if it doesn't
+  // exist, the call fails gracefully and we show an error message.
+  //
+  // The only valid activation code for now is "track1".
+  // Later Stripe will replace this — the architecture is ready.
+
+  const activateSubscription = async (code: string): Promise<boolean> => {
+    if (!isSupabaseConfigured) {
+      // Offline mode: accept "track1" as valid and update local state only
+      if (code.toLowerCase().trim() === 'track1') {
+        setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+        return true;
+      }
+      return false;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('activate_subscription', {
+        p_activation_code: code.trim(),
+      });
+
+      if (error) {
+        // RPC doesn't exist yet — migration hasn't run
+        if (error.message.includes('Could not find the function') || error.code === 'PGRST202') {
+          console.warn(
+            '[AppContext] activate_subscription RPC not found. Run the SQL migration to add the function and the subscription_active column.'
+          );
+        } else {
+          console.error('[AppContext] activate_subscription RPC error:', error.message);
+        }
+        return false;
+      }
+
+      const success = data as boolean;
+      if (success) {
+        setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+      }
+      return success;
+    } catch (err) {
+      console.error('[AppContext] activate_subscription error:', err);
+      return false;
     }
   };
 
@@ -688,6 +783,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setJoinCode,
         regenerateJoinCode,
         logout,
+        activateSubscription,
+        companySubscriptionActive: role === 'driver' ? driverCompanySubscriptionActive : company.subscriptionActive,
         drivers,
         loads,
         sales,

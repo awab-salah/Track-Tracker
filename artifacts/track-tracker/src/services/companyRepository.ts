@@ -10,6 +10,7 @@ type DbCompany = {
   email: string;
   join_code: string;
   logo_url: string | null;
+  subscription_active: boolean;
 };
 
 function toCompanyProfile(row: DbCompany): CompanyProfile & { id: string } {
@@ -19,6 +20,10 @@ function toCompanyProfile(row: DbCompany): CompanyProfile & { id: string } {
     email: row.email,
     joinCode: row.join_code,
     logoUrl: row.logo_url,
+    // subscription_active may not exist on the DB yet (column added via migration).
+    // PostgREST omits unknown columns from `select('*')`, so the value comes as
+    // `undefined` — we coerce to `false` so the gate blocks until the migration runs.
+    subscriptionActive: (row as Record<string, unknown>).subscription_active as boolean ?? false,
   };
 }
 
@@ -81,7 +86,7 @@ export async function fetchCompanyByJoinCode(
  */
 export async function updateCompany(
   id: string,
-  patch: Partial<Pick<CompanyProfile, 'name' | 'email' | 'joinCode' | 'logoUrl'>>
+  patch: Partial<Pick<CompanyProfile, 'name' | 'email' | 'joinCode' | 'logoUrl' | 'subscriptionActive'>>
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
 
@@ -90,9 +95,21 @@ export async function updateCompany(
   if (patch.email !== undefined) dbPatch.email = patch.email;
   if (patch.joinCode !== undefined) dbPatch.join_code = patch.joinCode.toUpperCase();
   if (patch.logoUrl !== undefined) dbPatch.logo_url = patch.logoUrl;
+  if (patch.subscriptionActive !== undefined) dbPatch.subscription_active = patch.subscriptionActive;
 
   if (Object.keys(dbPatch).length === 0) return;
 
   const { error } = await supabase.from('companies').update(dbPatch).eq('id', id);
-  if (error) console.error('[companyRepository] updateCompany error:', error.message);
+  if (error) {
+    // PGRST204 = "Could not find the X column" — means the migration hasn't run yet.
+    // Log a clear message so the developer knows to run the SQL migration.
+    if (error.code === 'PGRST204' && error.message.includes('subscription_active')) {
+      console.warn(
+        '[companyRepository] subscription_active column not found in companies table.' +
+        ' Run the migration: ALTER TABLE companies ADD COLUMN subscription_active BOOLEAN NOT NULL DEFAULT false;'
+      );
+    } else {
+      console.error('[companyRepository] updateCompany error:', error.message);
+    }
+  }
 }

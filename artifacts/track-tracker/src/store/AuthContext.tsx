@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCompanyId(profile?.id ?? null);
       setCompanyProfile(
         profile
-          ? { name: profile.name, email: profile.email, joinCode: profile.joinCode, logoUrl: profile.logoUrl }
+          ? { name: profile.name, email: profile.email, joinCode: profile.joinCode, logoUrl: profile.logoUrl, subscriptionActive: profile.subscriptionActive }
           : null
       );
       setDriverId(null);
