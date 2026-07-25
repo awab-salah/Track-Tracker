@@ -5,9 +5,8 @@
   "outputDirectory": "artifacts/track-tracker/dist/public",
   "framework": null,
   "functions": {
-    "api/index.ts": {
+    "api/index.mjs": {
       "includeFiles": "artifacts/api-server/dist/**",
-      "memory": 1024,
       "maxDuration": 10
     }
   },
