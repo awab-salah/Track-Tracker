@@ -8,4 +8,5 @@ export interface CompanyProfile {
   email: string;
   joinCode: string;
   logoUrl: string | null;
+  subscriptionActive: boolean;
 }

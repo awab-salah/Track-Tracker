@@ -11,6 +11,7 @@ import { ReceiptViewerModal } from '@/components/ReceiptViewerModal';
 import { WeekDaySelector } from '@/components/WeekDaySelector';
 import { WeeklySalesChart } from '@/components/driver/WeeklySalesChart';
 import { CargoCard } from '@/components/CargoCard';
+import { SubscriptionGate } from '@/components/SubscriptionGate';
 import {
   getDriverCargo,
   getDriverSales,
@@ -62,8 +63,30 @@ function SectionTitle({ icon: Icon, title, hint }: { icon: React.ElementType; ti
 export default function DriverDetails() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
-  const { drivers, loads, sales, cargoEditedToday } = useApp();
+  const { drivers, loads, sales, cargoEditedToday, companySubscriptionActive } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+
+  // ── Subscription gate ──
+  // Company owner must be active to view driver details
+  if (!companySubscriptionActive) {
+    return (
+      <MobileLayout>
+        <div className="flex flex-col flex-1 h-[100dvh]">
+          <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background shrink-0">
+            <button
+              onClick={() => setLocation('/owner-dashboard')}
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              <ArrowRight size={22} className="text-foreground" />
+            </button>
+            <span className="font-bold text-base text-foreground">تفاصيل السائق</span>
+            <div className="w-10" aria-hidden />
+          </header>
+          <SubscriptionGate variant="company" />
+        </div>
+      </MobileLayout>
+    );
+  }
 
   // ── Resolved location text ──
   // Shared hook: detects "lat, lng" pattern and reverse-geocodes via the

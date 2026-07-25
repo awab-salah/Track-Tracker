@@ -91,6 +91,14 @@ create table if not exists sale_items (
 alter table companies
   add column if not exists auth_user_id uuid references auth.users(id) on delete cascade;
 
+-- ── 3b. subscription_active column ───────────────────────────────────────────
+-- Added alongside auth_user_id. Defaults to false — new companies must activate
+-- via an activation code (currently: "track1") before using the application.
+-- Stripe integration will replace this in the future.
+
+alter table companies
+  add column if not exists subscription_active boolean not null default false;
+
 alter table drivers
   add column if not exists auth_user_id uuid references auth.users(id) on delete cascade;
 
@@ -255,6 +263,51 @@ $$;
 
 -- Allow anonymous (unauthenticated) callers — needed for driver pre-signup check
 grant execute on function public.validate_join_code(text) to anon, authenticated;
+
+-- 6e. activate_subscription — security-definer RPC ─────────────────────────────
+--
+-- Called by an authenticated company owner to activate their subscription
+-- via an activation code. Currently the only valid code is 'track1'.
+-- Later Stripe will replace this mechanism.
+--
+-- The function runs as security definer (bypasses RLS) so it can UPDATE
+-- the companies table even though the owner's UPDATE policy is limited
+-- to their own row (which is fine — we still validate ownership).
+
+create or replace function public.activate_subscription(p_activation_code text)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_company_id uuid;
+begin
+  -- Validate the activation code
+  if lower(trim(p_activation_code)) <> 'track1' then
+    return false;
+  end if;
+
+  -- Find the company owned by the calling user
+  select id into v_company_id
+  from   public.companies
+  where  auth_user_id = auth.uid();
+
+  if v_company_id is null then
+    return false;
+  end if;
+
+  -- Activate the subscription
+  update public.companies
+  set    subscription_active = true,
+         updated_at          = now()
+  where  id = v_company_id;
+
+  return true;
+end;
+$$;
+
+-- Allow authenticated company owners to call the activation function
+grant execute on function public.activate_subscription(text) to authenticated;
 
 -- 6d. RLS helper functions (security definer) ──────────────────────────────────
 --
