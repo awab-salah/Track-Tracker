@@ -11,7 +11,7 @@
     }
   },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/api/:path*", "destination": "/api" },
     { "source": "/((?!assets/|icons/|favicon.svg|robots.txt|sw.js|workbox-|manifest|api/).*)", "destination": "/index.html" }
   ],
   "headers": [
