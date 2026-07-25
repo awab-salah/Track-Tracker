@@ -11,6 +11,8 @@ export interface Database {
           email: string;
           join_code: string;
           logo_url: string | null;
+          auth_user_id: string | null;
+          subscription_active: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -97,7 +99,16 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      activate_subscription: {
+        Args: { p_activation_code: string };
+        Returns: boolean;
+      };
+      validate_join_code: {
+        Args: { p_join_code: string };
+        Returns: Array<{ company_id: string; company_name: string }>;
+      };
+    };
     Enums: Record<string, never>;
   };
 }

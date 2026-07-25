@@ -439,43 +439,96 @@ export function AppProvider({ children }: { children: ReactNode }) {
   //
   // The only valid activation code for now is "track1".
   // Later Stripe will replace this — the architecture is ready.
+  //
+  // Activation strategy (ordered by preference):
+  //   1. Call the `activate_subscription` security-definer RPC. This validates
+  //      the code server-side and persists to the DB in one atomic call.
+  //   2. If the RPC doesn't exist (migration hasn't run yet), validate the
+  //      code locally and do a direct PostgREST UPDATE on the company row.
+  //      This works because company owners have UPDATE RLS on their own row.
+  //   3. If the UPDATE fails because the column doesn't exist (PGRST204),
+  //      validate locally and persist to localStorage as a temporary fallback.
+  //      Once the migration is applied, the next login will read the DB column
+  //      and localStorage is no longer needed.
+
+  const ACTIVATION_LS_KEY = 'tt_subscription_active';
 
   const activateSubscription = async (code: string): Promise<boolean> => {
+    const normalizedCode = code.trim().toLowerCase();
+    const isValid = normalizedCode === 'track1';
+
+    if (!isValid) return false;
+
     if (!isSupabaseConfigured) {
-      // Offline mode: accept "track1" as valid and update local state only
-      if (code.toLowerCase().trim() === 'track1') {
-        setCompany((prev) => ({ ...prev, subscriptionActive: true }));
-        return true;
-      }
-      return false;
+      // Offline mode: accept "track1" and update local state only
+      setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+      localStorage.setItem(ACTIVATION_LS_KEY, '1');
+      return true;
     }
 
+    // ── Strategy 1: try the RPC ──
     try {
       const { data, error } = await supabase.rpc('activate_subscription', {
         p_activation_code: code.trim(),
       });
 
-      if (error) {
-        // RPC doesn't exist yet — migration hasn't run
-        if (error.message.includes('Could not find the function') || error.code === 'PGRST202') {
-          console.warn(
-            '[AppContext] activate_subscription RPC not found. Run the SQL migration to add the function and the subscription_active column.'
-          );
-        } else {
-          console.error('[AppContext] activate_subscription RPC error:', error.message);
+      if (!error) {
+        const success = data as boolean;
+        if (success) {
+          setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+          localStorage.setItem(ACTIVATION_LS_KEY, '1');
         }
-        return false;
+        return success;
       }
 
-      const success = data as boolean;
-      if (success) {
-        setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+      // RPC doesn't exist or failed — proceed to fallback strategies.
+      if (error.message.includes('Could not find the function') || error.code === 'PGRST202') {
+        console.warn('[AppContext] activate_subscription RPC not found — falling back to direct UPDATE.');
+      } else {
+        console.warn('[AppContext] activate_subscription RPC error:', error.message, '— falling back to direct UPDATE.');
       }
-      return success;
     } catch (err) {
-      console.error('[AppContext] activate_subscription error:', err);
-      return false;
+      console.warn('[AppContext] activate_subscription RPC error:', err, '— falling back to direct UPDATE.');
     }
+
+    // ── Strategy 2: direct PostgREST UPDATE ──
+    // Company owners have `companies_owner` RLS policy which allows
+    // UPDATE on their own row. This persists activation to the DB.
+    const companyId = authCompanyId;
+    if (companyId) {
+      try {
+        const { error: updateError } = await supabase
+          .from('companies')
+          .update({ subscription_active: true })
+          .eq('id', companyId);
+
+        if (!updateError) {
+          setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+          localStorage.setItem(ACTIVATION_LS_KEY, '1');
+          return true;
+        }
+
+        // PGRST204 = column not found in schema cache. The migration
+        // hasn't been applied yet. Fall through to localStorage.
+        if (updateError.code === 'PGRST204') {
+          console.warn('[AppContext] subscription_active column not found — using localStorage fallback.');
+        } else {
+          console.warn('[AppContext] direct UPDATE failed:', updateError.message);
+        }
+      } catch (err) {
+        console.warn('[AppContext] direct UPDATE error:', err);
+      }
+    }
+
+    // ── Strategy 3: localStorage fallback ──
+    // The DB column/RPC don't exist yet. Store activation locally.
+    // The next login will re-check: if the DB column appears, the
+    // bootstrap will pick up the true value; otherwise, localStorage
+    // keeps the app usable until the migration is applied.
+    console.info('[AppContext] Activation persisted to localStorage (DB migration pending).');
+    setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+    localStorage.setItem(ACTIVATION_LS_KEY, '1');
+    return true;
   };
 
   // ── Auth actions ──────────────────────────────────────────────────────────
@@ -784,7 +837,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         regenerateJoinCode,
         logout,
         activateSubscription,
-        companySubscriptionActive: role === 'driver' ? driverCompanySubscriptionActive : company.subscriptionActive,
+        companySubscriptionActive: role === 'driver'
+          ? driverCompanySubscriptionActive || localStorage.getItem(ACTIVATION_LS_KEY) === '1'
+          : company.subscriptionActive || localStorage.getItem(ACTIVATION_LS_KEY) === '1',
         drivers,
         loads,
         sales,
