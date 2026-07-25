@@ -57,3 +57,4 @@ Thumbs.db
 # Uploaded reference files for this sync (not part of the app)
 attached_assets/
 .vercel
+.env*
