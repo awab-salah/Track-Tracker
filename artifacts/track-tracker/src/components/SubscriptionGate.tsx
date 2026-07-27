@@ -6,8 +6,10 @@
  * that navigates to the profile page where the activation code can be entered.
  *
  * For drivers: a different message is shown ("Your company subscription is
- * inactive. Ask the company owner to subscribe or renew the subscription.")
- * Drivers can still log in, but business operations are blocked.
+ * inactive. Please ask the company owner to activate the account.")
+ * Drivers can still log in and view their profile, but business operations
+ * (loads, sales, statistics) are blocked. A "Go to Profile" link lets them
+ * navigate to their driver profile page.
  */
 import { useLocation } from 'wouter';
 import { Lock, ArrowRight } from 'lucide-react';
@@ -37,9 +39,16 @@ export function SubscriptionGate({ variant }: SubscriptionGateProps) {
             اشتراك الشركة غير مفعّل
           </p>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            اطلب من مالك الشركة الاشتراك أو تجديد الاشتراك لتتمكن من استخدام التطبيق.
+            يرجى طلب من مالك الشركة تفعيل الحساب لتتمكن من استخدام التطبيق.
           </p>
         </div>
+        <AppButton
+          onClick={() => setLocation('/driver-profile')}
+          className="mt-2"
+        >
+          <ArrowRight size={18} />
+          الذهاب إلى الملف الشخصي
+        </AppButton>
       </motion.div>
     );
   }

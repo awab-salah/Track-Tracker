@@ -433,9 +433,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   //
   // Uses the Supabase `activate_subscription` security-definer RPC to validate
   // the activation code and set `subscription_active = true` on the company row.
-  // This avoids the PostgREST "column not found" error if the migration hasn't
-  // run yet — the RPC is created as part of the same migration, so if it doesn't
-  // exist, the call fails gracefully and we show an error message.
+  // Activation persists ONLY in Supabase — no localStorage, no fallback.
   //
   // The only valid activation code for now is "track1".
   // Later Stripe will replace this — the architecture is ready.
@@ -443,15 +441,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Activation strategy (ordered by preference):
   //   1. Call the `activate_subscription` security-definer RPC. This validates
   //      the code server-side and persists to the DB in one atomic call.
-  //   2. If the RPC doesn't exist (migration hasn't run yet), validate the
-  //      code locally and do a direct PostgREST UPDATE on the company row.
+  //   2. If the RPC doesn't exist, validate the code locally and do a direct
+  //      PostgREST UPDATE on the company row.
   //      This works because company owners have UPDATE RLS on their own row.
-  //   3. If the UPDATE fails because the column doesn't exist (PGRST204),
-  //      validate locally and persist to localStorage as a temporary fallback.
-  //      Once the migration is applied, the next login will read the DB column
-  //      and localStorage is no longer needed.
-
-  const ACTIVATION_LS_KEY = 'tt_subscription_active';
+  //   3. If both strategies fail, return false (activation not persisted).
+  //      The user sees an error and can retry later.
 
   const activateSubscription = async (code: string): Promise<boolean> => {
     const normalizedCode = code.trim().toLowerCase();
@@ -460,9 +454,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isValid) return false;
 
     if (!isSupabaseConfigured) {
-      // Offline mode: accept "track1" and update local state only
+      // Offline mode: accept "track1" and update local state only.
+      // No localStorage — state lives only in React (lost on refresh,
+      // which is correct since the DB is unreachable in offline mode).
       setCompany((prev) => ({ ...prev, subscriptionActive: true }));
-      localStorage.setItem(ACTIVATION_LS_KEY, '1');
       return true;
     }
 
@@ -476,12 +471,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const success = data as boolean;
         if (success) {
           setCompany((prev) => ({ ...prev, subscriptionActive: true }));
-          localStorage.setItem(ACTIVATION_LS_KEY, '1');
         }
         return success;
       }
 
-      // RPC doesn't exist or failed — proceed to fallback strategies.
+      // RPC doesn't exist or failed — proceed to fallback strategy.
       if (error.message.includes('Could not find the function') || error.code === 'PGRST202') {
         console.warn('[AppContext] activate_subscription RPC not found — falling back to direct UPDATE.');
       } else {
@@ -504,31 +498,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         if (!updateError) {
           setCompany((prev) => ({ ...prev, subscriptionActive: true }));
-          localStorage.setItem(ACTIVATION_LS_KEY, '1');
           return true;
         }
 
-        // PGRST204 = column not found in schema cache. The migration
-        // hasn't been applied yet. Fall through to localStorage.
-        if (updateError.code === 'PGRST204') {
-          console.warn('[AppContext] subscription_active column not found — using localStorage fallback.');
-        } else {
-          console.warn('[AppContext] direct UPDATE failed:', updateError.message);
-        }
+        console.warn('[AppContext] direct UPDATE failed:', updateError.message);
       } catch (err) {
         console.warn('[AppContext] direct UPDATE error:', err);
       }
     }
 
-    // ── Strategy 3: localStorage fallback ──
-    // The DB column/RPC don't exist yet. Store activation locally.
-    // The next login will re-check: if the DB column appears, the
-    // bootstrap will pick up the true value; otherwise, localStorage
-    // keeps the app usable until the migration is applied.
-    console.info('[AppContext] Activation persisted to localStorage (DB migration pending).');
-    setCompany((prev) => ({ ...prev, subscriptionActive: true }));
-    localStorage.setItem(ACTIVATION_LS_KEY, '1');
-    return true;
+    // ── Strategy 3: both strategies failed — activation not persisted ──
+    // Return false so the user sees an error and can retry.
+    return false;
   };
 
   // ── Auth actions ──────────────────────────────────────────────────────────
@@ -838,8 +819,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         logout,
         activateSubscription,
         companySubscriptionActive: role === 'driver'
-          ? driverCompanySubscriptionActive || localStorage.getItem(ACTIVATION_LS_KEY) === '1'
-          : company.subscriptionActive || localStorage.getItem(ACTIVATION_LS_KEY) === '1',
+          ? driverCompanySubscriptionActive
+          : company.subscriptionActive,
         drivers,
         loads,
         sales,
