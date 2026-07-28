@@ -18,7 +18,7 @@ interface SubscriptionPlanCardProps {
 
 export function SubscriptionPlanCard({ plan, onSubscribe }: SubscriptionPlanCardProps) {
   const formatPrice = (price: number) =>
-    price.toLocaleString('ar-IQ');
+    price.toLocaleString('en-US');
 
   return (
     <motion.div

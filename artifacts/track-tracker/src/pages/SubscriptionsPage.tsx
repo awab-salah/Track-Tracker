@@ -1,19 +1,55 @@
+import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MobileLayout } from '@/layouts/MobileLayout';
+import { AppInput } from '@/components/AppInput';
+import { AppButton } from '@/components/AppButton';
 import { PromoCodeSection } from '@/components/PromoCodeSection';
 import { SubscriptionPlanCard } from '@/components/SubscriptionPlanCard';
 import { SUBSCRIPTION_PLANS, subscribeToPlan } from '@/services/subscriptionService';
+import { useApp } from '@/store/AppContext';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * SubscriptionsPage — Company Owner only.
  *
- * Displays a promo code section followed by subscription plan cards.
- * All backend logic is stubbed; UI and validation-ready structure only.
+ * Displays an activation code input, promo code section, and subscription
+ * plan cards. The activation code input is the ONLY place where the owner
+ * can enter a code to activate their subscription.
  */
 export default function SubscriptionsPage() {
   const [, setLocation] = useLocation();
+  const { activateSubscription } = useApp();
+  const { toast } = useToast();
+
+  // ── Activation code state ──
+  const [activationCode, setActivationCode] = useState('');
+  const [activationLoading, setActivationLoading] = useState(false);
+  const [activationError, setActivationError] = useState('');
+
+  const handleActivate = async () => {
+    const code = activationCode.trim();
+    if (!code) {
+      setActivationError('الرجاء إدخال كود التفعيل');
+      return;
+    }
+    setActivationError('');
+    setActivationLoading(true);
+    try {
+      const success = await activateSubscription(code);
+      if (success) {
+        toast({ title: 'تم تفعيل الاشتراك بنجاح!' });
+        setActivationCode('');
+      } else {
+        setActivationError('كود التفعيل غير صحيح');
+      }
+    } catch {
+      setActivationError('حدث خطأ، حاول مرة أخرى');
+    } finally {
+      setActivationLoading(false);
+    }
+  };
 
   const handleSubscribe = async (planId: string) => {
     // TODO: implement backend flow (payment gateway, etc.)
@@ -48,6 +84,50 @@ export default function SubscriptionsPage() {
         {/* ── Scrollable content ── */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-4 flex flex-col gap-4 py-6">
+
+            {/* ── Activation code section ── */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4
+                            shadow-[0_2px_12px_rgba(0,0,0,0.06)]
+                            border border-black/[0.04] dark:border-white/[0.06]">
+              <p className="text-xs text-muted-foreground font-semibold mb-3">كود التفعيل</p>
+              <div className="flex flex-col gap-2">
+                <AppInput
+                  value={activationCode}
+                  onChange={(e) => {
+                    setActivationCode(e.target.value);
+                    setActivationError('');
+                  }}
+                  placeholder="أدخل كود التفعيل"
+                  dir="ltr"
+                  data-testid="input-activation-code"
+                />
+                <AppButton
+                  onClick={handleActivate}
+                  disabled={activationLoading}
+                  data-testid="btn-activate"
+                >
+                  {activationLoading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      جارٍ التحقق...
+                    </>
+                  ) : 'تفعيل'}
+                </AppButton>
+
+                <AnimatePresence>
+                  {activationError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-xs text-red-500 text-center font-medium"
+                    >
+                      {activationError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
 
             {/* Promo code section */}
             <PromoCodeSection onApplied={handlePromoApplied} />

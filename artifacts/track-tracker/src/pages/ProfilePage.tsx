@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft, Loader2, ShieldCheck, ShieldX } from 'lucide-react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft, Loader2 } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -192,7 +192,6 @@ export default function ProfilePage() {
     setJoinCode,
     setCompanyProfile,
     logout,
-    activateSubscription,
     notificationsEnabled,
     notificationPermission,
     enableNotifications,
@@ -204,34 +203,6 @@ export default function ProfilePage() {
   const [showCodeSheet, setShowCodeSheet] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-
-  // ── Activation code state ──
-  const [activationCode, setActivationCode] = useState('');
-  const [activationLoading, setActivationLoading] = useState(false);
-  const [activationError, setActivationError] = useState('');
-
-  const handleActivate = async () => {
-    const code = activationCode.trim();
-    if (!code) {
-      setActivationError('الرجاء إدخال كود التفعيل');
-      return;
-    }
-    setActivationError('');
-    setActivationLoading(true);
-    try {
-      const success = await activateSubscription(code);
-      if (success) {
-        toast({ title: 'تم تفعيل الاشتراك بنجاح!' });
-        setActivationCode('');
-      } else {
-        setActivationError('كود التفعيل غير صحيح');
-      }
-    } catch {
-      setActivationError('حدث خطأ، حاول مرة أخرى');
-    } finally {
-      setActivationLoading(false);
-    }
-  };
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -476,60 +447,13 @@ export default function ProfilePage() {
 
               {company.subscriptionActive ? (
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={20} className="text-green-500 shrink-0" />
-                  <div>
-                    <p className="font-bold text-sm text-green-600">الاشتراك مفعّل</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">يمكنك استخدام جميع ميزات التطبيق</p>
-                  </div>
+                  <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" />
+                  <p className="font-bold text-sm text-green-600">الاشتراك مفعّل</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldX size={20} className="text-red-500 shrink-0" />
-                    <div>
-                      <p className="font-bold text-sm text-red-600">الاشتراك غير مفعّل</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">قم بتفعيل الاشتراك لاستخدام التطبيق</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs text-muted-foreground font-semibold">كود التفعيل</p>
-                    <AppInput
-                      value={activationCode}
-                      onChange={(e) => {
-                        setActivationCode(e.target.value);
-                        setActivationError('');
-                      }}
-                      placeholder="أدخل كود التفعيل"
-                      dir="ltr"
-                      data-testid="input-activation-code"
-                    />
-                    <AppButton
-                      onClick={handleActivate}
-                      disabled={activationLoading}
-                      data-testid="btn-activate"
-                    >
-                      {activationLoading ? (
-                        <>
-                          <Loader2 size={18} className="animate-spin" />
-                          جارٍ التحقق...
-                        </>
-                      ) : 'تفعيل'}
-                    </AppButton>
-
-                    <AnimatePresence>
-                      {activationError && (
-                        <motion.p
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0 }}
-                          className="text-xs text-red-500 text-center font-medium"
-                        >
-                          {activationError}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
+                  <p className="font-bold text-sm text-red-600">الاشتراك غير مفعّل</p>
                 </div>
               )}
             </div>
