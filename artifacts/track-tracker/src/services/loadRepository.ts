@@ -280,9 +280,13 @@ export async function finalizeYesterdayIfNeeded(
     .limit(1);
   if (existing && existing.length > 0) return false;
 
-  // (2) Activity yesterday? If neither sales nor loads touched yesterday,
-  //     there is nothing to freeze — skip silently (driver was inactive).
-  if (!(await hadActivityOn(driverId, yesterday))) return false;
+  // (2) REMOVED — the "activity yesterday" check was incorrectly skipping
+  //     snapshot writes for drivers who had cargo from previous days but
+  //     no activity (sales/loads updates) on that specific day. A driver
+  //     can carry cargo forward silently — the snapshot MUST still be
+  //     written so that the next day's carry-over title appears correctly.
+  //     The `items.length === 0` check at step 5 handles the case where
+  //     the driver truly has no cargo at all.
 
   // (3) First-deployment safety: has anything mutated today already?
   //
