@@ -35,15 +35,15 @@ export default defineConfig({
     tailwindcss(),
     runtimeErrorOverlay(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'icons/favicon-16.png', 'icons/favicon-32.png'],
       manifest: {
         id: basePath,
         name: 'TrackTracker',
         short_name: 'TrackTracker',
         description:
-          'TrackTracker — real-time driver tracking, cargo and sales management.',
+          'TrackTracker — تتبع السائقين في الوقت الحقيقي وإدارة البضائع والمبيعات',
         start_url: basePath,
         scope: basePath,
         display: 'standalone',
@@ -52,6 +52,7 @@ export default defineConfig({
         background_color: '#F6F7F9',
         lang: 'ar',
         dir: 'rtl',
+        categories: ['business', 'productivity'],
         icons: [
           { src: 'icons/icon-72.png', sizes: '72x72', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-96.png', sizes: '96x96', type: 'image/png', purpose: 'any' },
@@ -64,11 +65,23 @@ export default defineConfig({
           { src: 'icons/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
           { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        screenshots: [
+          {
+            src: 'icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'TrackTracker الرئيسية',
+          },
+        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
         navigateFallback: `${basePath}index.html`,
+        navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
@@ -85,6 +98,30 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Cache Supabase Storage images (avatars, receipts)
+            urlPattern: ({ url }) =>
+              url.origin === 'https://qexafenusvjkyzfhtpda.supabase.co' &&
+              url.pathname.startsWith('/storage/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'supabase-storage',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Cache Leaflet tile layers for offline map
+            urlPattern: ({ url }) =>
+              url.hostname.includes('tile.openstreetmap.org'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'leaflet-tiles',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // DO NOT cache Supabase API (rest/auth/realtime) responses — always fresh
         ],
       },
       devOptions: {

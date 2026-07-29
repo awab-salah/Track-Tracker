@@ -15,6 +15,10 @@ import SubscriptionsPage from '@/pages/SubscriptionsPage';
 import DriverDetails from '@/pages/DriverDetails';
 import DriverDashboard from '@/pages/DriverDashboard';
 import DriverProfilePage from '@/pages/DriverProfilePage';
+import { PWAUpdateBanner } from '@/components/PWAUpdateBanner';
+import { PWAInstallBanner } from '@/components/PWAInstallBanner';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import type { ComponentType } from 'react';
 
 const queryClient = new QueryClient();
@@ -97,6 +101,7 @@ function App() {
           <AuthProvider>
             {/* AppProvider is inside AuthProvider so it can call useAuth() */}
             <AppProvider>
+              <PWAShell />
               <Router />
             </AppProvider>
           </AuthProvider>
@@ -104,6 +109,22 @@ function App() {
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
+  );
+}
+
+/**
+ * PWAShell — renders PWA-related UI (update banner, install prompt,
+ * offline indicator) and activates the auto-reconnect hook.
+ * Must be inside AuthProvider so hooks that depend on auth can work.
+ */
+function PWAShell() {
+  useAutoReconnect();
+  return (
+    <>
+      <PWAUpdateBanner />
+      <PWAInstallBanner />
+      <OfflineIndicator />
+    </>
   );
 }
 
