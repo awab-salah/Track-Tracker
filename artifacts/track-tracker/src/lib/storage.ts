@@ -46,7 +46,9 @@ function fileExt(file: File): string {
  * Supabase URL shape: {SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}.
  */
 function publicUrlFor(bucket: string, path: string): string {
-  const u = (import.meta.env.VITE_SUPABASE_URL as string) ?? '';
+  const u =
+    import.meta.env.VITE_SUPABASE_URL ||
+    'https://qexafenusvjkyzfhtpda.supabase.co';
   return `${u}/storage/v1/object/public/${bucket}/${path}`;
 }
 
