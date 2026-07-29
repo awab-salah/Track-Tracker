@@ -1,7 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+/**
+ * Supabase connection configuration.
+ *
+ * The URL and anon key are tried from environment variables first
+ * (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).  If those are
+ * missing — e.g. during a Vercel build that hasn't configured
+ * project-level env vars — the hardcoded fallbacks are used instead.
+ *
+ * The anon key is a *publishable* key designed for client-side code;
+ * it is safe to embed in the bundle.
+ */
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  'https://qexafenusvjkyzfhtpda.supabase.co';
+
+const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'sb_publishable_x7im7A-wpUvo7MX8jCRICA_IPaKydUs';
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn(
