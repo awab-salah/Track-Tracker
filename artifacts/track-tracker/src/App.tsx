@@ -15,9 +15,23 @@ import SubscriptionsPage from '@/pages/SubscriptionsPage';
 import DriverDetails from '@/pages/DriverDetails';
 import DriverDashboard from '@/pages/DriverDashboard';
 import DriverProfilePage from '@/pages/DriverProfilePage';
+import PWAUpdateBanner from '@/components/PWAUpdateBanner';
 import type { ComponentType } from 'react';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Automatically refetch when the window regains focus (PWA returning from background)
+      refetchOnWindowFocus: true,
+      // Automatically refetch when the network comes back online
+      refetchOnReconnect: true,
+      // Stale time — data is considered fresh for 30 seconds
+      staleTime: 30_000,
+      // Retry failed requests up to 2 times
+      retry: 2,
+    },
+  },
+});
 
 // ── Loading screen (shown while session is being resolved) ────────────────────
 
@@ -102,6 +116,7 @@ function App() {
           </AuthProvider>
         </WouterRouter>
         <Toaster />
+        <PWAUpdateBanner />
       </TooltipProvider>
     </QueryClientProvider>
   );

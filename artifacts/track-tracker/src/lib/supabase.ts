@@ -21,9 +21,41 @@ export const supabase = createClient<any>(
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+    global: {
+      headers: {},
+    },
   }
 );
 
 /** True when both env vars are configured and the client is usable. */
 export const isSupabaseConfigured =
   Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
+
+// ── Auto-reconnect & session restore on visibility change ─────────────────────
+// When the user returns to the PWA tab after it was backgrounded,
+// refresh the Supabase session and re-trigger React Query refetches.
+if (typeof document !== 'undefined' && isSupabaseConfigured) {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      // Refresh the auth session — if it expired while backgrounded,
+      // Supabase will attempt to refresh the token automatically.
+      supabase.auth.getSession().catch(() => {
+        // Session expired and refresh failed — the AuthProvider will
+        // handle the redirect to the login page.
+      });
+    }
+  });
+
+  // Listen for online/offline events to restore connectivity gracefully
+  window.addEventListener('online', () => {
+    // Give the network a moment to stabilise, then refresh session
+    setTimeout(() => {
+      supabase.auth.getSession().catch(() => {});
+    }, 500);
+  });
+}

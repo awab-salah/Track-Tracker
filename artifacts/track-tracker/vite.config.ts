@@ -35,9 +35,9 @@ export default defineConfig({
     tailwindcss(),
     runtimeErrorOverlay(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: 'auto',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         id: basePath,
         name: 'TrackTracker',
@@ -52,6 +52,7 @@ export default defineConfig({
         background_color: '#F6F7F9',
         lang: 'ar',
         dir: 'rtl',
+        categories: ['business', 'productivity'],
         icons: [
           { src: 'icons/icon-72.png', sizes: '72x72', type: 'image/png', purpose: 'any' },
           { src: 'icons/icon-96.png', sizes: '96x96', type: 'image/png', purpose: 'any' },
@@ -64,11 +65,14 @@ export default defineConfig({
           { src: 'icons/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
           { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        screenshots: [],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
         navigateFallback: `${basePath}index.html`,
         cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
@@ -85,7 +89,21 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          // Cache Supabase static assets (auth UI etc.) but NOT API responses
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              !sameOrigin && url.hostname.endsWith('.supabase.co') &&
+              url.pathname.startsWith('/storage/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-storage',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
+        // Do NOT cache Supabase REST/Realtime responses — always fetch fresh
+        navigateFallbackDenylist: [/^\/api\//],
       },
       devOptions: {
         enabled: false,
