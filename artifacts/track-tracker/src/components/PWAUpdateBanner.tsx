@@ -7,13 +7,15 @@ import { motion, AnimatePresence } from 'framer-motion';
  * PWAUpdateBanner — shown when the service worker detects a new version.
  * Uses vite-plugin-pwa's `registerType: 'prompt'` mode.
  *
- * The user can:
- *   - Click "تحديث" to reload and activate the new version
- *   - Click ✕ to dismiss (the banner will reappear on next visit)
+ * IMPORTANT: When the user taps "تحديث", we activate the new service worker
+ * WITHOUT forcing a page reload. The new SW will serve updated assets on the
+ * next natural navigation. This preserves all React state, Query cache,
+ * auth session, and navigation position.
+ *
+ * The banner disappears after the user accepts or dismisses it.
  */
 export function PWAUpdateBanner() {
   const [showBanner, setShowBanner] = useState(false);
-  const [offlineReady, setOfflineReady] = useState(false);
 
   const {
     needRefresh: [needRefresh],
@@ -38,15 +40,17 @@ export function PWAUpdateBanner() {
     }
   }, [needRefresh]);
 
-  useEffect(() => {
-    // Show a brief toast when the app is ready for offline use
-    if (offlineReady) {
-      console.log('[PWA] App is ready for offline use');
-    }
-  }, [offlineReady]);
-
   const handleUpdate = useCallback(async () => {
-    await updateServiceWorker(true);
+    // Activate the new SW without reloading the page.
+    // The new assets will be served on the next navigation.
+    // Passing `false` (or nothing) tells workbox-window to skip the reload.
+    try {
+      await updateServiceWorker(false);
+    } catch {
+      // If the SW activation fails silently, that's fine — the current
+      // version continues to work. The user will get the update on next visit.
+    }
+    setShowBanner(false);
   }, [updateServiceWorker]);
 
   const handleDismiss = useCallback(() => {

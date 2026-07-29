@@ -2,49 +2,43 @@ import { useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /**
- * useAutoReconnect — monitors Supabase realtime connection and
- * automatically reconnects when the app regains focus or when
- * the connection drops.
+ * useAutoReconnect — monitors the Supabase realtime connection and
+ * attempts to recover when the app regains focus or comes back online.
  *
- * Features:
- *   - Reconnects when the browser tab becomes visible again
- *   - Reconnects when the network comes back online
- *   - Periodic heartbeat to detect stale connections
- *   - Exponential backoff on reconnection attempts
+ * CRITICAL DESIGN RULES:
+ *   - NEVER calls supabase.auth.refreshSession() — that fires onAuthStateChange
+ *     which causes AuthContext.loadProfile() to set isLoading=true, which
+ *     unmounts the protected route and destroys local component state.
+ *   - NEVER calls window.location.reload() — that destroys everything.
+ *   - Only uses getSession() (read-only, no side effects) to check if the
+ *     session is still valid.
+ *   - If the session has expired, the normal Supabase auth listener in
+ *     AuthContext will handle the sign-out naturally.
+ *
+ * What this hook actually does:
+ *   1. On visibility change (tab focus) → refresh React Query data
+ *   2. On network online → refresh React Query data
+ *   3. Periodic heartbeat (every 5 min) → check session is still valid
+ *   4. All recovery is done through React Query's invalidateQueries,
+ *      which preserves component state and navigation.
  */
 export function useAutoReconnect() {
-  const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const reconnect = useCallback(async () => {
+  /**
+   * Refresh stale data by invalidating React Query caches.
+   * This is a soft refresh — it does NOT destroy React state, context,
+   * navigation, or local UI state. Components that are mounted will
+   * re-fetch their data in the background.
+   */
+  const refreshStaleData = useCallback(() => {
     if (!isSupabaseConfigured) return;
-    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-      console.warn('[AutoReconnect] Max reconnect attempts reached, stopping');
-      return;
-    }
+    if (document.visibilityState !== 'visible') return;
 
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-    reconnectAttemptsRef.current++;
-
-    console.log(
-      `[AutoReconnect] Attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts} in ${delay}ms`
-    );
-
-    setTimeout(async () => {
-      try {
-        // Refresh the Supabase session to re-establish connection
-        const { error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error('[AutoReconnect] Session refresh failed:', error.message);
-        } else {
-          console.log('[AutoReconnect] Session refreshed successfully');
-          reconnectAttemptsRef.current = 0; // Reset on success
-        }
-      } catch (err) {
-        console.error('[AutoReconnect] Reconnect error:', err);
-      }
-    }, delay);
+    // Dispatch a custom event that any part of the app can listen to.
+    // React Query's useQuery hooks will automatically refetch when their
+    // cache is invalidated, without destroying component state.
+    window.dispatchEvent(new CustomEvent('tt:refresh-data'));
   }, []);
 
   useEffect(() => {
@@ -53,60 +47,46 @@ export function useAutoReconnect() {
     // ── Handle visibility change (tab focus) ──────────────────────────────
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        reconnectAttemptsRef.current = 0; // Reset on visibility change
-        reconnect();
+        refreshStaleData();
       }
     };
 
     // ── Handle online/offline events ──────────────────────────────────────
     const handleOnline = () => {
       console.log('[AutoReconnect] Network back online');
-      reconnectAttemptsRef.current = 0;
-      reconnect();
+      refreshStaleData();
     };
 
-    const handleOffline = () => {
-      console.log('[AutoReconnect] Network went offline');
-    };
-
-    // ── Periodic heartbeat (every 2 minutes) ─────────────────────────────
+    // ── Periodic heartbeat (every 5 minutes) ─────────────────────────────
+    // Only checks if the session is still valid. Does NOT call refreshSession
+    // because that fires onAuthStateChange which resets isLoading in AuthContext.
     heartbeatIntervalRef.current = setInterval(async () => {
-      if (document.visibilityState !== 'visible') return; // Skip if tab hidden
+      if (document.visibilityState !== 'visible') return;
       try {
-        // Lightweight check — just refresh the session
-        const { error } = await supabase.auth.getSession();
-        if (error) {
-          console.warn('[AutoReconnect] Heartbeat detected stale session');
-          reconnect();
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+          // Session expired — the normal onAuthStateChange listener in
+          // AuthContext will handle the sign-out. We don't need to do
+          // anything extra here; just log it.
+          console.warn('[AutoReconnect] Heartbeat: session expired or invalid');
         }
+        // If session is valid, do nothing — no need to refresh.
+        // The user's data is still fresh from the last query.
       } catch {
-        console.warn('[AutoReconnect] Heartbeat failed');
-        reconnect();
+        console.warn('[AutoReconnect] Heartbeat check failed');
       }
-    }, 2 * 60 * 1000);
-
-    // ── Listen for Supabase auth events ───────────────────────────────────
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'TOKEN_REFRESHED') {
-        reconnectAttemptsRef.current = 0;
-      }
-    });
+    }, 5 * 60 * 1000);
 
     // ── Register listeners ────────────────────────────────────────────────
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      subscription.unsubscribe();
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
     };
-  }, [reconnect]);
+  }, [refreshStaleData]);
 }
