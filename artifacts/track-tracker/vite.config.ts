@@ -68,8 +68,21 @@ export default defineConfig({
         navigateFallback: `${basePath}index.html`,
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
+        // DO NOT set skipWaiting or clientsClaim here.
+        //
+        // With registerType: 'prompt', the user explicitly chooses when to
+        // activate the new SW. If skipWaiting is true, the new SW activates
+        // immediately upon installation, which can cause the old page to
+        // suddenly be served by the new SW — leading to version mismatches
+        // and unpredictable behavior.
+        //
+        // Instead, the vite-plugin-pwa handles the lifecycle correctly:
+        //   1. New SW enters "waiting" state
+        //   2. User sees "تحديث" banner
+        //   3. User clicks "تحديث" → updateServiceWorker() is called
+        //   4. The plugin calls postMessage({ type: 'SKIP_WAITING' }) to the
+        //      waiting SW, which activates it on the next navigation
+        //   5. No page reload, no state destruction
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
