@@ -448,6 +448,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   //      The user sees an error and can retry later.
 
   const activateSubscription = async (code: string): Promise<boolean> => {
+    // If the company is already active, return true immediately.
+    // The UI layer checks companySubscriptionActive before calling this
+    // function and shows an "already activated" message, but this guard
+    // ensures that even if the UI bypass is missed, no duplicate activation
+    // attempt reaches the database.
+    if (company.subscriptionActive) return true;
+
     const normalizedCode = code.trim().toLowerCase();
     const isValid = normalizedCode === 'track1';
 

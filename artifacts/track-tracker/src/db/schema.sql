@@ -296,6 +296,11 @@ begin
     return false;
   end if;
 
+  -- If already active, return true immediately (no redundant UPDATE)
+  if exists (select 1 from public.companies where id = v_company_id and subscription_active = true) then
+    return true;
+  end if;
+
   -- Activate the subscription
   update public.companies
   set    subscription_active = true,
