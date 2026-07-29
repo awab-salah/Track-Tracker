@@ -71,11 +71,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Resolves the DB profile for the signed-in auth user.
    * Reads role from user_metadata and then fetches the matching DB row.
    * All state mutations are guarded by a version check.
+   *
+   * @param authUser The Supabase auth user (null if signed out).
+   * @param isBackgroundRefresh If true, skip setting isLoading=true — this is
+   *   a routine token refresh (TOKEN_REFRESHED) or background recovery, not an
+   *   initial page load. Setting isLoading=true during a token refresh would
+   *   unmount the protected route and destroy local component state.
    */
-  const loadProfile = useCallback(async (authUser: User | null) => {
+  const loadProfile = useCallback(async (authUser: User | null, isBackgroundRefresh = false) => {
     const myVersion = ++loadVersionRef.current;
-    // Eagerly show loading; actual state is committed only once
-    setIsLoading(true);
+
+    // Only show the loading spinner on initial page load, NOT on background
+    // token refreshes. A TOKEN_REFRESHED event means the user is already
+    // signed in and their session is healthy — there is no reason to show
+    // a loading screen or unmount the protected route.
+    if (!isBackgroundRefresh) {
+      setIsLoading(true);
+    }
 
     if (!authUser || !isSupabaseConfigured) {
       if (loadVersionRef.current !== myVersion) return;
@@ -139,10 +151,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Subscribe to future auth state changes (sign-in, sign-out, token refresh)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
-      void loadProfile(s?.user ?? null);
+
+      // Determine whether this is a background refresh that should NOT
+      // reset the loading state. TOKEN_REFRESHED is a routine background
+      // event that happens every ~60 minutes — the user is already signed
+      // in and their session is healthy. Setting isLoading=true here would
+      // unmount the protected route and destroy local component state.
+      //
+      // Only SIGNED_IN (initial sign-in) and the initial getSession() call
+      // should show the loading spinner.
+      const isBackgroundRefresh =
+        event === 'TOKEN_REFRESHED' ||
+        event === 'PASSWORD_RECOVERY';
+
+      void loadProfile(s?.user ?? null, isBackgroundRefresh);
+
+      // For genuine sign-out events, ensure isLoading is set to false
+      // so the user isn't stuck on the loading spinner.
+      if (event === 'SIGNED_OUT') {
+        setIsLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
