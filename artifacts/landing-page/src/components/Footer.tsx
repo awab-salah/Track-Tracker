@@ -1,4 +1,3 @@
-import { Logo } from './Logo';
 import { Mail, Phone, MapPin } from 'lucide-react';
 
 export function Footer() {
@@ -10,7 +9,19 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Logo size="md" showText white />
+            <div className="flex items-center gap-2">
+              <img
+                src="/icons/logo.png"
+                alt="TrackTracker"
+                width={40}
+                height={40}
+                className="w-10 h-10"
+              />
+              <span className="font-extrabold tracking-tight text-2xl">
+                <span className="text-white">Track</span>
+                <span className="text-orange-400">Tracker</span>
+              </span>
+            </div>
             <p className="mt-4 text-gray-400 leading-relaxed max-w-md">
               TrackTracker is the smart distribution management and tracking system that helps
               businesses manage drivers, track deliveries, record sales, and optimize operations —
