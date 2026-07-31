@@ -1,4 +1,3 @@
-import { Logo } from './Logo';
 import { Download, Shield, Zap, Globe } from 'lucide-react';
 
 export function DownloadSection() {
@@ -15,8 +14,14 @@ export function DownloadSection() {
           {/* App Store style card */}
           <div className="reveal bg-white rounded-3xl shadow-2xl p-8 sm:p-12 text-center">
             {/* App icon */}
-            <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl gradient-hero shadow-lg shadow-teal-700/30 mb-6">
-              <Logo size="sm" showText={false} />
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl shadow-lg shadow-teal-700/30 mb-6 overflow-hidden">
+              <img
+                src="/icons/logo.png"
+                alt="TrackTracker app icon"
+                width={96}
+                height={96}
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {/* App name */}
