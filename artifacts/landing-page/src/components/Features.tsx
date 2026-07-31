@@ -12,72 +12,72 @@ import {
 const FEATURES = [
   {
     icon: Truck,
-    title: 'Driver Management',
+    title: 'إدارة السائقين',
     description:
-      'Add, manage, and track all your drivers in one place. Assign routes, monitor performance, and ensure accountability with real-time status updates and comprehensive driver profiles.',
+      'أضف وأدر وتتبع جميع سائقيك من مكان واحد. خصّص المسارات، راقب الأداء، وضمن المساءلة مع تحديثات الحالة اللحظية وملفات تعريف شاملة للسائقين.',
     color: 'from-teal-500 to-teal-700',
     iconBg: 'bg-teal-100',
     iconColor: 'text-teal-700',
   },
   {
     icon: Package,
-    title: 'Load Management',
+    title: 'إدارة الشحنات',
     description:
-      'Organize and track every load from warehouse to delivery. Manage inventory, assign loads to drivers, and maintain full visibility across your entire distribution chain.',
+      'نظّم وتتبع كل شحنة من المستودع حتى التوصيل. أدر المخزون، خصّص الشحنات للسائقين، وحافظ على رؤية كاملة عبر سلسلة التوزيع بأكملها.',
     color: 'from-orange-400 to-orange-600',
     iconBg: 'bg-orange-100',
     iconColor: 'text-orange-600',
   },
   {
     icon: ClipboardList,
-    title: 'Sales Recording',
+    title: 'تسجيل المبيعات',
     description:
-      'Record every sale in real-time with detailed line items, payment methods, and customer data. Generate comprehensive sales reports and track revenue across all distribution points.',
+      'سجّل كل عملية بيع في الوقت الحقيقي مع تفاصيل البنود وطرق الدفع وبيانات العملاء. أنشئ تقارير مبيعات شاملة وتتبع الإيرادات عبر جميع نقاط التوزيع.',
     color: 'from-blue-500 to-blue-700',
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-700',
   },
   {
     icon: MapPin,
-    title: 'Live GPS Tracking',
+    title: 'تتبع GPS المباشر',
     description:
-      'Track your fleet in real-time with live GPS coordinates on an interactive map. Monitor driver locations, optimize delivery routes, and reduce fuel costs with intelligent tracking.',
+      'تتبع أسطولك لحظيًا بإحداثيات GPS حية على خريطة تفاعلية. راقب مواقع السائقين، حسّن مسارات التوصيل، وقلّل تكاليف الوقود مع التتبع الذكي.',
     color: 'from-green-500 to-green-700',
     iconBg: 'bg-green-100',
     iconColor: 'text-green-700',
   },
   {
     icon: BarChart3,
-    title: 'Reports & Analytics',
+    title: 'التقارير والتحليلات',
     description:
-      'Gain actionable insights with powerful dashboards and analytics. Track key performance metrics, visualize trends, and make data-driven decisions to optimize your distribution operations.',
+      'احصل على رؤى قابلة للتنفيذ مع لوحات معلومات وتحليلات فعّالة. تتبع مؤشرات الأداء الرئيسية، تصوّر الاتجاهات، واتخذ قرارات مبنية على البيانات لتحسين عمليات التوزيع.',
     color: 'from-purple-500 to-purple-700',
     iconBg: 'bg-purple-100',
     iconColor: 'text-purple-700',
   },
   {
     icon: Bell,
-    title: 'Notifications',
+    title: 'الإشعارات',
     description:
-      'Stay informed with real-time push notifications for deliveries, sales, and important updates. Never miss a critical event with customizable alert preferences and delivery confirmations.',
+      'ابقَ على اطلاع مع إشعارات فورية للتوصيلات والمبيعات والتحديثات المهمة. لا تفوّت أي حدث حرج مع تفضيلات تنبيه قابلة للتخصيص وتأكيدات التوصيل.',
     color: 'from-red-500 to-red-700',
     iconBg: 'bg-red-100',
     iconColor: 'text-red-700',
   },
   {
     icon: Users,
-    title: 'User Management',
+    title: 'إدارة المستخدمين',
     description:
-      'Control access with role-based permissions for owners, managers, and drivers. Manage team accounts, set permission levels, and ensure secure operations across your organization.',
+      'تحكّم في الوصول بأذونات قائمة على الأدوار لأصحاب العمل والمديرين والسائقين. أدر حسابات الفريق، حدّد مستويات الصلاحيات، وضمن عمليات آمنة عبر مؤسستك.',
     color: 'from-indigo-500 to-indigo-700',
     iconBg: 'bg-indigo-100',
     iconColor: 'text-indigo-700',
   },
   {
     icon: CreditCard,
-    title: 'Subscription Management',
+    title: 'إدارة الاشتراكات',
     description:
-      'Flexible subscription plans that scale with your business. Manage billing, upgrade or downgrade plans, and control costs with transparent pricing and no hidden fees.',
+      'خطط اشتراك مرنة تنمو مع عملك. أدر الفوترة، ارتقِ أو خفّض الخطط، وتحكّم في التكاليف بأسعار شفافة بدون رسوم خفية.',
     color: 'from-amber-500 to-amber-700',
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-700',
@@ -91,16 +91,15 @@ export function Features() {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-16 reveal">
           <span className="inline-block px-4 py-1.5 bg-teal-100 text-teal-700 text-sm font-bold rounded-full mb-4">
-            Features
+            المميزات
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-6">
-            Everything You Need to{' '}
-            <span className="text-gradient">Manage Distribution</span>
+            كل ما تحتاجه{' '}
+            <span className="text-gradient">لإدارة التوزيع</span>
           </h2>
           <p className="text-lg text-gray-500 leading-relaxed">
-            TrackTracker provides a complete suite of tools designed specifically for distribution
-            companies. From driver management to real-time tracking, every feature is built to
-            streamline your operations and boost productivity.
+            يوفّر TrackTracker مجموعة متكاملة من الأدوات المصمّمة خصيصًا لشركات التوزيع.
+            من إدارة السائقين إلى التتبع اللحظي، كل ميزة مبنية لتبسيط عملياتك وتعزيز الإنتاجية.
           </p>
         </div>
 

@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Download', href: '#download' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'المميزات', href: '#features' },
+  { label: 'كيف يعمل', href: '#how-it-works' },
+  { label: 'التحميل', href: '#download' },
+  { label: 'الأسئلة الشائعة', href: '#faq' },
 ];
 
 export function Navbar() {
@@ -28,7 +28,7 @@ export function Navbar() {
     >
       <div className="container-max flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <a href="#" className="flex-shrink-0 flex items-center gap-2" aria-label="TrackTracker home">
+        <a href="#" className="flex-shrink-0 flex items-center gap-2" aria-label="الصفحة الرئيسية - TrackTracker">
           <img
             src="/icons/logo.png"
             alt="TrackTracker"
@@ -59,7 +59,7 @@ export function Navbar() {
             href="#download"
             className="btn-primary !py-2.5 !px-6 !text-sm !rounded-xl"
           >
-            Get the App
+            تحميل التطبيق
           </a>
         </div>
 
@@ -67,7 +67,7 @@ export function Navbar() {
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="md:hidden p-2 rounded-lg"
-          aria-label="Toggle menu"
+          aria-label="فتح القائمة"
         >
           {mobileOpen ? (
             <X size={24} className={scrolled ? 'text-gray-900' : 'text-white'} />
@@ -96,7 +96,7 @@ export function Navbar() {
               onClick={() => setMobileOpen(false)}
               className="block text-center btn-primary !rounded-xl mt-2"
             >
-              Get the App
+              تحميل التطبيق
             </a>
           </div>
         </div>

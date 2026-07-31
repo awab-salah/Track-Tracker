@@ -1,16 +1,15 @@
-import { ArrowDown, Play } from 'lucide-react';
+import { ArrowDown, Download } from 'lucide-react';
 
 export function Hero() {
   return (
-    <section className="relative gradient-hero min-h-screen flex items-center overflow-hidden">
+    <section className="relative gradient-hero min-h-[60vh] sm:min-h-[65vh] flex items-center overflow-hidden">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Floating circles */}
-        <div className="absolute -top-20 -right-20 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -left-32 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl" />
+        <div className="absolute -top-20 -left-20 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -right-32 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl" />
 
-        {/* Grid pattern */}
+        {/* Subtle grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -19,16 +18,16 @@ export function Hero() {
         />
       </div>
 
-      <div className="container-max px-4 sm:px-6 lg:px-8 pt-24 pb-16 relative z-10">
-        <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+      <div className="container-max px-4 sm:px-6 lg:px-8 pt-20 pb-12 relative z-10">
+        <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
           {/* Logo */}
-          <div className="animate-fade-in-up mb-6 flex flex-col items-center gap-4">
+          <div className="animate-fade-in-up mb-4 flex flex-col items-center gap-3">
             <img
               src="/icons/logo.png"
-              alt="TrackTracker logo"
-              width={120}
-              height={120}
-              className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 drop-shadow-2xl"
+              alt="شعار TrackTracker"
+              width={96}
+              height={96}
+              className="w-20 h-20 sm:w-24 sm:h-24 drop-shadow-2xl"
             />
             <h1 className="font-extrabold tracking-tight leading-tight text-3xl sm:text-4xl lg:text-5xl">
               <span className="text-white">Track</span>
@@ -37,53 +36,40 @@ export function Hero() {
           </div>
 
           {/* Subtitle */}
-          <p className="text-xl sm:text-2xl lg:text-3xl text-white/90 font-medium mb-4 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
-            Smart Distribution Management
-          </p>
-          <p className="text-lg sm:text-xl text-white/70 font-light mb-10 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-            & Tracking System
+          <p className="text-xl sm:text-2xl text-white/90 font-bold mb-2 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+            نظام إدارة التوزيع والتتبع الذكي
           </p>
 
           {/* Description */}
-          <p className="text-base sm:text-lg text-white/60 max-w-2xl mb-10 animate-fade-in-up leading-relaxed" style={{ animationDelay: '0.45s' }}>
-            Manage drivers, track deliveries in real-time, record sales, and optimize your
-            distribution operations — all from one powerful platform.
+          <p className="text-base sm:text-lg text-white/60 max-w-2xl mb-8 animate-fade-in-up leading-relaxed" style={{ animationDelay: '0.3s' }}>
+            أدر سائقيك، وتتبع التوصيلات لحظيًا، سجّل المبيعات، وحسّن عمليات التوزيع
+            — كل ذلك من منصة واحدة متكاملة.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-            <a href="#download" className="btn-primary !bg-orange-500 !shadow-orange-500/30 hover:!bg-orange-600">
-              Get the App
+          <div className="flex flex-col sm:flex-row items-center gap-4 animate-fade-in-up" style={{ animationDelay: '0.45s' }}>
+            <a
+              href="#download"
+              className="btn-primary !bg-orange-500 !shadow-orange-500/30 hover:!bg-orange-600"
+            >
+              <Download size={20} />
+              تحميل التطبيق
+            </a>
+            <a
+              href="#installation"
+              className="btn-secondary !border-white/30 !text-white hover:!bg-white/10"
+            >
               <ArrowDown size={20} />
+              طريقة التثبيت
             </a>
-            <a href="#screenshots" className="btn-secondary !border-white/30 !text-white hover:!bg-white/10">
-              <Play size={20} />
-              Watch Demo
-            </a>
-          </div>
-
-          {/* Trust badges */}
-          <div className="mt-16 flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-white/50 text-sm animate-fade-in-up" style={{ animationDelay: '0.75s' }}>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400" />
-              <span>Real-time Tracking</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400" />
-              <span>Offline Support</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400" />
-              <span>Free to Start</span>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Bottom wave */}
       <div className="absolute bottom-0 left-0 right-0" aria-hidden="true">
-        <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-          <path d="M0 120L60 105C120 90 240 60 360 52.5C480 45 600 60 720 67.5C840 75 960 75 1080 67.5C1200 60 1320 45 1380 37.5L1440 30V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white" />
+        <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+          <path d="M0 100L60 87C120 75 240 50 360 43C480 37 600 50 720 56C840 62 960 62 1080 56C1200 50 1320 37 1380 31L1440 25V100H1380C1320 100 1200 100 1080 100C960 100 840 100 720 100C600 100 480 100 360 100C240 100 120 100 60 100H0Z" fill="white" />
         </svg>
       </div>
     </section>

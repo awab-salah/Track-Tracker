@@ -2,38 +2,38 @@ import { UserPlus, Truck, Package, BarChart3 } from 'lucide-react';
 
 const STEPS = [
   {
-    number: '01',
+    number: '١',
     icon: UserPlus,
-    title: 'Register Your Company',
+    title: 'سجّل شركتك',
     description:
-      'Create your company account in seconds. Set up your organization profile, configure your distribution settings, and invite your team members to get started immediately.',
+      'أنشئ حساب شركتك في ثوانٍ. أعدّ ملف المؤسسة، خصّص إعدادات التوزيع، وادعُ أعضاء فريقك للبدء فورًا.',
     color: 'bg-teal-700',
     ring: 'ring-teal-200',
   },
   {
-    number: '02',
+    number: '٢',
     icon: Truck,
-    title: 'Add Your Drivers',
+    title: 'أضف سائقيك',
     description:
-      'Add drivers to your fleet with their profiles and contact information. Each driver gets their own account to access routes, deliveries, and sales tools on the go.',
+      'أضف السائقين إلى أسطولك مع ملفاتهم ومعلومات الاتصال. يحصل كل سائق على حسابه الخاص للوصول إلى المسارات والتوصيلات وأدوات المبيعات أثناء التنقل.',
     color: 'bg-orange-500',
     ring: 'ring-orange-200',
   },
   {
-    number: '03',
+    number: '٣',
     icon: Package,
-    title: 'Assign Deliveries & Loads',
+    title: 'خصّص التوصيلات والشحنات',
     description:
-      'Create delivery assignments and load orders with detailed information. Assign them to drivers, set routes, and track progress from warehouse to customer doorstep.',
+      'أنشئ تعيينات التوصيل وأوامر الشحن مع تفاصيل كاملة. خصّصها للسائقين، حدّد المسارات، وتتبع التقدم من المستودع حتى باب العميل.',
     color: 'bg-teal-700',
     ring: 'ring-teal-200',
   },
   {
-    number: '04',
+    number: '٤',
     icon: BarChart3,
-    title: 'Track in Real Time',
+    title: 'تتبع لحظيًا',
     description:
-      'Monitor every delivery, sale, and driver movement in real-time. Access comprehensive dashboards, generate reports, and make data-driven decisions to optimize your operations.',
+      'راقب كل توصيلة وكل عملية بيع وكل حركة سائق في الوقت الحقيقي. ادخل إلى لوحات معلومات شاملة، أنشئ تقارير، واتخذ قرارات مبنية على البيانات لتحسين عملياتك.',
     color: 'bg-orange-500',
     ring: 'ring-orange-200',
   },
@@ -46,15 +46,15 @@ export function HowItWorks() {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-16 reveal">
           <span className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 text-sm font-bold rounded-full mb-4">
-            How It Works
+            كيف يعمل
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-6">
-            Up and Running in{' '}
-            <span className="text-gradient">4 Simple Steps</span>
+            جاهز للعمل{' '}
+            <span className="text-gradient">في 4 خطوات بسيطة</span>
           </h2>
           <p className="text-lg text-gray-500 leading-relaxed">
-            Getting started with TrackTracker is quick and easy. Follow these four steps to
-            transform your distribution operations and start seeing results immediately.
+            البدء مع TrackTracker سريع وسهل. اتّبع هذه الخطوات الأربع لتحويل عمليات
+            التوزيع والبدء في رؤية النتائج فورًا.
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export function HowItWorks() {
                   >
                     <step.icon size={36} className="text-white" strokeWidth={2} />
                   </div>
-                  <span className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center text-sm font-extrabold text-gray-900">
+                  <span className="absolute -top-2 -left-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center text-sm font-extrabold text-gray-900">
                     {step.number}
                   </span>
                 </div>
