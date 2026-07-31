@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Logo } from './Logo';
 import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -29,8 +28,18 @@ export function Navbar() {
     >
       <div className="container-max flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <a href="#" className="flex-shrink-0" aria-label="TrackTracker home">
-          <Logo size="sm" showText white={!scrolled} />
+        <a href="#" className="flex-shrink-0 flex items-center gap-2" aria-label="TrackTracker home">
+          <img
+            src="/icons/logo.png"
+            alt="TrackTracker"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
+          <span className={`font-extrabold tracking-tight text-lg ${scrolled ? 'text-gray-900' : 'text-white'}`}>
+            <span className={scrolled ? 'text-teal-800' : 'text-white'}>Track</span>
+            <span className={scrolled ? 'text-orange-500' : 'text-orange-400'}>Tracker</span>
+          </span>
         </a>
 
         {/* Desktop links */}

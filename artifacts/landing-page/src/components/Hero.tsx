@@ -1,4 +1,3 @@
-import { Logo } from './Logo';
 import { ArrowDown, Play } from 'lucide-react';
 
 export function Hero() {
@@ -23,8 +22,18 @@ export function Hero() {
       <div className="container-max px-4 sm:px-6 lg:px-8 pt-24 pb-16 relative z-10">
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
           {/* Logo */}
-          <div className="animate-fade-in-up mb-6">
-            <Logo size="xl" showText white />
+          <div className="animate-fade-in-up mb-6 flex flex-col items-center gap-4">
+            <img
+              src="/icons/logo.png"
+              alt="TrackTracker logo"
+              width={120}
+              height={120}
+              className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 drop-shadow-2xl"
+            />
+            <h1 className="font-extrabold tracking-tight leading-tight text-3xl sm:text-4xl lg:text-5xl">
+              <span className="text-white">Track</span>
+              <span className="text-orange-400">Tracker</span>
+            </h1>
           </div>
 
           {/* Subtitle */}
