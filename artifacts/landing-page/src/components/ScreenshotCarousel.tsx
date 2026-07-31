@@ -32,11 +32,7 @@ const SCREENSHOTS = [
     src: '/screenshots/notifications',
     alt: 'الإشعارات في TrackTracker',
   },
-  {
-    id: 7,
-    src: '/screenshots/user-management',
-    alt: 'إدارة المستخدمين في TrackTracker',
-  },
+
 ];
 
 export function ScreenshotCarousel() {

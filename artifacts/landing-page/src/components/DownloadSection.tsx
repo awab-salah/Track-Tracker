@@ -1,4 +1,4 @@
-import { Download, Shield, Zap, Globe } from 'lucide-react';
+import { Download, Shield, Zap } from 'lucide-react';
 
 const PWA_URL = 'https://track-tracker-beta.vercel.app';
 
@@ -65,7 +65,7 @@ export function DownloadSection() {
             </button>
 
             {/* Quick info */}
-            <div className="mt-8 grid grid-cols-3 gap-4 text-center">
+            <div className="mt-8 grid grid-cols-2 gap-4 text-center">
               <div className="flex flex-col items-center">
                 <Shield size={20} className="text-teal-700 mb-1" />
                 <span className="text-xs text-gray-500">آمن</span>
@@ -73,10 +73,6 @@ export function DownloadSection() {
               <div className="flex flex-col items-center">
                 <Zap size={20} className="text-orange-500 mb-1" />
                 <span className="text-xs text-gray-500">سريع</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <Globe size={20} className="text-teal-700 mb-1" />
-                <span className="text-xs text-gray-500">يعمل بدون إنترنت</span>
               </div>
             </div>
           </div>
