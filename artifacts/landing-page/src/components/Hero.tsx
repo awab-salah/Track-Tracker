@@ -57,7 +57,7 @@ export function Hero() {
             </a>
             <a
               href="#installation"
-              className="btn-secondary !border-white/30 !text-white hover:!bg-white/10"
+              className="btn-secondary !bg-transparent !border-white/30 !text-white hover:!bg-white/10"
             >
               <ArrowDown size={20} />
               طريقة التثبيت
