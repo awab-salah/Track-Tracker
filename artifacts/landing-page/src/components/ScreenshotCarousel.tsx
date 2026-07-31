@@ -1,36 +1,48 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Smartphone, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 
 const SCREENSHOTS = [
   {
     id: 1,
     title: 'Dashboard Overview',
-    placeholder: 'Dashboard',
-    color: 'from-teal-600 to-teal-800',
+    src: '/screenshots/dashboard',
+    alt: 'TrackTracker dashboard showing key metrics and overview',
   },
   {
     id: 2,
     title: 'Live GPS Tracking',
-    placeholder: 'Map View',
-    color: 'from-green-600 to-green-800',
+    src: '/screenshots/map-tracking',
+    alt: 'TrackTracker live GPS map tracking drivers in real-time',
   },
   {
     id: 3,
     title: 'Driver Management',
-    placeholder: 'Drivers',
-    color: 'from-blue-600 to-blue-800',
+    src: '/screenshots/driver-management',
+    alt: 'TrackTracker driver management interface with driver list and details',
   },
   {
     id: 4,
     title: 'Sales Recording',
-    placeholder: 'Sales',
-    color: 'from-orange-500 to-orange-700',
+    src: '/screenshots/sales-recording',
+    alt: 'TrackTracker sales recording screen for tracking deliveries and payments',
   },
   {
     id: 5,
     title: 'Reports & Analytics',
-    placeholder: 'Reports',
-    color: 'from-purple-600 to-purple-800',
+    src: '/screenshots/reports-analytics',
+    alt: 'TrackTracker reports and analytics dashboard with charts and metrics',
+  },
+  {
+    id: 6,
+    title: 'Notifications',
+    src: '/screenshots/notifications',
+    alt: 'TrackTracker notifications center with delivery and sales alerts',
+  },
+  {
+    id: 7,
+    title: 'User Management',
+    src: '/screenshots/user-management',
+    alt: 'TrackTracker user management with roles and permissions',
   },
 ];
 
@@ -38,16 +50,20 @@ export function ScreenshotCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const scroll = (direction: 'left' | 'right') => {
+  const scrollToIndex = (index: number) => {
     if (!scrollRef.current) return;
     const container = scrollRef.current;
     const cardWidth = container.scrollWidth / SCREENSHOTS.length;
+    setActiveIndex(index);
+    container.scrollTo({ left: cardWidth * index, behavior: 'smooth' });
+  };
+
+  const scroll = (direction: 'left' | 'right') => {
     const newIndex =
       direction === 'left'
         ? Math.max(0, activeIndex - 1)
         : Math.min(SCREENSHOTS.length - 1, activeIndex + 1);
-    setActiveIndex(newIndex);
-    container.scrollTo({ left: cardWidth * newIndex, behavior: 'smooth' });
+    scrollToIndex(newIndex);
   };
 
   return (
@@ -96,26 +112,31 @@ export function ScreenshotCarousel() {
             {SCREENSHOTS.map((screenshot) => (
               <div
                 key={screenshot.id}
-                className="carousel-item w-[280px] sm:w-[320px] flex-shrink-0"
+                className="carousel-item w-[240px] sm:w-[280px] lg:w-[300px] flex-shrink-0"
               >
                 {/* Phone frame */}
-                <div className="relative bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
+                <div className="relative bg-gray-900 rounded-[2.5rem] p-2.5 sm:p-3 shadow-2xl">
                   {/* Notch */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-gray-900 rounded-b-2xl z-10" />
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 sm:w-24 sm:h-6 bg-gray-900 rounded-b-2xl z-10" />
 
-                  {/* Screen */}
-                  <div
-                    className={`bg-gradient-to-br ${screenshot.color} rounded-[2rem] aspect-[9/19.5] flex flex-col items-center justify-center gap-3 relative overflow-hidden`}
-                  >
-                    {/* Placeholder content */}
-                    <Smartphone size={48} className="text-white/30" />
-                    <span className="text-white/70 font-bold text-lg">{screenshot.placeholder}</span>
-                    <span className="text-white/40 text-sm">{screenshot.title}</span>
-
-                    {/* Placeholder label */}
-                    <div className="absolute bottom-4 left-4 right-4 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 text-center">
-                      <span className="text-white/60 text-xs">Screenshot placeholder</span>
-                    </div>
+                  {/* Screen with real screenshot */}
+                  <div className="rounded-[2rem] overflow-hidden aspect-[9/19.5] relative bg-gray-100">
+                    <picture>
+                      <source
+                        srcSet={`${screenshot.src}-sm.webp 360w, ${screenshot.src}-md.webp 540w, ${screenshot.src}-lg.webp 720w`}
+                        sizes="(max-width: 640px) 360px, (max-width: 1024px) 540px, 720px"
+                        type="image/webp"
+                      />
+                      <img
+                        src={`${screenshot.src}-lg.webp`}
+                        alt={screenshot.alt}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover object-top"
+                        width={719}
+                        height={1446}
+                      />
+                    </picture>
                   </div>
                 </div>
 
@@ -133,13 +154,7 @@ export function ScreenshotCarousel() {
           {SCREENSHOTS.map((_, i) => (
             <button
               key={i}
-              onClick={() => {
-                setActiveIndex(i);
-                scrollRef.current?.scrollTo({
-                  left: (scrollRef.current.scrollWidth / SCREENSHOTS.length) * i,
-                  behavior: 'smooth',
-                });
-              }}
+              onClick={() => scrollToIndex(i)}
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 i === activeIndex ? 'bg-teal-700 w-6' : 'bg-gray-300'
               }`}
