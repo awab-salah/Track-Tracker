@@ -98,3 +98,12 @@
   scroll-snap-align: center;
   flex-shrink: 0;
 }
+
+/* RTL-specific adjustments */
+[dir="rtl"] .carousel-container {
+  direction: ltr;
+}
+
+[dir="rtl"] .carousel-container * {
+  direction: rtl;
+}

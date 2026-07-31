@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -23,22 +23,22 @@ export function Footer() {
               </span>
             </div>
             <p className="mt-4 text-gray-400 leading-relaxed max-w-md">
-              TrackTracker is the smart distribution management and tracking system that helps
-              businesses manage drivers, track deliveries, record sales, and optimize operations —
-              all from one powerful platform.
+              TrackTracker هو نظام إدارة التوزيع والتتبع الذكي الذي يساعد الشركات على
+              إدارة السائقين وتتبع التوصيلات وتسجيل المبيعات وتحسين العمليات — كل ذلك
+              من منصة واحدة متكاملة.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-bold text-white mb-4">Quick Links</h3>
+            <h3 className="font-bold text-white mb-4">روابط سريعة</h3>
             <ul className="space-y-3">
               {[
-                { label: 'Features', href: '#features' },
-                { label: 'How It Works', href: '#how-it-works' },
-                { label: 'Download', href: '#download' },
-                { label: 'Screenshots', href: '#screenshots' },
-                { label: 'FAQ', href: '#faq' },
+                { label: 'المميزات', href: '#features' },
+                { label: 'كيف يعمل', href: '#how-it-works' },
+                { label: 'التحميل', href: '#download' },
+                { label: 'لقطات التطبيق', href: '#screenshots' },
+                { label: 'الأسئلة الشائعة', href: '#faq' },
               ].map((link) => (
                 <li key={link.href}>
                   <a
@@ -52,23 +52,22 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contact - WhatsApp */}
           <div>
-            <h3 className="font-bold text-white mb-4">Contact Us</h3>
-            <ul className="space-y-3">
-              <li className="flex items-center gap-3 text-gray-400 text-sm">
-                <Mail size={16} className="flex-shrink-0" />
-                <span>support@tracktracker.app</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-400 text-sm">
-                <Phone size={16} className="flex-shrink-0" />
-                <span>+1 (555) 000-0000</span>
-              </li>
-              <li className="flex items-start gap-3 text-gray-400 text-sm">
-                <MapPin size={16} className="flex-shrink-0 mt-0.5" />
-                <span>123 Distribution Ave,<br />Business District, 10001</span>
-              </li>
-            </ul>
+            <h3 className="font-bold text-white mb-4">تواصل معنا</h3>
+            <a
+              href="https://wa.me/9647800391051"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl transition-colors font-bold"
+            >
+              <MessageCircle size={22} />
+              <span>واتساب</span>
+              <span className="text-white/70 text-sm font-normal" dir="ltr">07800391051</span>
+            </a>
+            <p className="mt-4 text-gray-400 text-sm leading-relaxed">
+              تواصل معنا عبر واتساب لأي استفسار أو دعم فني. نحن متاحون لمساعدتك.
+            </p>
           </div>
         </div>
       </div>
@@ -77,11 +76,11 @@ export function Footer() {
       <div className="border-t border-gray-800">
         <div className="container-max px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-gray-500 text-sm">
-            &copy; {currentYear} TrackTracker. All rights reserved.
+            &copy; {currentYear} TrackTracker. جميع الحقوق محفوظة.
           </p>
           <div className="flex items-center gap-6 text-sm text-gray-500">
-            <a href="#" className="hover:text-orange-400 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-orange-400 transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-orange-400 transition-colors">سياسة الخصوصية</a>
+            <a href="#" className="hover:text-orange-400 transition-colors">شروط الخدمة</a>
           </div>
         </div>
       </div>

@@ -9,7 +9,24 @@ import { InstallationGuide } from './components/InstallationGuide';
 import { FAQ } from './components/FAQ';
 import { Footer } from './components/Footer';
 
+// Extend Window type for PWA install prompt
+declare global {
+  interface Window {
+    deferredInstallPrompt: any;
+  }
+}
+
 function App() {
+  // Capture the PWA beforeinstallprompt event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      window.deferredInstallPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
   // Intersection Observer for reveal animations
   useEffect(() => {
     const observer = new IntersectionObserver(

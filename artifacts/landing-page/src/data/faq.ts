@@ -1,52 +1,52 @@
 export const FAQ_ITEMS = [
   {
-    question: 'What is TrackTracker?',
+    question: 'ما هو TrackTracker؟',
     answer:
-      'TrackTracker is a smart distribution management and tracking system designed for businesses that need to manage drivers, track deliveries, record sales, and optimize their distribution operations. It is a Progressive Web App (PWA) that works on any device with a web browser, offering native-like performance and offline capabilities.',
+      'TrackTracker هو نظام إدارة توزيع وتتبع ذكي مصمّم للشركات التي تحتاج إلى إدارة السائقين وتتبع التوصيلات وتسجيل المبيعات وتحسين عمليات التوزيع. وهو تطبيق ويب تقدمي (PWA) يعمل على أي جهاز مزود بمتصفح إنترنت، ويوفّر أداءً شبيهًا بالتطبيقات الأصلية وإمكانات العمل بدون إنترنت.',
   },
   {
-    question: 'How does TrackTracker track drivers in real-time?',
+    question: 'كيف يتتبع TrackTracker السائقين في الوقت الحقيقي؟',
     answer:
-      'TrackTracker uses GPS technology to provide live location tracking of your drivers on an interactive map. Drivers share their location through the app, and dispatchers can monitor their positions, routes, and delivery status in real-time from the dashboard. The system works even in areas with poor connectivity thanks to offline data caching.',
+      'يستخدم TrackTracker تقنية GPS لتوفير تتبع الموقع الحي لسائقيك على خريطة تفاعلية. يشارك السائقون موقعهم عبر التطبيق، ويمكن للمشرفين مراقبة مواقعهم ومساراتهم وحالة التوصيل لحظيًا من لوحة التحكم. يعمل النظام حتى في المناطق ذات الاتصال الضعيف بفضل التخزين المؤقت للبيانات.',
   },
   {
-    question: 'Is TrackTracker free to use?',
+    question: 'هل TrackTracker مجاني؟',
     answer:
-      'TrackTracker offers a free tier that allows you to get started with basic features at no cost. For businesses that need advanced features such as unlimited drivers, detailed analytics, and priority support, we offer affordable subscription plans. You can upgrade or downgrade at any time.',
+      'يوفّر TrackTracker مستوى مجانيًا يتيح لك البدء بالميزات الأساسية بدون تكلفة. للشركات التي تحتاج ميزات متقدمة مثل عدد سائقين غير محدود وتحليلات مفصّلة ودعمًا ذو أولوية، نوفّر خطط اشتراك بأسعار تنافسية. يمكنك الترقية أو التخفيض في أي وقت.',
   },
   {
-    question: 'How do I install TrackTracker on my phone?',
+    question: 'كيف أثبّت TrackTracker على هاتفي؟',
     answer:
-      'TrackTracker is a Progressive Web App, which means you can install it directly from your mobile browser without visiting an app store. Simply open the app URL in Chrome (Android) or Safari (iOS), tap the "Add to Home Screen" option in your browser menu, and the app will be installed on your device with full offline support and push notifications.',
+      'TrackTracker هو تطبيق ويب تقدمي (PWA)، مما يعني أنك تثبّته مباشرة من المتصفح دون الحاجة لزيارة متجر التطبيقات. افتح رابط التطبيق في Chrome (أندرويد) أو Safari (آيفون)، اضغط على خيار "إضافة إلى الشاشة الرئيسية" من قائمة المتصفح، وسيتم تثبيت التطبيق على جهازك مع دعم كامل للعمل بدون إنترنت والإشعارات.',
   },
   {
-    question: 'Does TrackTracker work offline?',
+    question: 'هل يعمل TrackTracker بدون إنترنت؟',
     answer:
-      'Yes, TrackTracker is designed to work offline. As a PWA, it caches essential data and assets so that drivers can continue to record sales, view assigned deliveries, and access critical information even without an internet connection. Data is automatically synced when connectivity is restored.',
+      'نعم، TrackTracker مصمّم للعمل بدون إنترنت. بصفته تطبيق PWA، يخزّن البيانات والموارد الأساسية مؤقتًا حتى يتمكن السائقون من الاستمرار في تسجيل المبيعات وعرض التوصيلات المخصصة والوصول إلى المعلومات الحيوية حتى بدون اتصال. تتم مزامنة البيانات تلقائيًا عند استعادة الاتصال.',
   },
   {
-    question: 'Can I manage multiple drivers with TrackTracker?',
+    question: 'هل يمكنني إدارة عدة سائقين عبر TrackTracker؟',
     answer:
-      'Absolutely. TrackTracker supports multi-driver management out of the box. You can add unlimited drivers (depending on your subscription plan), assign them to specific routes and deliveries, monitor their performance, and track their locations in real-time from a single dashboard.',
+      'بالتأكيد. يدعم TrackTracker إدارة عدة سائقين بشكل مدمج. يمكنك إضافة عدد غير محدود من السائقين (حسب خطة الاشتراك)، وتخصيصهم لمسارات وتوصيلات محددة، ومراقبة أدائهم، وتتبع مواقعهم في الوقت الحقيقي من لوحة تحكم واحدة.',
   },
   {
-    question: 'What kind of reports and analytics does TrackTracker provide?',
+    question: 'ما نوع التقارير والتحليلات التي يقدمها TrackTracker؟',
     answer:
-      'TrackTracker provides comprehensive reports and analytics including sales summaries, delivery performance metrics, driver activity logs, revenue tracking, and route optimization insights. Our interactive dashboards allow you to visualize trends, identify bottlenecks, and make data-driven decisions to improve your distribution operations.',
+      'يوفّر TrackTracker تقارير وتحليلات شاملة تشمل ملخصات المبيعات ومقاييس أداء التوصيل وسجلات نشاط السائقين وتتبع الإيرادات ورؤى تحسين المسارات. تتيح لك لوحات المعلومات التفاعلية تصوّر الاتجاهات وتحديد الاختناقات واتخاذ قرارات مبنية على البيانات لتحسين عمليات التوزيع.',
   },
   {
-    question: 'Is my data secure with TrackTracker?',
+    question: 'هل بياناتي آمنة مع TrackTracker؟',
     answer:
-      'Yes, security is a top priority. TrackTracker uses industry-standard encryption for data in transit and at rest. We implement role-based access control, secure authentication, and regular security audits. Your business data is stored on secure, SOC 2 compliant infrastructure with automated backups.',
+      'نعم، الأمان أولوية قصوى. يستخدم TrackTracker تشفيرًا قياسيًا للبيانات أثناء النقل والتخزين. نطبّق التحكم في الوصول القائم على الأدوار والمصادقة الآمنة والتدقيقات الأمنية المنتظمة. بيانات عملك مخزّنة على بنية تحتية آمنة مع نسخ احتياطي تلقائي.',
   },
   {
-    question: 'What devices does TrackTracker support?',
+    question: 'ما الأجهزة التي يدعمها TrackTracker؟',
     answer:
-      'TrackTracker works on any device with a modern web browser, including Android phones, iPhones, tablets, and desktop computers. Since it is a PWA, it adapts to any screen size and provides a consistent experience across all devices. The app can be installed on mobile devices for a native-like experience.',
+      'يعمل TrackTracker على أي جهاز مزود بمتصفح حديث، بما في ذلك هواتف أندرويد وآيفون والأجهزة اللوحية وأجهزة الكمبيوتر. بصفته تطبيق PWA، يتكيّف مع أي حجم شاشة ويوفّر تجربة متسقة عبر جميع الأجهزة. يمكن تثبيت التطبيق على الأجهزة المحمولة لتجربة شبيهة بالتطبيقات الأصلية.',
   },
   {
-    question: 'How do I get started with TrackTracker?',
+    question: 'كيف أبدأ باستخدام TrackTracker؟',
     answer:
-      'Getting started is simple: visit the TrackTracker website, create your company account, add your drivers, and start assigning deliveries. The setup process takes just a few minutes, and our intuitive interface means no training is required. You can also watch our installation tutorial video for step-by-step guidance.',
+      'البدء بسيط: زُر موقع TrackTracker، أنشئ حساب شركتك، أضف سائقيك، وابدأ بتعيين التوصيلات. تستغرق عملية الإعداد دقائق معدودة، وواجهتنا البديهية لا تتطلب تدريبًا. يمكنك أيضًا مشاهدة فيديو شرح التثبيت للحصول على إرشادات خطوة بخطوة.',
   },
 ];

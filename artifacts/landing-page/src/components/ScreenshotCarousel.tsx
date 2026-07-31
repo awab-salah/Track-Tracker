@@ -4,45 +4,38 @@ import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 const SCREENSHOTS = [
   {
     id: 1,
-    title: 'Dashboard Overview',
     src: '/screenshots/dashboard',
-    alt: 'TrackTracker dashboard showing key metrics and overview',
+    alt: 'لوحة تحكم TrackTracker',
   },
   {
     id: 2,
-    title: 'Live GPS Tracking',
     src: '/screenshots/map-tracking',
-    alt: 'TrackTracker live GPS map tracking drivers in real-time',
+    alt: 'تتبع GPS المباشر في TrackTracker',
   },
   {
     id: 3,
-    title: 'Driver Management',
     src: '/screenshots/driver-management',
-    alt: 'TrackTracker driver management interface with driver list and details',
+    alt: 'إدارة السائقين في TrackTracker',
   },
   {
     id: 4,
-    title: 'Sales Recording',
     src: '/screenshots/sales-recording',
-    alt: 'TrackTracker sales recording screen for tracking deliveries and payments',
+    alt: 'تسجيل المبيعات في TrackTracker',
   },
   {
     id: 5,
-    title: 'Reports & Analytics',
     src: '/screenshots/reports-analytics',
-    alt: 'TrackTracker reports and analytics dashboard with charts and metrics',
+    alt: 'التقارير والتحليلات في TrackTracker',
   },
   {
     id: 6,
-    title: 'Notifications',
     src: '/screenshots/notifications',
-    alt: 'TrackTracker notifications center with delivery and sales alerts',
+    alt: 'الإشعارات في TrackTracker',
   },
   {
     id: 7,
-    title: 'User Management',
     src: '/screenshots/user-management',
-    alt: 'TrackTracker user management with roles and permissions',
+    alt: 'إدارة المستخدمين في TrackTracker',
   },
 ];
 
@@ -72,34 +65,33 @@ export function ScreenshotCarousel() {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-12 reveal">
           <span className="inline-block px-4 py-1.5 bg-teal-100 text-teal-700 text-sm font-bold rounded-full mb-4">
-            See It In Action
+            شاهد التطبيق
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-6">
-            App <span className="text-gradient">Screenshots</span> & Demo
+            لقطات <span className="text-gradient">التطبيق</span>
           </h2>
           <p className="text-lg text-gray-500 leading-relaxed">
-            Explore the TrackTracker interface and see how easy it is to manage your distribution
-            operations from anywhere.
+            استكشف واجهة TrackTracker وشاهد مدى سهولة إدارة عمليات التوزيع من أي مكان.
           </p>
         </div>
 
         {/* Carousel navigation */}
         <div className="flex items-center justify-end gap-2 mb-6 reveal">
           <button
-            onClick={() => scroll('left')}
+            onClick={() => scroll('right')}
             disabled={activeIndex === 0}
             className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Previous screenshot"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <button
-            onClick={() => scroll('right')}
-            disabled={activeIndex === SCREENSHOTS.length - 1}
-            className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Next screenshot"
+            aria-label="اللقطة السابقة"
           >
             <ChevronRight size={20} />
+          </button>
+          <button
+            onClick={() => scroll('left')}
+            disabled={activeIndex === SCREENSHOTS.length - 1}
+            className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="اللقطة التالية"
+          >
+            <ChevronLeft size={20} />
           </button>
         </div>
 
@@ -139,11 +131,6 @@ export function ScreenshotCarousel() {
                     </picture>
                   </div>
                 </div>
-
-                {/* Label */}
-                <p className="text-center text-sm font-semibold text-gray-600 mt-4">
-                  {screenshot.title}
-                </p>
               </div>
             ))}
           </div>
@@ -158,7 +145,7 @@ export function ScreenshotCarousel() {
               className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
                 i === activeIndex ? 'bg-teal-700 w-6' : 'bg-gray-300'
               }`}
-              aria-label={`Go to screenshot ${i + 1}`}
+              aria-label={`الانتقال إلى اللقطة ${i + 1}`}
             />
           ))}
         </div>
@@ -169,10 +156,10 @@ export function ScreenshotCarousel() {
             <div className="absolute inset-0 bg-gradient-to-br from-teal-800/50 to-gray-900/80" />
             <div className="relative text-center z-10">
               <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 mx-auto cursor-pointer hover:bg-white/30 transition-colors">
-                <Play size={28} className="text-white ml-1" />
+                <Play size={28} className="text-white mr-[-2px]" />
               </div>
-              <p className="text-white/70 font-medium">Installation Tutorial Video</p>
-              <p className="text-white/40 text-sm mt-1">Coming soon</p>
+              <p className="text-white/70 font-medium">فيديو شرح التثبيت</p>
+              <p className="text-white/40 text-sm mt-1">قريبًا</p>
             </div>
           </div>
         </div>
