@@ -41,15 +41,14 @@ export function FAQ() {
         {/* Section header */}
         <div className="text-center max-w-3xl mx-auto mb-16 reveal">
           <span className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 text-sm font-bold rounded-full mb-4">
-            FAQ
+            الأسئلة الشائعة
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 mb-6">
-            Frequently Asked{' '}
-            <span className="text-gradient">Questions</span>
+            الأسئلة{' '}
+            <span className="text-gradient">الشائعة</span>
           </h2>
           <p className="text-lg text-gray-500 leading-relaxed">
-            Find answers to common questions about TrackTracker, from installation and pricing
-            to features and security. Can not find what you are looking for? Contact our support team.
+            إجابات على الأسئلة الأكثر شيوعًا حول TrackTracker، من التثبيت والأسعار إلى المميزات والأمان. لم تجد ما تبحث عنه؟ تواصل معنا عبر واتساب.
           </p>
         </div>
 

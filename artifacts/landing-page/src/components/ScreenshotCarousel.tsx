@@ -10,12 +10,12 @@ const SCREENSHOTS = [
   {
     id: 2,
     src: '/screenshots/map-tracking',
-    alt: 'تتبع GPS المباشر في TrackTracker',
+    alt: 'تتبع المندوبين في TrackTracker',
   },
   {
     id: 3,
     src: '/screenshots/driver-management',
-    alt: 'إدارة السائقين في TrackTracker',
+    alt: 'إدارة المندوبين في TrackTracker',
   },
   {
     id: 4,
@@ -67,7 +67,7 @@ export function ScreenshotCarousel() {
             لقطات <span className="text-gradient">التطبيق</span>
           </h2>
           <p className="text-lg text-gray-500 leading-relaxed">
-            استكشف واجهة TrackTracker وشاهد مدى سهولة إدارة عمليات التوزيع من أي مكان.
+            استكشف واجهة TrackTracker وشاهد كيف يمكنك إدارة عمليات التوزيع وتتبع المندوبين من أي مكان.
           </p>
         </div>
 

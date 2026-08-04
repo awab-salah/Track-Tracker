@@ -37,13 +37,13 @@ export function Hero() {
 
           {/* Subtitle */}
           <p className="text-xl sm:text-2xl text-white/90 font-bold mb-2 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
-            نظام إدارة التوزيع والتتبع الذكي
+            نظامك الذكي لإدارة عمليات التوزيع وتتبع المندوبين
           </p>
 
           {/* Description */}
           <p className="text-base sm:text-lg text-white/60 max-w-2xl mb-8 animate-fade-in-up leading-relaxed" style={{ animationDelay: '0.3s' }}>
-            أدر سائقيك، وتتبع التوصيلات لحظيًا، سجّل المبيعات، وحسّن عمليات التوزيع
-            — كل ذلك من منصة واحدة متكاملة.
+            تتبّع مندوبيك لحظيًا، سجّل المبيعات، وأدِر عمليات التوزيع بكفاءة
+            — كل ذلك من منصة واحدة.
           </p>
 
           {/* CTA Buttons */}
