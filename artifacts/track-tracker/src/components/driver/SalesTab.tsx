@@ -16,8 +16,7 @@ interface DraftItem extends SaleLineItem {
 export function SalesTab() {
   const { currentDriver, loads, addSale } = useApp();
   const { toast } = useToast();
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const [pickerOpen, setPickerOpen] = useState(true);
@@ -290,10 +289,16 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* labels activate file inputs natively — works inside sandboxed
-                    iframes (e.g. Replit Preview) where scripted .click() is blocked. */}
+                {/* Single file input without capture="environment" — matches Profile
+                    pattern. The capture attribute on Android/Capacitor launches the
+                    camera as a separate Activity, which causes the WebView to go
+                    through onStop/onRestart, triggering a full app refresh that
+                    destroys all SalesTab state (items, receiptUrl, etc.).
+                    Without capture, the system file chooser opens (which includes
+                    Camera & Gallery options) and stays within the same Activity
+                    lifecycle — exactly like Profile's working camera flow. */}
                 <label
-                  htmlFor="receipt-camera"
+                  htmlFor="receipt-image"
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
                   style={{ opacity: receiptUploading ? 0.5 : 1 }}
                   data-testid="btn-capture-camera"
@@ -301,7 +306,7 @@ export function SalesTab() {
                   <Camera size={16} /> كاميرا
                 </label>
                 <label
-                  htmlFor="receipt-gallery"
+                  htmlFor="receipt-image"
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
                   style={{ opacity: receiptUploading ? 0.5 : 1 }}
                   data-testid="btn-capture-gallery"
@@ -311,18 +316,8 @@ export function SalesTab() {
               </div>
             )}
             <input
-              id="receipt-camera"
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleReceiptFile}
-              disabled={receiptUploading}
-            />
-            <input
-              id="receipt-gallery"
-              ref={galleryInputRef}
+              id="receipt-image"
+              ref={receiptInputRef}
               type="file"
               accept="image/*"
               className="hidden"
