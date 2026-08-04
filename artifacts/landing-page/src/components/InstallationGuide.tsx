@@ -17,7 +17,7 @@ const STEPS = [
     icon: Download,
     title: 'ثبّت التطبيق',
     description:
-      'سيظهر TrackTracker على شاشتك الرئيسية كتطبيق عادي، يعمل بدون إنترنت ويدعم الإشعارات.',
+      'سيظهر TrackTracker على شاشتك الرئيسية كتطبيق عادي مع دعم الإشعارات.',
   },
   {
     icon: CheckCircle2,
