@@ -135,7 +135,7 @@ export function SalesTab() {
       {/* ── Product picker ── */}
       <div
         ref={pickerRef}
-        className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
+        className="relative z-50 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
       >
         <button
           onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
@@ -156,6 +156,7 @@ export function SalesTab() {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
+              className="overflow-hidden"
             >
               <div className="px-4 pb-4 flex flex-col gap-2">
                 {products.length === 0 ? (

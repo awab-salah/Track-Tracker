@@ -161,11 +161,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // in and their session is healthy. Setting isLoading=true here would
       // unmount the protected route and destroy local component state.
       //
-      // Only SIGNED_IN (initial sign-in) and the initial getSession() call
-      // should show the loading spinner.
+      // SIGNED_IN is also treated as a background refresh when we already
+      // have a session (role is set). This happens when the PWA resumes
+      // from the camera/file picker — the app goes to background and
+      // Supabase fires SIGNED_IN on resume. Without this guard, the
+      // ProtectedRoute unmounts and ALL local component state (e.g.
+      // SalesTab draft items) is lost.
+      //
+      // Only the initial getSession() call should show the loading spinner.
       const isBackgroundRefresh =
         event === 'TOKEN_REFRESHED' ||
-        event === 'PASSWORD_RECOVERY';
+        event === 'PASSWORD_RECOVERY' ||
+        (event === 'SIGNED_IN' && role !== null);
 
       void loadProfile(s?.user ?? null, isBackgroundRefresh);
 
