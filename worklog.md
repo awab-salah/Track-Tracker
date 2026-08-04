@@ -68,3 +68,30 @@ Stage Summary:
 - New logo used in: Hero, Navbar, Footer, Download section, Favicon, OG image, Apple touch icon
 - No changes to colors, spacing, typography, or sections
 - No modifications to main app, PWA, API, Supabase, or main branch
+
+---
+Task ID: 1
+Agent: main
+Task: Root Cause Analysis and fix for camera causing full app refresh in Sales tab
+
+Work Log:
+- Created branch investigate/sales-camera-refresh from main
+- Read SalesTab.tsx, ProfilePage.tsx, AvatarUpload.tsx, DriverProfilePage.tsx
+- Read AppContext.tsx, AuthContext.tsx, App.tsx, image.ts, storage.ts
+- Read DriverDashboard.tsx, useAutoReconnect.ts, PWAUpdateBanner.tsx
+- Read capacitor.config.ts, AndroidManifest.xml, file_paths.xml
+- Performed detailed comparison of Profile vs Sales camera implementations
+- Identified root cause: capture="environment" on Sales camera input
+- Implemented fix: removed capture attribute, consolidated to single file input
+- Ran TypeScript check: 0 errors
+- Ran production build: success
+- Committed and pushed to branch
+- Deployed preview to Vercel
+
+Stage Summary:
+- Root cause: capture="environment" on input launches Android camera as separate Activity, causing WebView lifecycle disruption
+- Profile does not have this issue because it has no capture attribute - opens system file chooser instead
+- Fix: removed capture="environment", consolidated two inputs into one, both labels point to same input
+- Commit: 6425ea0
+- Branch: investigate/sales-camera-refresh
+- Preview: https://track-tracker-2w2d4mkk9-awab-salahs-projects.vercel.app
