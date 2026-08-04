@@ -95,3 +95,38 @@ Stage Summary:
 - Commit: 6425ea0
 - Branch: investigate/sales-camera-refresh
 - Preview: https://track-tracker-2w2d4mkk9-awab-salahs-projects.vercel.app
+
+---
+Task ID: 2
+Agent: main
+Task: Fix Product Dropdown + Deep camera investigation + State persistence across Activity recreation
+
+Work Log:
+- Checked all remote branches for previous dropdown/camera fixes
+- Found feature/fix-image-uploads and fix/ios-file-input branches with different approaches
+- Searched entire codebase for window.location, reload, setIsLoading, navigation triggers
+- Confirmed NO explicit reload/navigation calls in the codebase
+- Confirmed onAuthStateChange is the only path to isLoading=true (causing route unmount)
+- Confirmed tt:refresh-data event is dispatched but never consumed (no listeners)
+- Confirmed no @capacitor imports - app uses HTML input[type=file] only
+- Proved root cause: Android Activity recreation when camera opens (cannot be prevented)
+- Restored two-input pattern: camera (capture=environment) + gallery (no capture)
+- Restored button + ref.click() trigger pattern matching feature/fix-image-uploads branch
+- Added sessionStorage persistence for sale draft (items, receiptUrl) in SalesTab
+- Draft saved before camera/gallery opens and on every state change
+- Draft restored on component mount (survives Activity recreation)
+- Draft cleared after successful sale submission
+- Added sessionStorage persistence for activeTab in DriverDashboard
+- On mount, restores last active tab (e.g. 'sales') instead of defaulting to 'load'
+- TypeScript check: 0 errors
+- Production build: success
+- Deployed preview
+
+Stage Summary:
+- Root cause proven: Android Activity recreation when camera intent fires
+- Cannot be prevented - inherent to Android lifecycle
+- Solution: sessionStorage persistence of sale draft + activeTab before camera opens
+- Restored original two-input dropdown pattern (camera + gallery)
+- Commit: d6abf46
+- Branch: investigate/sales-camera-refresh
+- Preview: https://track-tracker-p17aze12d-awab-salahs-projects.vercel.app
