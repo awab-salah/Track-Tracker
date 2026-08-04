@@ -34,7 +34,7 @@ export function Navbar() {
             alt="TrackTracker"
             width={32}
             height={32}
-            className="w-8 h-8"
+            className="w-8 h-8 rounded-lg"
           />
           <span className={`font-extrabold tracking-tight text-lg ${scrolled ? 'text-gray-900' : 'text-white'}`}>
             <span className={scrolled ? 'text-teal-800' : 'text-white'}>Track</span>
