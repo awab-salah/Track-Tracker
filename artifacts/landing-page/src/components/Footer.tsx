@@ -23,9 +23,7 @@ export function Footer() {
               </span>
             </div>
             <p className="mt-4 text-gray-400 leading-relaxed max-w-md">
-              TrackTracker هو نظام إدارة التوزيع والتتبع الذكي الذي يساعد الشركات على
-              إدارة السائقين وتتبع التوصيلات وتسجيل المبيعات وتحسين العمليات — كل ذلك
-              من منصة واحدة متكاملة.
+              TrackTracker نظام متكامل لإدارة عمليات التوزيع وتتبع المندوبين. يساعدك على تتبع التوصيلات وتسجيل المبيعات وتحسين أداء فريقك من منصة واحدة.
             </p>
           </div>
 
@@ -36,7 +34,7 @@ export function Footer() {
               {[
                 { label: 'المميزات', href: '#features' },
                 { label: 'كيف يعمل', href: '#how-it-works' },
-                { label: 'التحميل', href: '#download' },
+                { label: 'حمّل التطبيق', href: '#download' },
                 { label: 'لقطات التطبيق', href: '#screenshots' },
                 { label: 'الأسئلة الشائعة', href: '#faq' },
               ].map((link) => (

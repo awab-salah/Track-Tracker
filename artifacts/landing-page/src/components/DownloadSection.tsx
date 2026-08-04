@@ -52,7 +52,7 @@ export function DownloadSection() {
 
             {/* Short description */}
             <p className="text-gray-500 text-lg mb-8">
-              نظام إدارة التوزيع والتتبع
+              نظام إدارة عمليات التوزيع وتتبع المندوبين
             </p>
 
             {/* Download button */}

@@ -17,7 +17,7 @@ const STEPS = [
     icon: Download,
     title: 'ثبّت التطبيق',
     description:
-      'سيتم تثبيت TrackTracker كتطبيق أصلي على هاتفك مع دعم الإشعارات الفورية.',
+      'سيظهر TrackTracker على شاشتك الرئيسية كتطبيق عادي، يعمل بدون إنترنت ويدعم الإشعارات.',
   },
   {
     icon: CheckCircle2,
@@ -42,8 +42,7 @@ export function InstallationGuide() {
               <span className="text-gradient">TrackTracker</span>
             </h2>
             <p className="text-lg text-gray-500 leading-relaxed mb-8">
-              TrackTracker هو تطبيق ويب تقدمي (PWA) يثبّت مباشرة من المتصفح. لا حاجة
-              لتحميله من متجر تطبيقات، ولا حاجة لإدارة التحديثات — كل شيء يعمل تلقائيًا.
+              TrackTracker تطبيق ويب يعمل مباشرة من المتصفح. لا تحتاج لتحميله من متجر تطبيقات، والتحديثات تتم تلقائيًا.
             </p>
 
             {/* Steps */}

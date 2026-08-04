@@ -4,7 +4,7 @@ import { Menu, X } from 'lucide-react';
 const NAV_LINKS = [
   { label: 'المميزات', href: '#features' },
   { label: 'كيف يعمل', href: '#how-it-works' },
-  { label: 'التحميل', href: '#download' },
+  { label: 'حمّل التطبيق', href: '#download' },
   { label: 'الأسئلة الشائعة', href: '#faq' },
 ];
 
@@ -59,7 +59,7 @@ export function Navbar() {
             href="#download"
             className="btn-primary !py-2.5 !px-6 !text-sm !rounded-xl"
           >
-            تحميل التطبيق
+            حمّل التطبيق
           </a>
         </div>
 
@@ -96,7 +96,7 @@ export function Navbar() {
               onClick={() => setMobileOpen(false)}
               className="block text-center btn-primary !rounded-xl mt-2"
             >
-              تحميل التطبيق
+              حمّل التطبيق
             </a>
           </div>
         </div>
