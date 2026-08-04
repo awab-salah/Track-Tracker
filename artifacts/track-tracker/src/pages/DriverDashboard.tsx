@@ -15,11 +15,36 @@ import type { CargoItem } from '@/data/mockData';
 
 type TabId = 'load' | 'sales' | 'stats';
 
+// sessionStorage key for preserving the active tab across Android Activity recreation.
+// When the camera opens on Android/Capacitor, the WebView Activity may be
+// recreated, causing a full page reload. We persist the active tab so the
+// user returns to the same tab (e.g. Sales) instead of defaulting to Loads.
+const ACTIVE_TAB_KEY = 'tt_driver_active_tab';
+
+function loadActiveTab(): TabId {
+  try {
+    const saved = sessionStorage.getItem(ACTIVE_TAB_KEY);
+    if (saved === 'load' || saved === 'sales' || saved === 'stats') return saved;
+  } catch { /* sessionStorage unavailable */ }
+  return 'load';
+}
+
+function saveActiveTab(tab: TabId): void {
+  try {
+    sessionStorage.setItem(ACTIVE_TAB_KEY, tab);
+  } catch { /* best effort */ }
+}
+
 export default function DriverDashboard() {
   const [, setLocation] = useLocation();
   const { currentDriver, currentDriverId, companySubscriptionActive } = useApp();
   const { role } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('load');
+  const [activeTab, setActiveTabRaw] = useState<TabId>(loadActiveTab);
+
+  const setActiveTab = (tab: TabId) => {
+    setActiveTabRaw(tab);
+    saveActiveTab(tab);
+  };
   const [editingLoad, setEditingLoad] = useState<CargoItem | null>(null);
 
   // Auto-starts GPS tracking the moment the dashboard mounts.

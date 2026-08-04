@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Camera, Image as ImageIcon, X, ChevronDown, Trash2, Plus, Loader2 } from 'lucide-react';
 import { AppButton } from '@/components/AppButton';
@@ -13,22 +13,91 @@ interface DraftItem extends SaleLineItem {
   available: number;
 }
 
+// ── Sale draft persistence ────────────────────────────────────────────────────
+//
+// On Android/Capacitor, opening the camera launches a separate Activity.
+// When the user takes a photo and confirms, Android may recreate the WebView
+// Activity (especially on memory-constrained devices), causing a full page
+// reload that destroys ALL React state — including the in-progress sale draft
+// (items, receiptUrl, etc.).
+//
+// We cannot prevent Android from recreating the Activity. Instead, we persist
+// the sale draft to sessionStorage BEFORE the camera/gallery opens, and
+// restore it on mount. sessionStorage is scoped to the current tab and cleared
+// when the tab closes — appropriate for a temporary draft.
+//
+// This is the same pattern used by ProfilePage and AvatarUpload (which persist
+// the logo URL to Supabase, surviving refresh). Here we persist the full draft
+// locally since the sale hasn't been submitted yet.
+
+const DRAFT_KEY = 'tt_sales_draft';
+
+interface SaleDraft {
+  items: DraftItem[];
+  receiptUrl: string | null;
+}
+
+function saveDraft(draft: SaleDraft): void {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // sessionStorage unavailable or quota exceeded — best effort
+  }
+}
+
+function loadDraft(): SaleDraft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SaleDraft;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft(): void {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // best effort
+  }
+}
+
 export function SalesTab() {
   const { currentDriver, loads, addSale } = useApp();
   const { toast } = useToast();
-  const receiptInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Restore draft from sessionStorage on mount (survives Android Activity recreation)
+  const [items, setItems] = useState<DraftItem[]>(() => {
+    const draft = loadDraft();
+    return draft?.items ?? [];
+  });
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(() => {
+    const draft = loadDraft();
+    return draft?.receiptUrl ?? null;
+  });
 
   const [pickerOpen, setPickerOpen] = useState(true);
   const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
   const [selectedProducts, setSelectedProducts] = useState<Record<string, boolean>>({});
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
 
   const products = currentDriver ? getDriverProducts(loads, currentDriver.id) : [];
   const totalAmount = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+
+  // Keep draft in sync with sessionStorage so it's always up-to-date
+  // before the user opens the camera/gallery.
+  useEffect(() => {
+    if (items.length > 0 || receiptUrl) {
+      saveDraft({ items, receiptUrl });
+    } else {
+      clearDraft();
+    }
+  }, [items, receiptUrl]);
 
   /** Opens the product picker and scrolls it into view, so it's always
    *  reachable even after items have already been added lower on the page. */
@@ -80,6 +149,18 @@ export function SalesTab() {
     setItems((prev) => prev.filter((i) => i.productName !== productName));
   };
 
+  /** Persist draft immediately before opening camera/gallery, so the draft
+   *  survives even if Android recreates the Activity while the camera is open. */
+  const openCamera = () => {
+    saveDraft({ items, receiptUrl });
+    cameraInputRef.current?.click();
+  };
+
+  const openGallery = () => {
+    saveDraft({ items, receiptUrl });
+    galleryInputRef.current?.click();
+  };
+
   const handleReceiptFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -120,6 +201,7 @@ export function SalesTab() {
     setReceiptUrl(null);
     setReceiptPreview(null);
     setPickerOpen(true);
+    clearDraft();
   };
 
   return (
@@ -289,35 +371,41 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* Single file input without capture="environment" — matches Profile
-                    pattern. The capture attribute on Android/Capacitor launches the
-                    camera as a separate Activity, which causes the WebView to go
-                    through onStop/onRestart, triggering a full app refresh that
-                    destroys all SalesTab state (items, receiptUrl, etc.).
-                    Without capture, the system file chooser opens (which includes
-                    Camera & Gallery options) and stays within the same Activity
-                    lifecycle — exactly like Profile's working camera flow. */}
-                <label
-                  htmlFor="receipt-image"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
-                  style={{ opacity: receiptUploading ? 0.5 : 1 }}
+                {/* Two separate inputs: camera (with capture) + gallery (without).
+                    Before opening either, we persist the sale draft to sessionStorage
+                    so it survives Android Activity recreation while the camera is open.
+                    Using button + ref.click() (instead of label + htmlFor) because
+                    this pattern is already proven to work in the feature/fix-image-uploads
+                    branch and avoids iOS Safari issues with hidden inputs. */}
+                <button
+                  onClick={openCamera}
+                  disabled={receiptUploading}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                   data-testid="btn-capture-camera"
                 >
                   <Camera size={16} /> كاميرا
-                </label>
-                <label
-                  htmlFor="receipt-image"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
-                  style={{ opacity: receiptUploading ? 0.5 : 1 }}
+                </button>
+                <button
+                  onClick={openGallery}
+                  disabled={receiptUploading}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                   data-testid="btn-capture-gallery"
                 >
                   <ImageIcon size={16} /> المعرض
-                </label>
+                </button>
               </div>
             )}
             <input
-              id="receipt-image"
-              ref={receiptInputRef}
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleReceiptFile}
+              disabled={receiptUploading}
+            />
+            <input
+              ref={galleryInputRef}
               type="file"
               accept="image/*"
               className="hidden"
