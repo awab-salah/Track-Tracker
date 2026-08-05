@@ -1,8 +1,7 @@
 /**
- * Subscription Service — future-ready hooks and helpers for subscription logic.
+ * Subscription Service — Subscription plan definitions + ZainCash integration helpers.
  *
- * Currently only defines types and stub functions.
- * Backend integration will be added later.
+ * Plan prices are in IQD. ZainCash expects amounts in IQD (integer).
  */
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -21,7 +20,7 @@ export interface SubscriptionPlan {
 export interface PromoCodeResult {
   success: boolean;
   message: string;
-  benefit?: string; // e.g. "أول شهر مجاني"
+  benefit?: string;
 }
 
 // ── Plan definitions ─────────────────────────────────────────────────────────
@@ -69,22 +68,19 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
 ];
 
-// ── Stub functions (backend not implemented yet) ─────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Get a plan by its ID.
+ */
+export function getPlanById(planId: string): SubscriptionPlan | undefined {
+  return SUBSCRIPTION_PLANS.find((p) => p.id === planId);
+}
 
 /**
  * Validate and apply a promo code.
  * Placeholder — will call the backend when implemented.
  */
 export async function applyPromoCode(_code: string): Promise<PromoCodeResult> {
-  // TODO: implement backend call
-  return { success: false, message: 'لم يتم تفعيل هذه الخدمة بعد' };
-}
-
-/**
- * Subscribe to a plan.
- * Placeholder — will call the backend when implemented.
- */
-export async function subscribeToPlan(_planId: string): Promise<{ success: boolean; message: string }> {
-  // TODO: implement backend call
   return { success: false, message: 'لم يتم تفعيل هذه الخدمة بعد' };
 }

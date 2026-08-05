@@ -660,3 +660,35 @@ create policy daily_load_snapshots_company_owner_insert on daily_load_snapshots
   );
 
 -- No UPDATE or DELETE policies — snapshots are immutable by design.
+
+-- ── 12. Payment records (ZainCash) ────────────────────────────────────────────
+--
+-- Tracks ZainCash payment transactions for subscription activation.
+-- The API routes (api/zaincash/create, callback, verify) write to this table.
+-- The callback handler updates the status and activates the subscription
+-- only after verifying the payment via ZainCash inquiry.
+
+create table if not exists public.payment_records (
+  id           text primary key,             -- ZainCash transaction ID
+  order_id     text not null,                -- Internal order ID (format: tt-{planId}-{companyId}-{ts}-{rand})
+  company_id   text not null,                -- Company ID (extracted from order_id)
+  plan_id      text not null,                -- Subscription plan ID
+  amount       integer not null,             -- Amount in IQD
+  status       text not null default 'pending', -- pending | completed | failed | reversed
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz
+);
+
+-- RLS: company owners can see their own payment records
+alter table public.payment_records enable row level security;
+
+create policy payment_records_company_owner_select on public.payment_records
+  for select
+  using (
+    exists (
+      select 1 from companies c
+       where c.id = payment_records.company_id
+         and c.auth_user_id = auth.uid()
+    )
+  );
+
