@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines.\nObtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Initialize the transaction, you will need to send the token along with the merchantId to ZainCash's initialize URL and the language. ZainCash ...\nThis article helps you integrate your website with ZainCash , all code samples provided are in JavaScript. Also, we've made this package for ... Read more\nCreate the transaction data object , to initialize a ZC transaction you will need to create an object like the below one. 5. Create the JWT token ... Read more",
+    "host_name": "medium.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. The secret used to decode and encode JWT during requests.\nThis is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq. Read more",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://sandbox.jazzcash.com.pk/SandboxDocumentation/index.html",
+    "name": "Sandbox Documentation",
+    "snippet": "JazzCash enables quick and easy integration. Merchants can Self-Register, Test transactions and Go-Live to start accepting payments. the Sandbox Portal.\nJazzCash enables quick and easy integration for its merchants with our next generation payment gateway . callbacks for transaction completion status.",
+    "host_name": "sandbox.jazzcash.com.pk",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zainpay.ng/developers/card-endpoints?section=test-cards",
+    "name": "Zainpay | Developer Documentation - Card Endpoints",
+    "snippet": "The Initialize Payment endpoint in Zainpay enables businesses and developers to initiate card payments seamlessly. It supports both sandbox and live ...\nThe Initialize Payment endpoint in Zainpay enables businesses and developers to initiate card payments seamlessly. This endpoint generates a unique payment URL ... Read more",
+    "host_name": "zainpay.ng",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

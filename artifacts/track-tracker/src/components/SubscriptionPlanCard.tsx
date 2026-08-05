@@ -1,22 +1,17 @@
 import { motion } from 'framer-motion';
 import { AppButton } from '@/components/AppButton';
 import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 import type { SubscriptionPlan } from '@/services/subscriptionService';
-
-/**
- * SubscriptionPlanCard — displays a single subscription plan.
- *
- * Uses the app's existing design system (colors, shadows, border-radius, typography).
- * When `plan.isPopular` is true, a "Most Popular" badge and subtle border
- * treatment are added while still matching the overall design language.
- */
 
 interface SubscriptionPlanCardProps {
   plan: SubscriptionPlan;
   onSubscribe: (planId: string) => void;
+  loading?: boolean;
+  disabled?: boolean;
 }
 
-export function SubscriptionPlanCard({ plan, onSubscribe }: SubscriptionPlanCardProps) {
+export function SubscriptionPlanCard({ plan, onSubscribe, loading, disabled }: SubscriptionPlanCardProps) {
   const formatPrice = (price: number) =>
     price.toLocaleString('en-US');
 
@@ -66,8 +61,20 @@ export function SubscriptionPlanCard({ plan, onSubscribe }: SubscriptionPlanCard
 
       {/* Subscribe button */}
       <div className="mt-4">
-        <AppButton onClick={() => onSubscribe(plan.id)}>
-          اشترك الآن
+        <AppButton
+          onClick={() => onSubscribe(plan.id)}
+          disabled={disabled || loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              جارٍ الاتصال بـ ZainCash…
+            </>
+          ) : disabled ? (
+            'مفعّل'
+          ) : (
+            'اشترك الآن'
+          )}
         </AppButton>
       </div>
     </motion.div>
