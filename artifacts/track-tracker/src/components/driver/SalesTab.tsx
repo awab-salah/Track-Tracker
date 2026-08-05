@@ -66,8 +66,7 @@ function clearDraft(): void {
 export function SalesTab() {
   const { currentDriver, loads, addSale } = useApp();
   const { toast } = useToast();
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // Restore draft from sessionStorage on mount (survives Android Activity recreation)
@@ -149,16 +148,25 @@ export function SalesTab() {
     setItems((prev) => prev.filter((i) => i.productName !== productName));
   };
 
-  /** Persist draft immediately before opening camera/gallery, so the draft
-   *  survives even if Android recreates the Activity while the camera is open. */
-  const openCamera = () => {
+  /** Open the system file picker for receipt image.
+   *  Uses a single <input type=file> WITHOUT capture='environment',
+   *  matching the exact pattern used in ProfilePage and AvatarUpload
+   *  which work without any page refresh on Android/Capacitor.
+   *
+   *  WHY NO capture='environment'?
+   *  On Android/Capacitor, capture='environment' forces the browser to
+   *  open the camera app as a separate Activity. The camera Activity is
+   *  memory-intensive, so on constrained devices Android destroys the
+   *  WebView Activity to free RAM. When the camera returns, the WebView
+   *  Activity is recreated → full page reload → visible "refresh".
+   *
+   *  Without capture, the system file chooser opens instead. It's a
+   *  lightweight dialog that includes Camera as an option alongside
+   *  Gallery and Files. The WebView Activity is NOT destroyed → no
+   *  page reload → seamless UX. This is exactly how Profile works. */
+  const openReceiptPicker = () => {
     saveDraft({ items, receiptUrl });
-    cameraInputRef.current?.click();
-  };
-
-  const openGallery = () => {
-    saveDraft({ items, receiptUrl });
-    galleryInputRef.current?.click();
+    receiptInputRef.current?.click();
   };
 
   const handleReceiptFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -369,14 +377,14 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* Two separate inputs: camera (with capture) + gallery (without).
-                    Before opening either, we persist the sale draft to sessionStorage
-                    so it survives Android Activity recreation while the camera is open.
-                    Using button + ref.click() (instead of label + htmlFor) because
-                    this pattern is already proven to work in the feature/fix-image-uploads
-                    branch and avoids iOS Safari issues with hidden inputs. */}
+                {/* Single input WITHOUT capture='environment' — matches the
+                    exact pattern in ProfilePage and AvatarUpload which work
+                    without any page refresh on Android/Capacitor.
+                    The system file chooser includes Camera as an option
+                    alongside Gallery and Files. See openReceiptPicker for
+                    the full rationale. */}
                 <button
-                  onClick={openCamera}
+                  onClick={openReceiptPicker}
                   disabled={receiptUploading}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                   data-testid="btn-capture-camera"
@@ -384,7 +392,7 @@ export function SalesTab() {
                   <Camera size={16} /> كاميرا
                 </button>
                 <button
-                  onClick={openGallery}
+                  onClick={openReceiptPicker}
                   disabled={receiptUploading}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
                   data-testid="btn-capture-gallery"
@@ -394,16 +402,7 @@ export function SalesTab() {
               </div>
             )}
             <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleReceiptFile}
-              disabled={receiptUploading}
-            />
-            <input
-              ref={galleryInputRef}
+              ref={receiptInputRef}
               type="file"
               accept="image/*"
               className="hidden"
