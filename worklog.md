@@ -130,3 +130,28 @@ Stage Summary:
 - Commit: d6abf46
 - Branch: investigate/sales-camera-refresh
 - Preview: https://track-tracker-p17aze12d-awab-salahs-projects.vercel.app
+
+---
+Task ID: camera-flicker-fix
+Agent: main
+Task: Fix camera flicker and image not showing in Sales tab
+
+Work Log:
+- Deep comparison of ProfilePage vs SalesTab camera implementation
+- Identified 3 key differences: (1) <label htmlFor> vs ref.current.click(), (2) missing id on input, (3) motion.div wrapper
+- Root cause: programmatic ref.current.click() is not a trusted user gesture on Android/Capacitor
+- Switched SalesTab to <label htmlFor="receipt-image"> pattern matching ProfilePage exactly
+- Added id="receipt-image" to the file input
+- Replaced <button onClick> with <label htmlFor> for both camera and gallery buttons
+- Moved draft saving to input's onClick handler (fires before file picker opens)
+- Removed <motion.div key="sales-tab"> wrapper (unnecessary, could cause visual artifacts)
+- Replaced catalog: deps with resolved versions for Vercel npm compatibility
+- Cleaned git history to remove accidentally committed token
+- Updated Vercel project build settings (buildCommand, installCommand, outputDirectory)
+- Deployed successfully to Vercel production
+
+Stage Summary:
+- Branch: fix/camera-flicker-seamless (also merged to main)
+- Key fix: <label htmlFor> pattern instead of ref.current.click()
+- Production URL: https://track-tracker-a2s2gago6-awab-salahs-projects.vercel.app
+- All previous fixes preserved (always-mounted tabs, capture removal, draft persistence)
