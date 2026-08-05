@@ -12,7 +12,8 @@ import { useApp } from '@/store/AppContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface PaymentState {
-  loading: boolean;
+  /** Which plan is currently loading (null = none). Replaces global boolean. */
+  loadingPlanId: string | null;
   error: string | null;
   transactionId: string | null;
   redirectUrl: string | null;
@@ -23,7 +24,7 @@ export function useZainCashPayment() {
   const { toast } = useToast();
 
   const [state, setState] = useState<PaymentState>({
-    loading: false,
+    loadingPlanId: null,
     error: null,
     transactionId: null,
     redirectUrl: null,
@@ -34,7 +35,7 @@ export function useZainCashPayment() {
    * On success, redirects the browser to ZainCash payment page.
    */
   const initiatePayment = useCallback(async (planId: string, amount: number) => {
-    setState({ loading: true, error: null, transactionId: null, redirectUrl: null });
+    setState({ loadingPlanId: planId, error: null, transactionId: null, redirectUrl: null });
 
     try {
       const response = await fetch('/api/zaincash/create', {
@@ -69,7 +70,7 @@ export function useZainCashPayment() {
       } catch { /* best effort */ }
 
       setState({
-        loading: false,
+        loadingPlanId: null,
         error: null,
         transactionId: data.transactionId,
         redirectUrl: data.redirectUrl,
@@ -80,7 +81,7 @@ export function useZainCashPayment() {
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
-      setState({ loading: false, error: message, transactionId: null, redirectUrl: null });
+      setState({ loadingPlanId: null, error: message, transactionId: null, redirectUrl: null });
       toast({ title: message, variant: 'destructive' });
     }
   }, [company.name, toast]);
@@ -108,7 +109,7 @@ export function useZainCashPayment() {
       return false;
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState(prev => ({ ...prev, loadingPlanId: 'verifying', error: null }));
 
     try {
       const response = await fetch(`/api/zaincash/verify?transactionId=${pending!.transactionId}`);
@@ -129,26 +130,26 @@ export function useZainCashPayment() {
 
         if (success) {
           toast({ title: 'تم الدفع بنجاح وتفعيل الاشتراك!' });
-          setState({ loading: false, error: null, transactionId: pending!.transactionId, redirectUrl: null });
+          setState({ loadingPlanId: null, error: null, transactionId: pending!.transactionId, redirectUrl: null });
           return true;
         } else {
           toast({ title: 'تم الدفع بنجاح، لكن فشل التفعيل. تواصل مع الدعم.', variant: 'destructive' });
-          setState({ loading: false, error: 'Activation failed', transactionId: null, redirectUrl: null });
+          setState({ loadingPlanId: null, error: 'Activation failed', transactionId: null, redirectUrl: null });
           return false;
         }
       } else if (data.status === 'failed') {
         try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
         toast({ title: 'فشلت عملية الدفع', variant: 'destructive' });
-        setState({ loading: false, error: 'Payment failed', transactionId: null, redirectUrl: null });
+        setState({ loadingPlanId: null, error: 'Payment failed', transactionId: null, redirectUrl: null });
         return false;
       } else {
         // Still pending/processing — user can check again
-        setState({ loading: false, error: null, transactionId: pending!.transactionId, redirectUrl: null });
+        setState({ loadingPlanId: null, error: null, transactionId: pending!.transactionId, redirectUrl: null });
         return false;
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ أثناء التحقق';
-      setState(prev => ({ ...prev, loading: false, error: message }));
+      setState(prev => ({ ...prev, loadingPlanId: null, error: message }));
       return false;
     }
   }, [activateSubscription, toast]);
