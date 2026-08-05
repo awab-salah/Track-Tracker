@@ -2,45 +2,90 @@
   {
     "url": "https://docs.zaincash.iq",
     "name": "ZainCash Payment Gateway API Documentation v2",
-    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines.\nObtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ... Read more",
+    "snippet": "Please use the following merchant credentials to test transaction ID creation and status checks. secret key must be entered as a single line.\nOnce the payment is completed successfully, ZainCash redirects the customer to your successUrl with a signed JWT token . After verifying the token with your API ...\nComplete ZainCash Payment Gateway v2 API documentation . Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines.",
     "host_name": "docs.zaincash.iq",
     "rank": 0,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
-    "name": "How Can I Integrate My Site With ZainCash Payment",
-    "snippet": "Initialize the transaction, you will need to send the token along with the merchantId to ZainCash's initialize URL and the language. ZainCash ...\nThis article helps you integrate your website with ZainCash , all code samples provided are in JavaScript. Also, we've made this package for ... Read more\nCreate the transaction data object , to initialize a ZC transaction you will need to create an object like the below one. 5. Create the JWT token ... Read more",
-    "host_name": "medium.com",
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. Merchant ID obtained from ZainCash. The secret used to decode and encode JWT during ...\nThis is a Laravel package to integrate ZainCash payment gateway API. official ZainCash API documentation . The secret used to decode and encode JWT during ...\nThis is a Laravel package to integrate ZainCash payment gateway API . The Merchant ID obtained from ZainCash . The secret used to decode and encode JWT during ...",
+    "host_name": "github.com",
     "rank": 1,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://github.com/waadmawlood/zaincash",
-    "name": "ZainCash Integration API Laravel Package",
-    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. The secret used to decode and encode JWT during requests.\nThis is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq. Read more",
-    "host_name": "github.com",
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "First of all, you will need to create a ZainCash wallet and a merchant account. ... Create the JWT token, you can use it easily as the code below.\nCreate the JWT token , you can use it easily as the code below. 6. Initialize the transaction, you will need to send the token along with the ...\nFirst of all, you will need to create a ZainCash wallet and a merchant account. ... Create the JWT token , you can use it easily as the code below.",
+    "host_name": "medium.com",
     "rank": 2,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://sandbox.jazzcash.com.pk/SandboxDocumentation/index.html",
-    "name": "Sandbox Documentation",
-    "snippet": "JazzCash enables quick and easy integration. Merchants can Self-Register, Test transactions and Go-Live to start accepting payments. the Sandbox Portal.\nJazzCash enables quick and easy integration for its merchants with our next generation payment gateway . callbacks for transaction completion status.",
-    "host_name": "sandbox.jazzcash.com.pk",
+    "url": "https://developer.cybersource.com/docs/cybs/en-us/platform/developer/all/rest/rest-getting-started/restgs-jwt-shared-secret-intro/restgs-go-live-shared-secret-intro.html",
+    "name": "Step 6: Going Live",
+    "snippet": "When you signed up for a sandbox account, you received a merchant ID for testing purposes. If you choose, you can use that merchant ID as your production ID.",
+    "host_name": "developer.cybersource.com",
     "rank": 3,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zainpay.ng/developers/card-endpoints?section=test-cards",
-    "name": "Zainpay | Developer Documentation - Card Endpoints",
-    "snippet": "The Initialize Payment endpoint in Zainpay enables businesses and developers to initiate card payments seamlessly. It supports both sandbox and live ...\nThe Initialize Payment endpoint in Zainpay enables businesses and developers to initiate card payments seamlessly. This endpoint generates a unique payment URL ... Read more",
-    "host_name": "zainpay.ng",
+    "url": "https://merchantsafeunipay.com/msu/api/v2/doc",
+    "name": "MSU - API v2 Documentation - Payten Payment Gateway",
+    "snippet": "B2B system generates a JWT(which includes user's email in payload), and signs this token with \"secret\" In this interactive form you can create a JSON Web Token ...",
+    "host_name": "merchantsafeunipay.com",
     "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.2c2p.com/docs/sandbox-setup",
+    "name": "Sandbox Setup",
+    "snippet": "Set up your 2C2P sandbox environment with demo credentials, test cards, and a working API call in minutes. Merchant ID + Secret Key. JWT tokens, refer to JSON ...",
+    "host_name": "developer.2c2p.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://swiftpayiq.com/docs",
+    "name": "SwiftPayIQ Integration API",
+    "snippet": "You get API credentials from the SwiftPayIQ merchant dashboard once your business has passed KYC. sandbox host to call. Create them in the dashboard under ...",
+    "host_name": "swiftpayiq.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/merchant-identifier/documentation/integration-and-testing",
+    "name": "Integration and Testing | Merchant Identifier",
+    "snippet": "Once you have created a project on Mastercard Developers and generated sandbox credentials you can start testing. The base URL for calling Sandbox endpoints ...",
+    "host_name": "developer.mastercard.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.visaacceptance.com/docs/vas/en-us/platform/developer/all/rest/rest-getting-started/restgs-jwt-shared-secret-intro/restgs-jwt-shared-secret-test.html",
+    "name": "Step 5: Test Your Setup - Visa Acceptance Developer Portal",
+    "snippet": "In the Message Level Encryption Credentials section, enter your API response MLE key credentials: Response encryption: Enter the key ID of your REST—API ...",
+    "host_name": "developer.visaacceptance.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "You can create a new account here Link. Merchant secret - This is used to decode and encode JWT during requests. also must be requested from ZainCash .\nMerchant ID - You can request a Merchant ID from ZainCash's support. Merchant secret - This is used to decode and encode JWT during requests. also must be ...",
+    "host_name": "fatora.io",
+    "rank": 9,
     "date": "",
     "favicon": ""
   }
