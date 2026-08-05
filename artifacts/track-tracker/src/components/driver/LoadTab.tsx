@@ -69,10 +69,8 @@ export function LoadTab({ editingLoad, onDoneEditing }: LoadTabProps) {
   return (
     <motion.div
       key="load-tab"
-      initial={{ opacity: 0, y: 10 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto p-4"
     >
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]">

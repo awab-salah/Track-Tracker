@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useLocation, Redirect } from 'wouter';
-import { AnimatePresence } from 'framer-motion';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { Logo } from '@/components/Logo';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -15,10 +14,27 @@ import type { CargoItem } from '@/data/mockData';
 
 type TabId = 'load' | 'sales' | 'stats';
 
-// sessionStorage key for preserving the active tab across Android Activity recreation.
-// When the camera opens on Android/Capacitor, the WebView Activity may be
-// recreated, causing a full page reload. We persist the active tab so the
-// user returns to the same tab (e.g. Sales) instead of defaulting to Loads.
+// ── State Preservation Strategy ───────────────────────────────────────────────
+//
+// PREVIOUS DESIGN (BROKEN): Conditional rendering with AnimatePresence:
+//   {activeTab === 'sales' && <SalesTab />}
+// When switching tabs, the old tab was UNMOUNTED from the React tree,
+// destroying ALL its useState state (items, receiptUrl, pickerOpen, etc.).
+// When switching back, the tab remounted with default values → data lost.
+//
+// CURRENT DESIGN (CORRECT): Always-mounted tabs with CSS visibility.
+// ALL tabs stay in the React tree permanently (preserving their state).
+// Only the active tab is visible (display: flex); inactive tabs are
+// hidden with display: none. This means:
+//   - Switching tabs preserves all state (no unmount/remount)
+//   - Opening camera/file picker doesn't unmount the tab
+//   - App backgrounding doesn't unmount the tab
+//   - No sessionStorage hacks needed for normal tab switching
+//
+// sessionStorage for activeTab is still kept as a FALLBACK for the rare
+// case of Android Activity recreation (full WebView reload), where React
+// state is destroyed regardless because the entire JS context restarts.
+
 const ACTIVE_TAB_KEY = 'tt_driver_active_tab';
 
 function loadActiveTab(): TabId {
@@ -126,28 +142,44 @@ export default function DriverDashboard() {
           />
         </div>
 
-        {/* ── Content ── */}
+        {/* ── Content — always-mounted tabs ──
+            All three tabs are ALWAYS in the React tree. Only the active
+            tab has display:flex; inactive tabs have display:none.
+            This preserves all component state across tab switches,
+            camera/file-picker opens, and app backgrounding.
+            AnimatePresence is intentionally NOT used here because
+            its mode="wait" required conditional rendering, which caused
+            unmount/remount and destroyed state. */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {!companySubscriptionActive ? (
             <SubscriptionGate variant="driver" />
           ) : (
-            <AnimatePresence mode="wait">
-              {activeTab === 'load' && (
+            <>
+              <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ display: activeTab === 'load' ? 'flex' : 'none' }}
+              >
                 <LoadTab
-                  key="load"
                   editingLoad={editingLoad}
                   onDoneEditing={() => setEditingLoad(null)}
                 />
-              )}
-              {activeTab === 'sales' && <SalesTab key="sales" />}
-              {activeTab === 'stats' && (
+              </div>
+              <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ display: activeTab === 'sales' ? 'flex' : 'none' }}
+              >
+                <SalesTab />
+              </div>
+              <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ display: activeTab === 'stats' ? 'flex' : 'none' }}
+              >
                 <DriverStatsTab
-                  key="stats"
                   onEditLoad={handleEditLoad}
                   locationState={locationState}
                 />
-              )}
-            </AnimatePresence>
+              </div>
+            </>
           )}
         </div>
 
