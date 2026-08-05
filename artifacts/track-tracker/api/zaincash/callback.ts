@@ -3,13 +3,22 @@
  *
  * ZainCash server-to-server callback after payment completion.
  * Verifies the payment and activates the subscription if successful.
- *
- * ZainCash can send:
- *   - v1: JWT token in body.token
- *   - v2: JSON body with transactionId, status, orderId
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
+
+// Inline Vercel types to avoid @vercel/node dependency
+interface VercelRequest {
+  method: string | null;
+  body: unknown;
+  query: Record<string, string | string[] | undefined>;
+  headers: Record<string, string | string[] | undefined>;
+}
+interface VercelResponse {
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+  end(): VercelResponse;
+  setHeader(name: string, value: string): VercelResponse;
+}
 
 function getConfig() {
   return {

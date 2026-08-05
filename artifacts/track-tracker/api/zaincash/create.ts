@@ -9,7 +9,20 @@
  * Response:
  *   { transactionId: string, redirectUrl: string }
  */
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+// Inline Vercel types to avoid @vercel/node dependency
+interface VercelRequest {
+  method: string | null;
+  body: unknown;
+  query: Record<string, string | string[] | undefined>;
+  headers: Record<string, string | string[] | undefined>;
+}
+interface VercelResponse {
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+  end(): VercelResponse;
+  setHeader(name: string, value: string): VercelResponse;
+}
 
 // We inline the service logic here since Vercel serverless functions
 // don't share the Vite/src path. This keeps it self-contained.
