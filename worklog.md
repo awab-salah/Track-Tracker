@@ -176,3 +176,30 @@ Stage Summary:
 - All 6 changes implemented and deployed
 - Production URL: https://track-tracker-app.vercel.app
 - Commit: 313cd95 on main branch
+
+---
+Task ID: zaincash-integration
+Agent: main
+Task: Implement complete ZainCash Payment Gateway integration (Sandbox)
+
+Work Log:
+- Read ZainCash API v2 documentation (docs.zaincash.iq, Medium, GitHub, pub.dev)
+- Understood OAuth2 + transaction init + callback + inquiry flow
+- Created feature/zaincash-payment branch from main
+- Created src/services/zaincashService.ts — full ZainCash API v2 client (OAuth2, init, inquire, verify, JWT decode)
+- Created api/zaincash/create.ts — Vercel serverless: POST /api/zaincash/create
+- Created api/zaincash/callback.ts — Vercel serverless: POST /api/zaincash/callback
+- Created api/zaincash/verify.ts — Vercel serverless: GET /api/zaincash/verify
+- Created src/hooks/useZainCashPayment.ts — client-side payment hook
+- Updated SubscriptionsPage.tsx — connected plan cards to ZainCash flow
+- Updated SubscriptionPlanCard.tsx — added loading/disabled states
+- Updated subscriptionService.ts — cleaned up, added getPlanById helper
+- Updated schema.sql — added payment_records table
+- Inlined Vercel types to avoid @vercel/node dependency
+- Deployed to Vercel preview
+
+Stage Summary:
+- Branch* feature/zaincash-payment
+- Preview! https://track-tracker-fxi3hwn8o-awab-salahs-projects.vercel.app
+- All credentials via env vars — switch to production by changing env vars only
+- Payment flow: OAuth2 → create transaction → redirect → callback verify → activate subscription
