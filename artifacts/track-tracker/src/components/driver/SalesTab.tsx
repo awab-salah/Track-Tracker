@@ -66,7 +66,6 @@ function clearDraft(): void {
 export function SalesTab() {
   const { currentDriver, loads, addSale } = useApp();
   const { toast } = useToast();
-  const receiptInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // Restore draft from sessionStorage on mount (survives Android Activity recreation)
@@ -148,25 +147,14 @@ export function SalesTab() {
     setItems((prev) => prev.filter((i) => i.productName !== productName));
   };
 
-  /** Open the system file picker for receipt image.
-   *  Uses a single <input type=file> WITHOUT capture='environment',
-   *  matching the exact pattern used in ProfilePage and AvatarUpload
-   *  which work without any page refresh on Android/Capacitor.
-   *
-   *  WHY NO capture='environment'?
-   *  On Android/Capacitor, capture='environment' forces the browser to
-   *  open the camera app as a separate Activity. The camera Activity is
-   *  memory-intensive, so on constrained devices Android destroys the
-   *  WebView Activity to free RAM. When the camera returns, the WebView
-   *  Activity is recreated → full page reload → visible "refresh".
-   *
-   *  Without capture, the system file chooser opens instead. It's a
-   *  lightweight dialog that includes Camera as an option alongside
-   *  Gallery and Files. The WebView Activity is NOT destroyed → no
-   *  page reload → seamless UX. This is exactly how Profile works. */
-  const openReceiptPicker = () => {
+  /** Save draft to sessionStorage right before the file picker opens.
+   *  This is called via the <input onClick> handler, which fires when
+   *  the native <label htmlFor> click is forwarded to the input —
+   *  BEFORE the file chooser dialog opens. This is the same approach
+   *  used by ProfilePage and AvatarUpload (which don't need explicit
+   *  draft saving because they persist the URL to Supabase immediately). */
+  const handleReceiptInputClick = () => {
     saveDraft({ items, receiptUrl });
-    receiptInputRef.current?.click();
   };
 
   const handleReceiptFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,12 +201,7 @@ export function SalesTab() {
   };
 
   return (
-    <motion.div
-      key="sales-tab"
-      initial={false}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8"
-    >
+    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8">
       {/* ── Product picker ── */}
       <div
         ref={pickerRef}
@@ -377,35 +360,46 @@ export function SalesTab() {
               </div>
             ) : (
               <div className="flex gap-2">
-                {/* Single input WITHOUT capture='environment' — matches the
-                    exact pattern in ProfilePage and AvatarUpload which work
-                    without any page refresh on Android/Capacitor.
-                    The system file chooser includes Camera as an option
-                    alongside Gallery and Files. See openReceiptPicker for
-                    the full rationale. */}
-                <button
-                  onClick={openReceiptPicker}
-                  disabled={receiptUploading}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                {/* ── Camera button ──
+                    Uses <label htmlFor> to natively trigger the hidden <input>.
+                    This is the EXACT same pattern as ProfilePage and AvatarUpload,
+                    which work without any flicker or page refresh.
+
+                    WHY <label htmlFor> instead of ref.current.click()?
+                    1. Native HTML mechanism — no JS execution needed to open
+                       the file picker. The browser handles it at the DOM level.
+                    2. Trusted user gesture — on Android/Capacitor, programmatic
+                       .click() is NOT a trusted gesture. The WebView may handle
+                       it differently, potentially triggering Activity recreation.
+                    3. Works in sandboxed iframes (e.g. Vercel Preview) where
+                       scripted .click() can be blocked by the browser.
+                    4. ProfilePage uses this pattern and has NO flicker/refresh. */}
+                <label
+                  htmlFor="receipt-image"
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer ${receiptUploading ? 'opacity-50 pointer-events-none' : ''}`}
                   data-testid="btn-capture-camera"
                 >
                   <Camera size={16} /> كاميرا
-                </button>
-                <button
-                  onClick={openReceiptPicker}
-                  disabled={receiptUploading}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                </label>
+                <label
+                  htmlFor="receipt-image"
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer ${receiptUploading ? 'opacity-50 pointer-events-none' : ''}`}
                   data-testid="btn-capture-gallery"
                 >
                   <ImageIcon size={16} /> المعرض
-                </button>
+                </label>
               </div>
             )}
+            {/* Hidden file input — id required for <label htmlFor> association.
+                NO capture='environment' — this opens the system file chooser
+                (which includes Camera + Gallery + Files) instead of the
+                camera-only Activity. Same pattern as ProfilePage/AvatarUpload. */}
             <input
-              ref={receiptInputRef}
+              id="receipt-image"
               type="file"
               accept="image/*"
               className="hidden"
+              onClick={handleReceiptInputClick}
               onChange={handleReceiptFile}
               disabled={receiptUploading}
             />
@@ -431,6 +425,6 @@ export function SalesTab() {
           </AppButton>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
