@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Users, Map, BarChart2 } from 'lucide-react';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { Logo } from '@/components/Logo';
@@ -99,16 +99,36 @@ export default function OwnerDashboard() {
           ))}
         </div>
 
-        {/* ── Content ── */}
+        {/* ── Content — always-mounted tabs ──
+            All three tabs are ALWAYS in the React tree. Only the active
+            tab has display:flex; inactive tabs have display:none.
+            This preserves all component state across tab switches,
+            prevents re-renders, and avoids unnecessary data re-fetches.
+            Same pattern as DriverDashboard. */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           {!isActive ? (
             <SubscriptionGate variant="company" />
           ) : (
-            <AnimatePresence mode="wait">
-              {activeTab === 'drivers' && <DriversTab key="drivers" />}
-              {activeTab === 'map'     && <MapTab     key="map"     />}
-              {activeTab === 'stats'   && <StatsTab   key="stats"   />}
-            </AnimatePresence>
+            <>
+              <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ display: activeTab === 'drivers' ? 'flex' : 'none' }}
+              >
+                <DriversTab />
+              </div>
+              <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ display: activeTab === 'map' ? 'flex' : 'none' }}
+              >
+                <MapTab />
+              </div>
+              <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ display: activeTab === 'stats' ? 'flex' : 'none' }}
+              >
+                <StatsTab />
+              </div>
+            </>
           )}
         </div>
 
