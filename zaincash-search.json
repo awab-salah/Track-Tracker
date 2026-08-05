@@ -2,7 +2,7 @@
   {
     "url": "https://docs.zaincash.iq",
     "name": "ZainCash Payment Gateway API Documentation v2",
-    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration , webhooks, refunds, and brand guidelines.\nZainCash Merchant Payment Gateway – Integration Guide Thank you for choosing ZainCash, Iraq’s leading mobile payment network. The ZainCash Merchant Payment Gateway provides a secure, scalable, and seamless way for businesses to accept digital payments. By integrating our solution, you offer your customers a fast and familiar checkout experience directly through their mobile wallets.",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation . Learn OAuth2 authentication, payment integration , webhooks, refunds, and brand guidelines .\nComplete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines. Includes test credentials and code examples for Iraq payment processing.",
     "host_name": "docs.zaincash.iq",
     "rank": 0,
     "date": "",
@@ -18,39 +18,39 @@
     "favicon": ""
   },
   {
-    "url": "https://www.youtube.com/watch?v=MMTZ7lt13EI",
-    "name": "Payment Gateway Integration API Integrate Payments Code",
-    "snippet": "The payment gateway integration platform allows website programmers or software engineers the ability to add payment processing functionality ...",
-    "host_name": "www.youtube.com",
+    "url": "https://medium.com/@mohammedkareem/simplifying-payment-gateway-integration-in-iraq-introducing-the-iraq-payment-project-19460462d1ac",
+    "name": "Simplifying Payment Gateway Integration in Iraq",
+    "snippet": "From understanding the fundamentals of payment gateways to step-by-step integration instructions , our documentation covers it all.  ...",
+    "host_name": "medium.com",
     "rank": 2,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://fatora.io/api/zaincash.php",
-    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
-    "snippet": "Zaincash is a leading payment gateway provider based in Iraq , enabling merchants to accept payments from customers through multiple channels.",
-    "host_name": "fatora.io",
-    "rank": 3,
     "date": "",
     "favicon": ""
   },
   {
     "url": "https://cartdna.com/en/shopify-payment-methods/zaincash",
     "name": "Zaincash for Shopify: Payment Method Guide for Iraq",
-    "snippet": "Integrating Zaincash into your Shopify store can enhance payment options for Iraqi consumers, providing a locally trusted digital wallet solution.",
+    "snippet": "API documentation and integration guides . Integration specifics are not detailed, potentially requiring additional setup efforts.",
     "host_name": "cartdna.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration . based in Iraq , integration with Fatora.",
+    "host_name": "fatora.io",
     "rank": 4,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
-    "name": "How Can I Integrate My Site With ZainCash Payment",
-    "snippet": "This article helps you integrate your website with ZainCash , all code samples provided are in JavaScript. Also, we've made this package for you to help you ... Read more",
-    "host_name": "medium.com",
+    "url": "https://www.paytia.com/us/resources/blog/payment-gateway-api-integration?srsltid=AfmBOopmDkoTSVimflnSQcUU0XjKqXCpLiGJ7DH1YfhTIDwGxqpn4jZT",
+    "name": "Payment Gateway API Integration: A US Developer Guide",
+    "snippet": "May 27, 2026 — A practical guide to payment gateway API integration for US developers. Covers authentication, tokenization, webhooks, error handling.",
+    "host_name": "www.paytia.com",
     "rank": 5,
-    "date": "",
+    "date": "May 27, 2026",
     "favicon": ""
   },
   {
@@ -63,27 +63,27 @@
     "favicon": ""
   },
   {
-    "url": "https://www.paytia.com/us/resources/blog/payment-gateway-api-integration?srsltid=AfmBOorOxA1uVB3oF_0gFIjPIr6xFFpnaOJJGYDQCShYhzWKq0U1duEm",
-    "name": "Payment Gateway API Integration: A US Developer Guide",
-    "snippet": "May 27, 2026 — A practical payment gateway integration guide for developers: authentication, tokenization, webhooks, error handling, and staying. Covers ...",
-    "host_name": "www.paytia.com",
+    "url": "https://na-gateway.mastercard.com/api/documentation/integrationGuidelines/index.html",
+    "name": "Integration Guide",
+    "snippet": "Fully hosted, fast, and easy payment page integration. Browse our wide array of API reference documentation .",
+    "host_name": "na-gateway.mastercard.com",
     "rank": 7,
-    "date": "May 27, 2026",
+    "date": "",
     "favicon": ""
   },
   {
-    "url": "https://potan.co/en/blog/local-payment-gateways-in-iraq",
-    "name": "Local Payment Gateways in Iraq - Potan Co",
-    "snippet": "Mar 6, 2024 — Cash in ZainCash Wallet via ZainCash Authorized agents: 0.5%. API Integration : No clear and public documentation unless you sign a contract with ... Read more",
-    "host_name": "potan.co",
+    "url": "https://www.scribd.com/document/851557738/Payment-Gateway-Integration-Guide",
+    "name": "Payment Gateway API Integration Guide | PDF | Encryption",
+    "snippet": "This document outlines the integration process for Payment Gateway APIs, detailing various APIs for payment requests, status checks, refunds, and vendor ... Read more",
+    "host_name": "www.scribd.com",
     "rank": 8,
-    "date": "Mar 6, 2024",
+    "date": "",
     "favicon": ""
   },
   {
-    "url": "https://pub.dev/documentation/zaincash_payment/latest/zaincash_payment",
-    "name": "zaincash_payment library - Dart API - Pub",
-    "snippet": "A Flutter merchant gateway for the ZainCash Payment Gateway API v2 (https://docs.zaincash.iq). Provides OAuth2 authentication, transaction creation/inquiry/reversal, a ready-to-use WebView payment screen, and callback token decoding.",
+    "url": "https://pub.dev/documentation/zaincash_payment/latest",
+    "name": "zaincash_payment - Dart API docs - Pub",
+    "snippet": "A Flutter merchant gateway for the ZainCash Payment Gateway API v2 (docs.zaincash.iq). Supports OAuth2 authentication, transaction creation, a ready-to-use WebView payment screen, status inquiry, callback token decoding, and reversals (refunds).",
     "host_name": "pub.dev",
     "rank": 9,
     "date": "",
