@@ -209,10 +209,14 @@ export function SalesTab() {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-8">
-      {/* ── Product picker ── */}
+      {/* ── Product picker ──
+          The toggle button stays in normal flow.
+          When open, the expanded content is position:absolute so it
+          overlays the “منتجات البيع” card below instead of pushing it.
+          max-h + overflow-y-auto keeps long lists scrollable. */}
       <div
         ref={pickerRef}
-        className="bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
+        className="relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/[0.06]"
       >
         <button
           onClick={() => (pickerOpen ? setPickerOpen(false) : openPicker())}
@@ -227,10 +231,10 @@ export function SalesTab() {
         </button>
 
         {pickerOpen && (
-          <div className="px-4 pb-4 flex flex-col gap-2">
+          <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.12)] border border-black/[0.04] dark:border-white/[0.06] px-4 pb-4 pt-3 flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
             {/* ── Search field ── */}
             {allProducts.length > 0 && (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
@@ -248,7 +252,7 @@ export function SalesTab() {
                 {productSearch.trim() ? 'لا توجد منتجات مطابقة للبحث' : 'لا توجد منتجات متاحة في الحمولة الحالية'}
               </p>
             ) : (
-              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
+              <div className="flex flex-col gap-2">
                 {products.map((p) => {
                   const isSelected = !!selectedProducts[p.productName];
                   return (
@@ -294,7 +298,7 @@ export function SalesTab() {
             {products.length > 0 && (
               <AppButton
                 variant="secondary"
-                className="mt-2 min-h-[48px]"
+                className="mt-2 min-h-[48px] shrink-0"
                 onClick={handleAdd}
                 disabled={Object.values(selectedProducts).every((v) => !v)}
                 data-testid="btn-add-selected-products"
