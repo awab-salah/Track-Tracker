@@ -155,3 +155,24 @@ Stage Summary:
 - Key fix: <label htmlFor> pattern instead of ref.current.click()
 - Production URL: https://track-tracker-a2s2gago6-awab-salahs-projects.vercel.app
 - All previous fixes preserved (always-mounted tabs, capture removal, draft persistence)
+
+---
+Task ID: 1-6
+Agent: main
+Task: 6 improvements per user request
+
+Work Log:
+- SalesTab.tsx: Removed camera button, kept gallery-only with full-width label
+- SalesTab.tsx: Removed AnimatePresence height animation from product picker, replaced with instant show/hide + max-h-[50vh] scroll for long lists
+- SalesTab.tsx: Added search input (Search icon + instant filter) at top of product dropdown
+- DriversTab.tsx: Added search bar for filtering drivers by name (contains match)
+- AppContext.tsx: Fixed notification system — added polling fallback (8s interval) alongside Supabase Realtime, added dedup via notifiedSaleIds Set, added subscribe status logging, seeded dedup set with known sales
+- OwnerDashboard.tsx: Converted from AnimatePresence mode="wait" to always-mounted tabs (CSS display:none/flex) matching DriverDashboard pattern
+- MapTab.tsx, StatsTab.tsx, DriversTab.tsx: Removed motion.div exit/initial animations (no longer needed with always-mounted pattern)
+- tsconfig.json: Inlined tsconfig.base.json for Vercel build compatibility
+- Built and deployed to Vercel production
+
+Stage Summary:
+- All 6 changes implemented and deployed
+- Production URL: https://track-tracker-app.vercel.app
+- Commit: 313cd95 on main branch
