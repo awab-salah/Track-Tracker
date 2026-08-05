@@ -10,18 +10,66 @@ import { SUBSCRIPTION_PLANS } from '@/services/subscriptionService';
 import { useApp } from '@/store/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { useZainCashPayment } from '@/hooks/useZainCashPayment';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /**
  * SubscriptionsPage — Company Owner only.
  *
  * Displays subscription plan cards connected to ZainCash payment flow,
  * plus an activation code input for manual activation.
+ *
+ * Bug 1 fix: Only the plan the user actually paid for shows "Active".
+ *   We query payment_records for the latest completed payment's plan_id.
+ *   If subscription was activated via discount code (no payment record),
+ *   no plan shows "Active" — all remain clickable.
+ *
+ * Bug 2 fix: Only the clicked plan shows loading state.
+ *   loadingPlanId tracks which plan is in-flight via ZainCash.
  */
 export default function SubscriptionsPage() {
   const [, setLocation] = useLocation();
-  const { activateSubscription, companySubscriptionActive } = useApp();
+  const { activateSubscription, companySubscriptionActive, company } = useApp();
   const { toast } = useToast();
-  const { loading: paymentLoading, initiatePayment, verifyPendingPayment } = useZainCashPayment();
+  const { loadingPlanId, initiatePayment, verifyPendingPayment } = useZainCashPayment();
+
+  // ── Active plan ID (Bug 1 fix) ──
+  // Determined by querying payment_records for the latest completed payment.
+  // null = no specific plan paid (discount code activation, or not active).
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!companySubscriptionActive || !isSupabaseConfigured) {
+      setActivePlanId(null);
+      return;
+    }
+
+    // Query payment_records for the latest completed payment to find which plan is active.
+    // This is a read-only query — no payment flow modification.
+    const fetchActivePlanId = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('payment_records')
+          .select('plan_id')
+          .eq('company_id', company.name)  // company.name used as companyId in current flow
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!error && data && data.length > 0 && data[0].plan_id) {
+          setActivePlanId(data[0].plan_id);
+        } else {
+          // Subscription is active but no completed payment record found.
+          // This means it was activated via discount code — no plan should show as "Active".
+          setActivePlanId(null);
+        }
+      } catch {
+        // Non-critical — fall back to no active plan shown
+        setActivePlanId(null);
+      }
+    };
+
+    fetchActivePlanId();
+  }, [companySubscriptionActive, company.name]);
 
   // ── Activation code state ──
   const [activationCode, setActivationCode] = useState('');
@@ -206,7 +254,7 @@ export default function SubscriptionsPage() {
               </div>
             )}
 
-            {/* Subscription plan cards */}
+            {/* Subscription plan cards — Bug 1 & 2 fixes */}
             {SUBSCRIPTION_PLANS.map((plan, index) => (
               <motion.div
                 key={plan.id}
@@ -217,8 +265,8 @@ export default function SubscriptionsPage() {
                 <SubscriptionPlanCard
                   plan={plan}
                   onSubscribe={(planId) => handleSubscribe(planId, plan.price)}
-                  loading={paymentLoading}
-                  disabled={companySubscriptionActive || paymentLoading}
+                  isActive={activePlanId === plan.id}
+                  loadingPlanId={loadingPlanId}
                 />
               </motion.div>
             ))}
