@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Camera, Image as ImageIcon, X, ChevronDown, Trash2, Plus, Loader2 } from 'lucide-react';
+import { useRef, useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { ShoppingCart, Image as ImageIcon, X, ChevronDown, Trash2, Plus, Loader2, Search } from 'lucide-react';
 import { AppButton } from '@/components/AppButton';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { useApp } from '@/store/AppContext';
@@ -83,8 +83,14 @@ export function SalesTab() {
   const [selectedProducts, setSelectedProducts] = useState<Record<string, boolean>>({});
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
 
-  const products = currentDriver ? getDriverProducts(loads, currentDriver.id) : [];
+  const allProducts = currentDriver ? getDriverProducts(loads, currentDriver.id) : [];
+  const products = useMemo(() => {
+    if (!productSearch.trim()) return allProducts;
+    const q = productSearch.trim().toLowerCase();
+    return allProducts.filter((p) => p.productName.toLowerCase().includes(q));
+  }, [allProducts, productSearch]);
   const totalAmount = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
 
   // Keep draft in sync with sessionStorage so it's always up-to-date
@@ -134,6 +140,7 @@ export function SalesTab() {
 
     setSelectedProducts({});
     setPendingQuantities({});
+    setProductSearch('');
     setPickerOpen(false);
   };
 
@@ -219,76 +226,84 @@ export function SalesTab() {
           <span className="font-extrabold text-[15px] text-foreground">اختيار المنتجات من الحمولة</span>
         </button>
 
-        <AnimatePresence initial={false}>
-          {pickerOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="px-4 pb-4 flex flex-col gap-2">
-                {products.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2 text-center">
-                    لا توجد منتجات متاحة في الحمولة الحالية
-                  </p>
-                ) : (
-                  products.map((p) => {
-                    const isSelected = !!selectedProducts[p.productName];
-                    return (
-                      <div
-                        key={p.productName}
-                        className={`rounded-xl border px-3 py-2.5 transition-colors ${
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border bg-muted/40'
-                        }`}
-                      >
-                        <button
-                          onClick={() => toggleProduct(p.productName)}
-                          className="w-full flex items-center justify-between"
-                          data-testid={`btn-select-product-${p.productName}`}
-                        >
-                          <span className="text-xs text-muted-foreground">
-                            متاح: {p.available} · {formatIQD(p.unitPrice)}
-                          </span>
-                          <span className="text-[13px] font-bold text-foreground">{p.productName}</span>
-                        </button>
-
-                        {isSelected && (
-                          <div className="flex items-center justify-between mt-3">
-                            <QuantityStepper
-                              value={pendingQuantities[p.productName] ?? 1}
-                              onChange={(v) =>
-                                setPendingQuantities((prev) => ({ ...prev, [p.productName]: v }))
-                              }
-                              min={1}
-                              max={p.available}
-                              testId={`stepper-sale-${p.productName}`}
-                            />
-                            <span className="text-xs text-muted-foreground">الكمية</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-
-                {products.length > 0 && (
-                  <AppButton
-                    variant="secondary"
-                    className="mt-2 min-h-[48px]"
-                    onClick={handleAdd}
-                    disabled={Object.values(selectedProducts).every((v) => !v)}
-                    data-testid="btn-add-selected-products"
-                  >
-                    إضافة إلى قائمة البيع
-                  </AppButton>
-                )}
+        {pickerOpen && (
+          <div className="px-4 pb-4 flex flex-col gap-2">
+            {/* ── Search field ── */}
+            {allProducts.length > 0 && (
+              <div className="relative">
+                <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="بحث عن منتج…"
+                  className="w-full pr-9 pl-3 py-2 text-sm rounded-lg border border-border bg-muted/30 placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                  dir="rtl"
+                />
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+
+            {products.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2 text-center">
+                {productSearch.trim() ? 'لا توجد منتجات مطابقة للبحث' : 'لا توجد منتجات متاحة في الحمولة الحالية'}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
+                {products.map((p) => {
+                  const isSelected = !!selectedProducts[p.productName];
+                  return (
+                    <div
+                      key={p.productName}
+                      className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                        isSelected
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-muted/40'
+                      }`}
+                    >
+                      <button
+                        onClick={() => toggleProduct(p.productName)}
+                        className="w-full flex items-center justify-between"
+                        data-testid={`btn-select-product-${p.productName}`}
+                      >
+                        <span className="text-xs text-muted-foreground">
+                          متاح: {p.available} · {formatIQD(p.unitPrice)}
+                        </span>
+                        <span className="text-[13px] font-bold text-foreground">{p.productName}</span>
+                      </button>
+
+                      {isSelected && (
+                        <div className="flex items-center justify-between mt-3">
+                          <QuantityStepper
+                            value={pendingQuantities[p.productName] ?? 1}
+                            onChange={(v) =>
+                              setPendingQuantities((prev) => ({ ...prev, [p.productName]: v }))
+                            }
+                            min={1}
+                            max={p.available}
+                            testId={`stepper-sale-${p.productName}`}
+                          />
+                          <span className="text-xs text-muted-foreground">الكمية</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {products.length > 0 && (
+              <AppButton
+                variant="secondary"
+                className="mt-2 min-h-[48px]"
+                onClick={handleAdd}
+                disabled={Object.values(selectedProducts).every((v) => !v)}
+                data-testid="btn-add-selected-products"
+              >
+                إضافة إلى قائمة البيع
+              </AppButton>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Selected items card list ── */}
@@ -359,36 +374,14 @@ export function SalesTab() {
                 </button>
               </div>
             ) : (
-              <div className="flex gap-2">
-                {/* ── Camera button ──
-                    Uses <label htmlFor> to natively trigger the hidden <input>.
-                    This is the EXACT same pattern as ProfilePage and AvatarUpload,
-                    which work without any flicker or page refresh.
-
-                    WHY <label htmlFor> instead of ref.current.click()?
-                    1. Native HTML mechanism — no JS execution needed to open
-                       the file picker. The browser handles it at the DOM level.
-                    2. Trusted user gesture — on Android/Capacitor, programmatic
-                       .click() is NOT a trusted gesture. The WebView may handle
-                       it differently, potentially triggering Activity recreation.
-                    3. Works in sandboxed iframes (e.g. Vercel Preview) where
-                       scripted .click() can be blocked by the browser.
-                    4. ProfilePage uses this pattern and has NO flicker/refresh. */}
-                <label
-                  htmlFor="receipt-image"
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer ${receiptUploading ? 'opacity-50 pointer-events-none' : ''}`}
-                  data-testid="btn-capture-camera"
-                >
-                  <Camera size={16} /> كاميرا
-                </label>
-                <label
-                  htmlFor="receipt-image"
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer ${receiptUploading ? 'opacity-50 pointer-events-none' : ''}`}
-                  data-testid="btn-capture-gallery"
-                >
-                  <ImageIcon size={16} /> المعرض
-                </label>
-              </div>
+              // Gallery-only button (camera temporarily disabled due to Android/PWA flicker)
+              <label
+                htmlFor="receipt-image"
+                className={`w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer ${receiptUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                data-testid="btn-capture-gallery"
+              >
+                <ImageIcon size={16} /> اختيار صورة من المعرض
+              </label>
             )}
             {/* Hidden file input — id required for <label htmlFor> association.
                 NO capture='environment' — this opens the system file chooser

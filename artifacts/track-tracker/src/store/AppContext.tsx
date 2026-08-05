@@ -772,44 +772,107 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
   };
 
-  // ── Sale notifications — Supabase Realtime subscription ───────────────────
+  // ── Sale notifications — Supabase Realtime + polling fallback ───────────────
   // Fires a Web Notification the instant any driver in this company records a
   // new sale. Active only while: signed in as the company owner, the toggle is
   // on, and the browser permission is actually granted.
+  //
+  // PRIMARY: Supabase Realtime postgres_changes on INSERT to sales table.
+  // FALLBACK: Polling every 8s to catch sales that Realtime missed (e.g. if
+  //           the sales table hasn't been added to the supabase_realtime
+  //           publication, or RLS blocks the event channel).
+  //
+  // Deduplication: a Set of notified sale IDs prevents duplicate notifications
+  // from both Realtime and polling delivering the same sale.
+  const notifiedSaleIdsRef = useRef<Set<string>>(new Set());
+
+  const showSaleNotification = (saleId: string, driverId: string, totalPrice: number) => {
+    // Deduplicate — don't notify for the same sale twice.
+    if (notifiedSaleIdsRef.current.has(saleId)) return;
+    notifiedSaleIdsRef.current.add(saleId);
+
+    const driver = driversRef.current.find((d) => d.id === driverId);
+    if (!driver) return;
+
+    try {
+      new Notification('عملية بيع جديدة', {
+        body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(totalPrice)}`,
+        icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
+        tag: `sale-${saleId}`,
+      });
+    } catch (err) {
+      console.error('[AppContext] Failed to display sale notification:', err);
+    }
+  };
+
   useEffect(() => {
     if (role !== 'company' || !authCompanyId) return;
     if (!isSupabaseConfigured || !notificationsEnabled) return;
     if (getNotificationPermission() !== 'granted') return;
 
+    // Seed the dedup set with all sale IDs we already know about, so we
+    // don't re-notify for sales that existed before the subscription started.
+    for (const s of sales) {
+      notifiedSaleIdsRef.current.add(s.id);
+    }
+
+    // ── PRIMARY: Supabase Realtime ──
     const channel = supabase
       .channel(`company-sales-notify-${authCompanyId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'sales' },
         (payload) => {
-          const row = payload.new as { driver_id: string; total_price: number };
-          // sales has no company_id column — filter client-side against this
-          // company's known driver ids (kept fresh via driversRef).
-          const driver = driversRef.current.find((d) => d.id === row.driver_id);
-          if (!driver) return;
-
-          try {
-            new Notification('عملية بيع جديدة', {
-              body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(row.total_price)}`,
-              icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
-              tag: `sale-${row.driver_id}-${Date.now()}`,
-            });
-          } catch (err) {
-            console.error('[AppContext] Failed to display sale notification:', err);
-          }
+          const row = payload.new as { id: string; driver_id: string; total_price: number };
+          console.log('[AppContext] Realtime sale INSERT received:', row.id);
+          showSaleNotification(row.id, row.driver_id, row.total_price);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[AppContext] Realtime channel status:', status);
+      });
+
+    // ── FALLBACK: Polling every 8 seconds ──
+    // Compares the latest sales in the DB against our in-memory list.
+    // Any new sale not yet in `sales` state (or not yet notified) triggers
+    // a notification. This catches sales that Realtime missed.
+    const POLL_INTERVAL = 8_000;
+    const poll = async () => {
+      try {
+        const driverIds = driversRef.current.map((d) => d.id);
+        if (driverIds.length === 0) return;
+
+        // Fetch sales created in the last 30 seconds (generous window
+        // to account for clock skew and slow networks).
+        const cutoff = new Date(Date.now() - 30_000).toISOString();
+        const { data: recentRows, error } = await supabase
+          .from('sales')
+          .select('id, driver_id, total_price, created_at')
+          .in('driver_id', driverIds)
+          .gte('created_at', cutoff);
+
+        if (error) {
+          console.warn('[AppContext] Notification poll error:', error.message);
+          return;
+        }
+
+        for (const row of (recentRows ?? []) as { id: string; driver_id: string; total_price: number }[]) {
+          showSaleNotification(row.id, row.driver_id, row.total_price);
+        }
+      } catch (err) {
+        console.warn('[AppContext] Notification poll failed:', err);
+      }
+    };
+
+    const intervalId = setInterval(poll, POLL_INTERVAL);
 
     return () => {
       void supabase.removeChannel(channel);
+      clearInterval(intervalId);
     };
-  }, [role, authCompanyId, notificationsEnabled]);
+  // sales included to seed the dedup set; drivers not needed (uses ref)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, authCompanyId, notificationsEnabled, sales.length]);
 
   const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
 

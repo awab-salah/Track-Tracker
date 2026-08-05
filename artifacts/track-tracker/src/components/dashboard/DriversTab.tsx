@@ -1,5 +1,6 @@
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users } from 'lucide-react';
+import { Users, Search } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useApp } from '@/store/AppContext';
 import { DriverCard } from './DriverCard';
@@ -7,14 +8,17 @@ import { DriverCard } from './DriverCard';
 export function DriversTab() {
   const [, setLocation] = useLocation();
   const { drivers } = useApp();
+  const [search, setSearch] = useState('');
+
+  const filteredDrivers = useMemo(() => {
+    if (!search.trim()) return drivers;
+    const q = search.trim().toLowerCase();
+    return drivers.filter((d) => d.name.toLowerCase().includes(q));
+  }, [drivers, search]);
 
   return (
-    <motion.div
+    <div
       key="drivers"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2 }}
       className="flex-1 overflow-y-auto"
     >
       {drivers.length === 0 ? (
@@ -29,10 +33,25 @@ export function DriversTab() {
         </div>
       ) : (
         <div className="p-4 flex flex-col gap-3 pb-6">
+          {/* ── Search bar ── */}
+          <div className="relative">
+            <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="بحث عن سائق…"
+              className="w-full pr-9 pl-3 py-2.5 text-sm rounded-lg border border-border bg-muted/30 placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+              dir="rtl"
+            />
+          </div>
+
           <p className="text-xs text-muted-foreground font-semibold px-1 mb-1">
-            {drivers.length} سائق نشط
+            {filteredDrivers.length === drivers.length
+              ? `${drivers.length} سائق نشط`
+              : `${filteredDrivers.length} من ${drivers.length} سائق`}
           </p>
-          {drivers.map((driver, i) => (
+          {filteredDrivers.map((driver, i) => (
             // No y-transform on individual items — avoids GPU compositing seams during scroll.
             // The parent motion.div already provides the entrance animation.
             <motion.div
@@ -49,6 +68,6 @@ export function DriversTab() {
           ))}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
