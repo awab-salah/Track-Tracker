@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "The ZainCash Payment Gateway v2 lets you accept payments from ZainCash wallets using a secure redirect flow , with real-time status updates via API and webhooks.\nObtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. Create a transaction and return the transaction\nThis is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq. Create a transaction and ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. pay and manage their bills. are in your ZainCash ...\nReal-time reports, all transaction details available to you anywhere anytime through ZainCash webportal more control. ability to conduct refunds or ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "This article helps you integrate your website with ZainCash, ZainCash will redirect to your site with a token to inform you about the payment ...\nFirst of all, you will need to create a ZainCash wallet and a merchant account. Create the transaction data object , to initialize a ZC  ...",
+    "host_name": "medium.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.\nStart accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration. You can create a new account here",
+    "host_name": "fatora.io",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]
