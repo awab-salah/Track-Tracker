@@ -24,6 +24,16 @@
  */
 
 // ── Configuration ────────────────────────────────────────────────────────────
+//
+// ZainCash v2 API uses OAuth2 (client_id + client_secret).
+// Sandbox defaults: official test credentials from docs.zaincash.iq.
+// Switch to production by setting env vars — no code changes needed.
+
+const SANDBOX_DEFAULTS = {
+  baseUrl:      'https://test.zaincash.iq',
+  clientId:     '758055f4a8044779a35f6ceb69f858b3',
+  clientSecret: 'bibLCGTxVAig5To3OLLKPJQMlRR7Pefp',
+};
 
 export interface ZainCashConfig {
   baseUrl: string;
@@ -40,9 +50,9 @@ export interface ZainCashConfig {
 
 export function getZainCashConfig(): ZainCashConfig {
   return {
-    baseUrl:     process.env.ZAINCASH_BASE_URL     ?? 'https://test.zaincash.iq',
-    clientId:    process.env.ZAINCASH_CLIENT_ID     ?? '',
-    clientSecret:process.env.ZAINCASH_CLIENT_SECRET ?? '',
+    baseUrl:     process.env.ZAINCASH_BASE_URL     || SANDBOX_DEFAULTS.baseUrl,
+    clientId:    process.env.ZAINCASH_CLIENT_ID     || SANDBOX_DEFAULTS.clientId,
+    clientSecret:process.env.ZAINCASH_CLIENT_SECRET || SANDBOX_DEFAULTS.clientSecret,
     apiKey:      process.env.ZAINCASH_API_KEY       ?? '',
     merchantId:  process.env.ZAINCASH_MERCHANT_ID   ?? '',
     secretKey:   process.env.ZAINCASH_SECRET_KEY    ?? '',
@@ -55,7 +65,8 @@ export function getZainCashConfig(): ZainCashConfig {
 
 export function isZainCashConfigured(): boolean {
   const c = getZainCashConfig();
-  return !!(c.clientId && c.clientSecret && c.apiKey && c.merchantId && c.secretKey && c.msisdn);
+  // v2 API only requires clientId + clientSecret for OAuth2
+  return !!(c.clientId && c.clientSecret);
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
