@@ -235,6 +235,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('[ZainCash] Transaction created:', initData.id, 'for order:', orderId);
     console.log('[ZainCash] Redirect URL:', redirectUrlFull);
+    console.log('[ZainCash] ── TRANSACTION PAYLOAD VERIFICATION ──');
+    console.log('[ZainCash] ZainCash returned transactionId:', initData.id);
+    console.log('[ZainCash] ZainCash returned rUrl:', initData.rUrl || '(not provided)');
+    console.log('[ZainCash] Full redirect URL:', redirectUrlFull);
+    console.log('[ZainCash] Merchant MSISDN in JWT:', config.msisdn, '(type:', typeof config.msisdn, ')');
+    console.log('[ZainCash] Amount in JWT:', amount, '(type:', typeof amount, ')');
+    console.log('[ZainCash] ServiceType in JWT: subscription');
+    console.log('[ZainCash] NOTE: Customer MSISDN is NOT sent by our app.');
+    console.log('[ZainCash]       The customer enters their own wallet number on the ZainCash payment page.');
+    console.log('[ZainCash]       Sandbox test wallets (from docs.zaincash.iq):');
+    console.log('[ZainCash]         1. MSISDN 9647802999569, PIN 1111, OTP 111111');
+    console.log('[ZainCash]         2. MSISDN 9647829744432, PIN 1111, OTP 111111');
+    console.log('[ZainCash]         3. MSISDN 9647829744464, PIN 1111, OTP 111111');
+    console.log('[ZainCash]         4. MSISDN 9647829744474, PIN 1111, OTP 111111');
 
     // Store payment record in Supabase (fire-and-forget)
     try {
@@ -270,6 +284,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       transactionId: initData.id,
       redirectUrl: redirectUrlFull,
       orderId,
+      // Include verification info so the caller can confirm MSISDN wasn't modified
+      _debug: {
+        merchantMsisdn: config.msisdn,
+        msisdnType: typeof config.msisdn,
+        amount,
+        amountType: typeof amount,
+        zaincashBaseUrl: config.baseUrl,
+        zaincashRUrl: initData.rUrl || null,
+        note: 'Customer MSISDN is NOT sent by our app. Customer enters it on ZainCash payment page.',
+      },
     });
 
   } catch (err) {
