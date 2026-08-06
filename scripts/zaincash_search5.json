@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Merchant Payment Gateway – Integration Guide",
+    "snippet": "Obtain your client_id , client_secret , and API key from ZainCash . Get an OAuth2 access token using client_credentials grant. Call the transaction/init ... Read more\nObtain your client_id, client_secret, and API key from ZainCash. Please use the following merchant credentials to test transaction ID creation and status ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ShahramMebashar/parakit/blob/main/README.md",
+    "name": "README.md - ShahramMebashar/parakit",
+    "snippet": "fib', 'base_url' => env('FIB_MAIN_BASE_URL'), ' client_id ' => env('FIB_MAIN_CLIENT_ID'), ' client_secret ' => env('FIB_MAIN_CLIENT_SECRET'), 'callback_url ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. The Merchant ID obtained from ZainCash . The secret used to decode and encode JWT during ...",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "First of all, you will need to create a ZainCash wallet and a merchant account. ... Here are the test credentials for your test purposes. 7. Read more",
+    "host_name": "medium.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.north.com/products/merchant-management/merchant-reporting-api/integration-guide",
+    "name": "Merchant Reporting API Integration Guide",
+    "snippet": "The test credentials consist of a Client ID and Client Secret. The Client ID is associated with an Agent ID, and using it will provide access to all merchant ... Read more",
+    "host_name": "developer.north.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.worldpay.com/apis/merchant-credentials",
+    "name": "Merchant Credentials",
+    "snippet": "The Merchant Credentials API allows you to retrieve merchant processing credentials for Worldpay from FIS acquired merchants on the Express platform. Read more",
+    "host_name": "docs.worldpay.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials",
+    "name": "Braintree Articles: Important Gateway Credentials",
+    "snippet": "API credentials are unique account identifiers that must be added to your code before you can process payments via the API. Think of them as your username and ...",
+    "host_name": "developer.paypal.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.viva.com/getting-started/find-your-account-credentials/merchant-id-and-api-key",
+    "name": "Merchant ID and API Key",
+    "snippet": "You can find your Merchant ID and API Key in the Access credentials section at the top of the page: Access Credentials ; If needed, you can copy and paste ... Read more",
+    "host_name": "developer.viva.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/merchant-identifier/documentation/integration-and-testing",
+    "name": "Integration and Testing | Merchant Identifier",
+    "snippet": "Once you have created a project on Mastercard Developers and generated sandbox credentials you can start testing . The base URL for calling Sandbox endpoints ... Read more",
+    "host_name": "developer.mastercard.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.interswitchgroup.com/docs/default-test-credentials",
+    "name": "Default Test Credentials",
+    "snippet": "We offer two essential sets of test credentials ... Client ID , IKIAB23A4E2756605C1ABC33CE3C287E27267F660D61. Secret, secret. Pay Item Id, 9405967. Merchant Code ... Read more",
+    "host_name": "docs.interswitchgroup.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

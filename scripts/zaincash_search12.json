@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://pub.dev/documentation/zaincash/latest",
+    "name": "zaincash - Dart API docs",
+    "snippet": "First you will need a transaction_id created by using your merchant credentials on backend and then forwarded over to the mobile app,\nzaincash API docs , for the Dart programming language. A none offical Zaincash payment gateway integration for flutter INSTALL in your project terminal enter  ...",
+    "host_name": "pub.dev",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/zaincash/versions",
+    "name": "zaincash package - All Versions",
+    "snippet": "Pub is the package manager for the Dart programming language , containing reusable libraries & packages for Flutter and general Dart programs.",
+    "host_name": "pub.dev",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/test",
+    "name": "test | Dart package",
+    "snippet": "A full featured library for writing and running Dart tests across platforms.\nThe test runner looks for an executable named node (on Mac OS or Linux) or node .exe (on Windows) on your system path. When compiling Node .js tests , it passes - ...",
+    "host_name": "pub.dev",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://libraries.io/pub/zaincash_payment",
+    "name": "zaincash_payment 0.0.1 on Pub",
+    "snippet": "ZainCash provides a Client ID , Client Secret, and your production API link during onboarding. import ' package :zaincash_payment/zaincash_payment. dart '; const ...",
+    "host_name": "libraries.io",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/70487479/whats-the-new-location-of-credentials-json-for-dart-flutter-pub",
+    "name": "What's the new location of credentials.json for dart/flutter pub",
+    "snippet": "I noticed that after switching to the beta channel (Flutter 2.9.0-0.1.pre), ~/.pub-cache/credentials.json no longer exists. I was using this file to set ...",
+    "host_name": "stackoverflow.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev",
+    "name": "The official repository for Dart and Flutter packages.",
+    "snippet": "Pub is the package manager for the Dart programming language , containing reusable libraries & packages for Flutter and general Dart programs.",
+    "host_name": "pub.dev",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/dart-lang/pub-dev/issues/2950",
+    "name": "Use a token to verify identity and upload a package to pub",
+    "snippet": "Oct 24, 2019 — This process can be used to upload a custom token when uploading to npm , then complete the authentication process and upload.",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "Oct 24, 2019",
+    "favicon": ""
+  },
+  {
+    "url": "https://dart.dev/tools/pub/cmd/pub-token",
+    "name": "dart pub token",
+    "snippet": "May 21, 2024 — The dart pub command considers the terms credential , token, secret, and secret token to be interchangeable.",
+    "host_name": "dart.dev",
+    "rank": 7,
+    "date": "May 21, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=F4egmh1V10Y",
+    "name": "Creating Flutter Packages: Step-by-Step Guide & Publishing to",
+    "snippet": "In this video, we take you through the essential steps for creating your own package in Flutter and publishing it to pub.dev, making it easier",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=4g-Kd1eHfTY",
+    "name": "Publish Flutter Package in 7 Easy Steps",
+    "snippet": "One of the most underrated features in Flutter is how easy it is to publish a package on pub.dev . all you need is a Google account and just 4 ...",
+    "host_name": "www.youtube.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Merchant Payment Gateway – Integration Guide",
+    "snippet": "Merchant Please use the following merchant credentials to test transaction ID creation and status checks. Ensure you copy the credentials exactly as shown, ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.nmi.com/hc/en-gb/articles/7583814622609-How-to-Onboard-a-Test-Merchant-Gateway-Account",
+    "name": "How to Onboard a Test Merchant Gateway Account",
+    "snippet": "Sep 4, 2025 — A step-by-step guide on how to onboard a Test Gateway Account. Log in to your Partner Portal and head over to My Accounts → Add Merchant. ...",
+    "host_name": "support.nmi.com",
+    "rank": 1,
+    "date": "Sep 4, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.na.worldline-solutions.com/plan-your-integration/software-vendor-integration-guide/create-a-test-account",
+    "name": "Create a Software Vendor Test Account | Worldline NAM",
+    "snippet": "You can create test account (s) here . Please create two test accounts. Once created, please send your merchant IDs to sales.na@worldline.com .",
+    "host_name": "docs.na.worldline-solutions.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.interswitchgroup.com/docs/default-test-credentials",
+    "name": "Default Test Credentials",
+    "snippet": "We offer two essential sets of test credentials : These credentials help you test your integration with our system and ensure it works properly. Merchant Code ...",
+    "host_name": "docs.interswitchgroup.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/activemerchant/active_merchant/blob/master/test/fixtures.yml",
+    "name": "active_merchant/test/fixtures.yml at master",
+    "snippet": "This file has all of the ActiveMerchant test account credentials . place your own test account credentials in your local. This file has all of the ...",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dashboard.dana.id/api-docs-v2/guide/merchant-management/shop",
+    "name": "Shop | DANA API Documentation | Integrate Payments,",
+    "snippet": "You will need to register your business in our Merchant Portal to obtain your testing credentials . After you have created your test account , make sure you have ...",
+    "host_name": "dashboard.dana.id",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.google.com/merchant/api/guides/accounts/test-accounts",
+    "name": "Test Accounts in Merchant API",
+    "snippet": "Jul 17, 2026 — The Merchant API Test Accounts feature provides a safe and isolated space to thoroughly test integrations before deploying them in a live ...",
+    "host_name": "developers.google.com",
+    "rank": 6,
+    "date": "Jul 17, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://dokumentacja-inpost.atlassian.net/wiki/spaces/PL/pages/151257117/Authorization+and+Technical+Requirements",
+    "name": "Sandbox environment - InPost Developer Documentations",
+    "snippet": "how to configure the Merchant account and generate access credentials ( client_id and client_secret ). client_credentials flow a OAuth is used. The Merchant ...",
+    "host_name": "dokumentacja-inpost.atlassian.net",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.worldpay.com/apis/merchant-credentials",
+    "name": "Merchant Credentials",
+    "snippet": "The Merchant Credentials API allows you to retrieve merchant processing credentials for Worldpay from FIS acquired merchants on the Express platform.",
+    "host_name": "docs.worldpay.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/947802024012490/posts/1279473570845332",
+    "name": "Are there public client_id and client_secret for testing in",
+    "snippet": "We have a client with an account , but of course, I wouldn't want to run the tests on their account . What have I tried so far? I saw that there ...",
+    "host_name": "www.facebook.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

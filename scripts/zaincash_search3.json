@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. Get an OAuth2 access token using client_credentials grant. Test credentials used to make tests ...\nObtain your client_id, client_secret, and API key from ZainCash. Get an OAuth2 access token using client_credentials grant .",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.ebay.com/api-docs/static/oauth-credentials.html",
+    "name": "Getting your OAuth credentials",
+    "snippet": "OAuth credentials consist of a client_id and a client_secret , and eBay provides different credential sets for the Sandbox and Production environments.",
+    "host_name": "developer.ebay.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.wealthkernel.com/docs/api/41a2c016af6f6-authentication",
+    "name": "Authentication | API Documentation",
+    "snippet": "To test connectivity, you can use one of the following examples below which target our Sandbox environment. You will need to replace < client-id > and <client- ...",
+    "host_name": "docs.wealthkernel.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.squareup.com/docs/build-basics/access-tokens",
+    "name": "Access Tokens and Other Credentials",
+    "snippet": "Access tokens are credentials that allow applications to securely interact with Square APIs . are generally used for testing . Also called a Sandbox client ID .",
+    "host_name": "developer.squareup.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://simple-membership-plugin.com/getting-paypal-api-credentials",
+    "name": "Getting PayPal API Credentials - Live and Sandbox Client",
+    "snippet": "In the following documentation , complete the two sets of instructions to get your Live Client ID and Secret Key followed by locating your Sandbox ( Test ) Client ...",
+    "host_name": "simple-membership-plugin.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.equinix.com/equinix-api/api-authentication",
+    "name": "API User Authentication",
+    "snippet": "To request a token, send a POST request to the / oauth2 /v1/token endpoint, specifying your Client ID and Client Secret in the body of the request. Sample cURL ...",
+    "host_name": "docs.equinix.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dev.proof.com/docs/oauth-client-credentials",
+    "name": "OAuth Client Credentials",
+    "snippet": "The Proof API supports the use of the client_credentials grant type as an alternative form of authentication, as defined under the OAuth 2.0 specification",
+    "host_name": "dev.proof.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/947802024012490/posts/1279473570845332",
+    "name": "Are there public client_id and client_secret for testing in",
+    "snippet": "Are there public client_id and client_secret for testing in sandboxed API ? manage and test your APIs . Sandbox API credentials for a test ...",
+    "host_name": "www.facebook.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq.\nThis is a Laravel package to integrate ZainCash payment gateway API . The secret used to decode and encode JWT during requests. Set ' test ' to false for the live ...",
+    "host_name": "github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.egnyte.com/docs/read/Public_API_Authentication",
+    "name": "Authentication - Egnyte Developer Portal",
+    "snippet": "Egnyte uses OAuth 2.0 for authentication . Before making API calls, you must obtain an access token and include it in the Authorization header of all subsequent ... Read more",
+    "host_name": "developers.egnyte.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
