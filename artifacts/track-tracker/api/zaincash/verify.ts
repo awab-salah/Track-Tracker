@@ -1,9 +1,13 @@
 /**
  * GET /api/zaincash/verify?transactionId=xxx
  *
- * Verifies a ZainCash payment by inquiring the transaction status.
+ * Verifies a ZainCash payment by checking the transaction status.
  * Used by the client-side to poll for payment completion after redirect.
+ *
+ * Uses v1 API: POST /transaction/get with JWT token.
  */
+
+import crypto from 'crypto';
 
 // Inline Vercel types to avoid @vercel/node dependency
 interface VercelRequest {
@@ -20,45 +24,46 @@ interface VercelResponse {
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-// Sandbox defaults: official test credentials from docs.zaincash.iq
+// Sandbox defaults: official test credentials from ZainCash Laravel package
 
 const SANDBOX_DEFAULTS = {
-  baseUrl:      'https://test.zaincash.iq',
-  clientId:     '758055f4a8044779a35f6ceb69f858b3',
-  clientSecret: 'bibLCGTxVAig5To3OLLKPJQMlRR7Pefp',
+  baseUrl:    'https://test.zaincash.iq',
+  msisdn:     '9647835077893',
+  merchantId: '5ffacf6612b5777c6d44266f',
+  secret:     '$2y$10$hBbAZo2GfSSvyqAyV2SaqOfYewgYpfR1O19gIh4SqyGWdmySZYPuS',
 };
 
 function getConfig() {
   return {
-    baseUrl:      process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
-    clientId:     process.env.ZAINCASH_CLIENT_ID      || SANDBOX_DEFAULTS.clientId,
-    clientSecret: process.env.ZAINCASH_CLIENT_SECRET  || SANDBOX_DEFAULTS.clientSecret,
-    apiKey:       process.env.ZAINCASH_API_KEY        ?? '',
+    baseUrl:    process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
+    merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
+    secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
   };
 }
 
-let tokenCache: { token: string; expiresAt: number } | null = null;
+// ── JWT ──────────────────────────────────────────────────────────────────────
 
-async function getAccessToken(): Promise<string> {
-  if (tokenCache && Date.now() < tokenCache.expiresAt) {
-    return tokenCache.token;
-  }
-  const config = getConfig();
-  const response = await fetch(`${config.baseUrl}/api/v2/oauth2/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      ...(config.apiKey ? { api_key: config.apiKey } : {}),
-    }).toString(),
-  });
-  if (!response.ok) throw new Error(`OAuth2 failed: ${response.status}`);
-  const data = await response.json() as { access_token: string; expires_in: number };
-  if (!data.access_token) throw new Error('No access_token');
-  tokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
-  return data.access_token;
+function base64UrlEncode(data: string): string {
+  return Buffer.from(data, 'utf-8')
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
+
+function createJWT(payload: Record<string, unknown>, secret: string): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const headerB64 = base64UrlEncode(JSON.stringify(header));
+  const payloadB64 = base64UrlEncode(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  return `${headerB64}.${payloadB64}.${signature}`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -78,34 +83,82 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const config = getConfig();
 
-    // v2 API requires clientId + clientSecret for OAuth2
-    if (!config.clientId || !config.clientSecret) {
-      return res.status(503).json({ error: 'ZainCash not configured' });
+    if (!config.msisdn || !config.merchantId || !config.secret) {
+      return res.status(503).json({
+        error: 'ZainCash not configured',
+        details: 'Missing required credentials: msisdn, merchantId, or secret key',
+      });
     }
 
-    const token = await getAccessToken();
+    // Create JWT for inquiry
+    const now = Math.floor(Date.now() / 1000);
+    const jwtPayload = {
+      id: transactionId,
+      msisdn: config.msisdn,
+      iat: now,
+      exp: now + 60 * 60 * 4,
+    };
+    const token = createJWT(jwtPayload, config.secret);
 
-    const response = await fetch(
-      `${config.baseUrl}/api/v2/payment-gateway/transaction/inquiry/${transactionId}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    console.log('[ZainCash] Verify: requesting inquiry for transaction:', transactionId);
+
+    // v1 API: POST /transaction/get
+    const inquiryUrl = `${config.baseUrl}/transaction/get`;
+    const response = await fetch(inquiryUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        merchantId: config.merchantId,
+        token: encodeURIComponent(token),
+      }),
+    });
+
+    const responseText = await response.text();
+    console.log('[ZainCash] Verify: inquiry response status:', response.status);
+    console.log('[ZainCash] Verify: inquiry response body:', responseText);
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error('[ZainCash] Inquiry failed:', response.status, text);
-      return res.status(502).json({ error: 'Inquiry failed', details: text });
+      console.error('[ZainCash] Verify: inquiry failed:', response.status, responseText);
+      return res.status(502).json({
+        error: 'Inquiry failed',
+        step: 'transaction_inquiry',
+        zaincashStatus: response.status,
+        zaincashResponse: responseText,
+      });
     }
 
-    const details = await response.json();
+    let details: Record<string, unknown>;
+    try {
+      details = JSON.parse(responseText);
+    } catch {
+      return res.status(502).json({
+        error: 'Invalid JSON from ZainCash inquiry',
+        step: 'transaction_inquiry',
+        zaincashResponse: responseText,
+      });
+    }
+
+    // Check for error in response
+    if (details.err) {
+      return res.status(502).json({
+        error: 'ZainCash inquiry error',
+        step: 'transaction_inquiry',
+        zaincashError: details.err,
+      });
+    }
 
     return res.status(200).json({
       transactionId,
-      status: (details as Record<string, unknown>).status,
+      status: details.status,
       details,
     });
 
   } catch (err) {
-    console.error('[ZainCash] Verify error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[ZainCash] Verify error:', message);
+    return res.status(500).json({
+      error: message,
+      step: 'verify_payment',
+    });
   }
 }
