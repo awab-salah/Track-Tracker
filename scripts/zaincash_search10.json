@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.postman.com/zaindigitalapi/zain-cash-apiiiii/overview",
+    "name": "zain Cash apiiiii | Postman API Network",
+    "snippet": "ZainCash Digital API 14-02-2024 Environments Specs SDKs. Sign in to use Postman Agent.",
+    "host_name": "www.postman.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant. · Call the transaction/init endpoint ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq. ffacf6612b5777c6d44266f",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.postman.com/lunar-module-astronaut-3951579",
+    "name": "zain | Public APIs",
+    "snippet": "Explore public APIs from zain , exclusively on the Postman API Network. Find everything you need to quickly get started with zain APIs.",
+    "host_name": "www.postman.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.postman.com/t/enhance-collection-security-with-collection-access-keys-apis/69584",
+    "name": "Enhance collection security with collection access keys APIs",
+    "snippet": "Oct 11, 2024 — In this post, we'll cover the latest updates to the Postman API's collection access key management features and walkthrough a use case to help ...",
+    "host_name": "community.postman.com",
+    "rank": 4,
+    "date": "Oct 11, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "With ZainCash , you can pay bills, book flight tickets, transfer money, top up your mobile balance, shop online, and much more—quickly and conveniently.",
+    "host_name": "play.google.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.postman.com/explore/collections",
+    "name": "All collections",
+    "snippet": "Explore the best APIs, collections , y to access to content stored within Box. This is the official Postman Collection for the Fireblocks API.",
+    "host_name": "www.postman.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.postman.com/postman/postman-public-workspace/request/ypuwpio/get-a-collection",
+    "name": "Get a collection | Postman API",
+    "snippet": "Start sending API requests with the Get a collection public request from Postman Public Workspace on the Postman API Network.",
+    "host_name": "www.postman.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.nopcommerce.com/en/zain-cash-payment-module?srsltid=AfmBOorcXmQWWjkZXfvSyiYN6Cw53tImWukhhZ5FUnZojlLqV56FZ_6a",
+    "name": "Zain Cash Payment Module",
+    "snippet": "May 4, 2021 — The service can be accessed by dialing *210# from a Zain mobile phone or ZainCash mobile application. Features. Transfer money inside Iraq ...",
+    "host_name": "www.nopcommerce.com",
+    "rank": 8,
+    "date": "May 4, 2021",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers-gate.qi.iq/docs/1.x/api-endpoints/postman-collection",
+    "name": "Postman Collection - QiCard Payment Gateway",
+    "snippet": "Postman Collection. Download Postman Collection ​. Download YAML · Previous. Cancel Payment · Next. Webhook Notifications. Download Postman Collection.",
+    "host_name": "developers-gate.qi.iq",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

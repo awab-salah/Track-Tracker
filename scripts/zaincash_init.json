@@ -1,0 +1,56 @@
+{
+  "code": 200,
+  "data": {
+    "description": "Complete ZainCash Payment Gateway v2 API documentation for developers in Iraq",
+    "external": {
+      "icon": {
+        "https://docs.zaincash.iq/logo_zc_black.svg": {
+          "type": "image/svg+xml"
+        }
+      },
+      "modulepreload": {
+        "https://docs.zaincash.iq/_nuxt/Di2jk5wc.js": {
+          "as": "script",
+          "crossorigin": ""
+        },
+        "https://docs.zaincash.iq/_nuxt/DlAUqK2U.js": {
+          "as": "script",
+          "crossorigin": ""
+        },
+        "https://docs.zaincash.iq/_nuxt/RMmSJ_xf.js": {
+          "as": "script",
+          "crossorigin": ""
+        },
+        "https://docs.zaincash.iq/_nuxt/hoZpzZDz.js": {
+          "as": "script",
+          "crossorigin": ""
+        },
+        "https://docs.zaincash.iq/_nuxt/tMvozF96.js": {
+          "as": "script",
+          "crossorigin": ""
+        }
+      }
+    },
+    "html": "<html lang=\"en\" class=\"dark\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>404 – Page Not Found</title><link rel=\"stylesheet\" href=\"/_nuxt/entry.CGs0F2Yh.css\" crossorigin=\"\"><link rel=\"modulepreload\" as=\"script\" crossorigin=\"\" href=\"/_nuxt/tMvozF96.js\"><script type=\"module\" src=\"/_nuxt/tMvozF96.js\" crossorigin=\"\"></script><meta name=\"description\" content=\"Complete ZainCash Payment Gateway v2 API documentation for developers in Iraq\"><link rel=\"icon\" type=\"image/svg+xml\" href=\"/logo_zc_black.svg\"><meta name=\"robots\" content=\"noindex, follow\"><link rel=\"modulepreload\" as=\"script\" crossorigin=\"\" href=\"https://docs.zaincash.iq/_nuxt/hoZpzZDz.js\"><link rel=\"modulepreload\" as=\"script\" crossorigin=\"\" href=\"https://docs.zaincash.iq/_nuxt/DlAUqK2U.js\"><link rel=\"modulepreload\" as=\"script\" crossorigin=\"\" href=\"https://docs.zaincash.iq/_nuxt/RMmSJ_xf.js\"><link rel=\"modulepreload\" as=\"script\" crossorigin=\"\" href=\"https://docs.zaincash.iq/_nuxt/Di2jk5wc.js\"><link rel=\"stylesheet\" crossorigin=\"\" href=\"https://docs.zaincash.iq/_nuxt/index.CS5i2w2h.css\"></head><body><div id=\"__nuxt\"><div class=\"h-screen flex flex-col items-center justify-center text-center px-6\"><h1 class=\"text-7xl font-bold text-[var(--color-text-content)] w-fit\">404</h1><p class=\"mt-4 text-lg text-gray-600 w-fit\">Page not found: /api-reference/initialize-transaction</p><a href=\"/\" class=\"mt-6 inline-flex items-center px-6 py-3 rounded-lg bg-[#663B981F] text-[#663B98] hover:bg-gray-800 transition\"> Go back home </a></div></div><div id=\"teleports\"></div><script>window.__NUXT__={};window.__NUXT__.config={public:{},app:{baseURL:\"/\",buildId:\"140ad2c6-951c-42b9-ac2a-82e7b296a2f3\",buildAssetsDir:\"/_nuxt/\",cdnURL:\"\"}}</script><script type=\"application/json\" data-nuxt-data=\"nuxt-app\" data-ssr=\"true\" id=\"__NUXT_DATA__\">[[\"ShallowReactive\",1],{\"error\":2,\"data\":8,\"state\":10,\"once\":12,\"_errors\":13,\"serverRendered\":15,\"path\":4},[\"null\",\"error\",3,\"url\",4,\"statusCode\",5,\"statusMessage\",6,\"message\",6,\"data\",7,\"statusText\",6,\"status\",5],\"true\",\"\\u002Fapi-reference\\u002Finitialize-transaction\",404,\"Page not found: \\u002Fapi-reference\\u002Finitialize-transaction\",{\"path\":4},[\"ShallowReactive\",9],{},[\"Reactive\",11],{},[\"Set\"],[\"ShallowReactive\",14],{},true]</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML=\"window.__CF$cv$params={r:'a26d413acf99ded0',t:'MTc4NjAxMTA1OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);\";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height=\"1\" width=\"1\" style=\"position: absolute; top: 0px; left: 0px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; visibility: hidden;\"></iframe></body></html>",
+    "httpStatus": 404,
+    "httpStatusText": "",
+    "metadata": {
+      "description": "Complete ZainCash Payment Gateway v2 API documentation for developers in Iraq",
+      "lang": "en",
+      "robots": "noindex, follow",
+      "viewport": "width=device-width, initial-scale=1"
+    },
+    "title": "404 – Page Not Found",
+    "url": "https://docs.zaincash.iq/api-reference/initialize-transaction",
+    "usage": {
+      "tokens": 1015
+    },
+    "warning": "Target URL returned error 404: Not Found"
+  },
+  "meta": {
+    "usage": {
+      "tokens": 1015
+    }
+  },
+  "status": 200
+}
