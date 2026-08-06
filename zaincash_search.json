@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "Get an OAuth2 access token using client_credentials grant. Call the transaction/init endpoint to create a payment. Redirect the user to redirectUrl from the ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.zendesk.com/documentation/authentication/creating-and-using-oauth-tokens-with-the-api",
+    "name": "Creating and using OAuth access tokens with the API",
+    "snippet": "Using an access token to authenticate API requests Developers typically use OAuth access tokens to authenticate Zendesk API requests on behalf of their users.",
+    "host_name": "developer.zendesk.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.acquia.com/acquia-dam/help/89186-new-v2-api-oauth-refresh-tokens",
+    "name": "New v2 API OAuth & Refresh Tokens | Acquia DAM (Widen)",
+    "snippet": "Jun 13, 2023 · We're excited to announce the introduction of refresh tokens along with full OAuth flow support to version 2.0 of the Acquia DAM API.",
+    "host_name": "docs.acquia.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.shell.com/api-catalog/loyalty-account-management/quick-start-guide-0",
+    "name": "Loyalty Account Management v2.6.2 | Quick Start Guide",
+    "snippet": "Token APIs provides the end points needed in order to generate the user Authorization Tokens needed in order to access the Loyalty APIs.",
+    "host_name": "developer.shell.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package - GitHub",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq.",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.equinix.com/api-catalog/accesstokenv1",
+    "name": "Equinix API Authentication",
+    "snippet": "Equinix APIs use the OAuth 2.0 for authentication and authorization. Equinix supports the resource owner password and the client credentials flow.",
+    "host_name": "docs.equinix.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.secureauth.com/iam/docs/api/oauth2",
+    "name": "OAuth2 API | SecureAuth Connect Product Docs",
+    "snippet": "The OAuth 2.0 token endpoint. The token endpoint is used by the client to obtain an access token by presenting its authorization grant or refresh token.",
+    "host_name": "docs.secureauth.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.salesforce.com/docs/marketing/marketing-cloud/guide/access-token-s2s.html",
+    "name": "Access Token for Server-to-Server Integrations | Installed Packages",
+    "snippet": "Construct a static endpoint for your request by appending v2/token to the Authorization Base URI provided to you when you created the API integration. Access Token Request · Example Request · Access Token Return",
+    "host_name": "developer.salesforce.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://merchantsafeunipay.com/msu/api/v2/doc",
+    "name": "MSU - API v2 Documentation - Payten Payment Gateway",
+    "snippet": "If you create a SESSIONTOKEN with {\"PREAUTH\":\"YES} and POST this token to the endpoint, you can make a PREAUTH transaction. For this scenario, if this parameter ...",
+    "host_name": "merchantsafeunipay.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://apidev.egain.com/developer-portal/get-started/authentication_guide",
+    "name": "API Authentication - eGain Developer Portal",
+    "snippet": "Apr 22, 2026 · Token URL: The endpoint to exchange an authorization code for an access token or to use the client credentials flow. Domain URL: The base URL ...",
+    "host_name": "apidev.egain.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
