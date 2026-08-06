@@ -69,10 +69,19 @@ async function getAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`ZainCash OAuth2 failed: ${response.status} — ${text}`);
+    // Detect Cloudflare challenge (common with test.zaincash.iq from serverless)
+    if (text.includes('Cloudflare') || text.includes('Attention Required')) {
+      throw new Error('ZainCash API is currently protected by Cloudflare — the OAuth2 request was blocked. This typically affects serverless environments. Try again later or contact ZainCash support to whitelist your server IP.');
+    }
+    throw new Error(`ZainCash OAuth2 failed: ${response.status} — ${text.slice(0, 200)}`);
   }
 
-  const data = await response.json() as { access_token: string; expires_in: number };
+  let data: { access_token: string; expires_in: number };
+  try {
+    data = await response.json() as { access_token: string; expires_in: number };
+  } catch {
+    throw new Error('ZainCash OAuth2 returned non-JSON response — API may be protected by Cloudflare');
+  }
   if (!data.access_token) throw new Error('No access_token in OAuth2 response');
 
   tokenCache = {
@@ -198,7 +207,8 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
     });
 
   } catch (err) {
-    return res.status(500).json({ error: 'Internal server error' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return res.status(500).json({ error: 'Internal server error', details: message });
   }
 });
 
