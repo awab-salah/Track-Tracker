@@ -155,18 +155,22 @@ export async function initiatePayment(params: {
   const token = createJWT(jwtPayload, config.secretKey);
 
   const initUrl = `${config.baseUrl}/transaction/init`;
-  const body = {
-    lang: config.lang,
-    merchantId: config.merchantId,
-    token: encodeURIComponent(token),
-  };
+
+  // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+  const initParams = new URLSearchParams();
+  initParams.append('token', token);
+  initParams.append('merchantId', config.merchantId);
+  initParams.append('lang', config.lang);
 
   console.log('[ZainCash] Initiating transaction at:', initUrl);
+  console.log('[ZainCash] Content-Type: application/x-www-form-urlencoded');
+  console.log('[ZainCash] JWT payload:', JSON.stringify(jwtPayload));
+  console.log('[ZainCash] msisdn type:', typeof jwtPayload.msisdn, '| value:', jwtPayload.msisdn);
 
   const response = await fetch(initUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: initParams.toString(),
   });
 
   if (!response.ok) {
@@ -210,13 +214,15 @@ export async function inquireTransaction(transactionId: string): Promise<ZainCas
 
   console.log('[ZainCash] Inquiring transaction:', transactionId);
 
+  // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+  const inquiryParams = new URLSearchParams();
+  inquiryParams.append('merchantId', config.merchantId);
+  inquiryParams.append('token', token);
+
   const response = await fetch(inquiryUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      merchantId: config.merchantId,
-      token: encodeURIComponent(token),
-    }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: inquiryParams.toString(),
   });
 
   if (!response.ok) {

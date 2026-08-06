@@ -98,14 +98,16 @@ async function inquireTransaction(transactionId: string) {
   };
   const token = createJWT(jwtPayload, config.secret);
 
+  // v1 API: POST /transaction/get with application/x-www-form-urlencoded
   const inquiryUrl = `${config.baseUrl}/transaction/get`;
+  const inquiryParams = new URLSearchParams();
+  inquiryParams.append('merchantId', config.merchantId);
+  inquiryParams.append('token', token);
+
   const response = await fetch(inquiryUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      merchantId: config.merchantId,
-      token: encodeURIComponent(token),
-    }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: inquiryParams.toString(),
   });
 
   if (!response.ok) {

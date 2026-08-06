@@ -159,21 +159,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[ZainCash] JWT token created for order:', orderId);
 
     // ── Step 2: Initiate transaction via v1 API ─────────────────────────────
+    // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON.
+    // The token is URL-encoded once by URLSearchParams.
     const initUrl = `${config.baseUrl}/transaction/init`;
 
-    const initBody = {
-      lang: config.lang,
-      merchantId: config.merchantId,
-      token: encodeURIComponent(token),
-    };
+    const initParams = new URLSearchParams();
+    initParams.append('token', token);
+    initParams.append('merchantId', config.merchantId);
+    initParams.append('lang', config.lang);
 
     console.log('[ZainCash] Initiating transaction at:', initUrl);
-    console.log('[ZainCash] Request body keys:', Object.keys(initBody));
+    console.log('[ZainCash] Content-Type: application/x-www-form-urlencoded');
+    console.log('[ZainCash] merchantId:', config.merchantId);
+    console.log('[ZainCash] lang:', config.lang);
+    console.log('[ZainCash] JWT payload (decoded):', JSON.stringify(jwtPayload));
+    console.log('[ZainCash] msisdn type in JWT:', typeof jwtPayload.msisdn, '| value:', jwtPayload.msisdn);
+    console.log('[ZainCash] amount type in JWT:', typeof jwtPayload.amount, '| value:', jwtPayload.amount);
 
     const initResponse = await fetch(initUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(initBody),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: initParams.toString(),
     });
 
     const initText = await initResponse.text();
