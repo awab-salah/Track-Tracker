@@ -28,12 +28,26 @@ interface VercelResponse {
 // don't share the Vite/src path. This keeps it self-contained.
 
 // ── Config ────────────────────────────────────────────────────────────────────
+//
+// ZainCash v2 API uses OAuth2 (client_id + client_secret).
+// The merchant is identified by the OAuth2 token — merchantId/msisdn are
+// v1 legacy fields and optional in v2.
+//
+// Sandbox defaults: official test credentials from docs.zaincash.iq
+// (also referenced in the pub.dev zaincash_payment package).
+// Switch to production by setting env vars — no code changes needed.
+
+const SANDBOX_DEFAULTS = {
+  baseUrl:      'https://test.zaincash.iq',
+  clientId:     '758055f4a8044779a35f6ceb69f858b3',
+  clientSecret: 'bibLCGTxVAig5To3OLLKPJQMlRR7Pefp',
+};
 
 function getConfig() {
   return {
-    baseUrl:      process.env.ZAINCASH_BASE_URL      ?? 'https://test.zaincash.iq',
-    clientId:     process.env.ZAINCASH_CLIENT_ID      ?? '',
-    clientSecret: process.env.ZAINCASH_CLIENT_SECRET  ?? '',
+    baseUrl:      process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    clientId:     process.env.ZAINCASH_CLIENT_ID      || SANDBOX_DEFAULTS.clientId,
+    clientSecret: process.env.ZAINCASH_CLIENT_SECRET  || SANDBOX_DEFAULTS.clientSecret,
     apiKey:       process.env.ZAINCASH_API_KEY        ?? '',
     merchantId:   process.env.ZAINCASH_MERCHANT_ID    ?? '',
     secretKey:    process.env.ZAINCASH_SECRET_KEY     ?? '',
@@ -65,7 +79,7 @@ async function getAccessToken(): Promise<string> {
       grant_type: 'client_credentials',
       client_id: config.clientId,
       client_secret: config.clientSecret,
-      api_key: config.apiKey,
+      ...(config.apiKey ? { api_key: config.apiKey } : {}),
     }).toString(),
   });
 
@@ -121,9 +135,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const config = getConfig();
 
-    // Check ZainCash is configured
-    if (!config.clientId || !config.clientSecret || !config.apiKey || !config.merchantId) {
-      console.error('[ZainCash] Not configured — missing credentials');
+    // Check ZainCash is configured (v2 API requires clientId + clientSecret for OAuth2)
+    if (!config.clientId || !config.clientSecret) {
+      console.error('[ZainCash] Not configured — missing clientId or clientSecret');
       return res.status(503).json({ error: 'ZainCash payment gateway not configured' });
     }
 
@@ -136,16 +150,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Initiate transaction
     const initUrl = `${config.baseUrl}/api/v2/payment-gateway/transaction/init`;
 
-    const initBody = {
+    // Build v2 transaction init body.
+    // merchantId and msisdn are v1 fields — include only if set.
+    const initBody: Record<string, unknown> = {
       amount,
       serviceType: 'subscription',
-      msisdn: config.msisdn,
       orderId,
-      redirectUrl: `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`,
-      callbackUrl: config.callbackUrl,
+      redirectUrl: config.redirectUrl
+        ? `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`
+        : '',
       lang: config.lang,
-      merchantId: config.merchantId,
     };
+    if (config.merchantId) initBody.merchantId = config.merchantId;
+    if (config.msisdn)     initBody.msisdn = config.msisdn;
+    if (config.callbackUrl) initBody.callbackUrl = config.callbackUrl;
 
     console.log('[ZainCash] Initiating transaction for order:', orderId);
 

@@ -19,11 +19,20 @@ interface VercelResponse {
   setHeader(name: string, value: string): VercelResponse;
 }
 
+// ── Config ────────────────────────────────────────────────────────────────────
+// Sandbox defaults: official test credentials from docs.zaincash.iq
+
+const SANDBOX_DEFAULTS = {
+  baseUrl:      'https://test.zaincash.iq',
+  clientId:     '758055f4a8044779a35f6ceb69f858b3',
+  clientSecret: 'bibLCGTxVAig5To3OLLKPJQMlRR7Pefp',
+};
+
 function getConfig() {
   return {
-    baseUrl:      process.env.ZAINCASH_BASE_URL      ?? 'https://test.zaincash.iq',
-    clientId:     process.env.ZAINCASH_CLIENT_ID      ?? '',
-    clientSecret: process.env.ZAINCASH_CLIENT_SECRET  ?? '',
+    baseUrl:      process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    clientId:     process.env.ZAINCASH_CLIENT_ID      || SANDBOX_DEFAULTS.clientId,
+    clientSecret: process.env.ZAINCASH_CLIENT_SECRET  || SANDBOX_DEFAULTS.clientSecret,
     apiKey:       process.env.ZAINCASH_API_KEY        ?? '',
   };
 }
@@ -42,7 +51,7 @@ async function getAccessToken(): Promise<string> {
       grant_type: 'client_credentials',
       client_id: config.clientId,
       client_secret: config.clientSecret,
-      api_key: config.apiKey,
+      ...(config.apiKey ? { api_key: config.apiKey } : {}),
     }).toString(),
   });
   if (!response.ok) throw new Error(`OAuth2 failed: ${response.status}`);
@@ -69,7 +78,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const config = getConfig();
 
-    if (!config.clientId || !config.clientSecret || !config.apiKey) {
+    // v2 API requires clientId + clientSecret for OAuth2
+    if (!config.clientId || !config.clientSecret) {
       return res.status(503).json({ error: 'ZainCash not configured' });
     }
 
