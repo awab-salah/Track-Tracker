@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "The ZainCash Payment Gateway v2 lets you accept payments from ZainCash wallets using a secure redirect flow, with real-time status updates via API and webhooks. Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "This article helps you integrate your website with ZainCash , all code samples provided are in JavaScript. Also, we've made this package for ... Read more",
+    "host_name": "medium.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.",
+    "host_name": "fatora.io",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.c9pg.com/dev/api-guide",
+    "name": "JSON RESTful API Guide",
+    "snippet": "Cloud9's API is available in OpenAPI format a documentation suite combined with a testing sandbox that lets you run live samples while learning how the API ...",
+    "host_name": "www.c9pg.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.sift.com/docs",
+    "name": "Fraud Detection Service Integration Docs",
+    "snippet": "This sandbox environment allows you to send test events or client data to Sift without impacting the scores Sift produces in production. To get access",
+    "host_name": "developers.sift.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://sandbox.jazzcash.com.pk/SandboxDocumentation/index.html",
+    "name": "Sandbox Documentation",
+    "snippet": "JazzCash allows merchants to integrate their website with our payment gateway via following modes: HTTP POST (Page Redirection); API Testing ; Hosted Payment ... Read more",
+    "host_name": "sandbox.jazzcash.com.pk",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.servers.com/api-documentation/v1",
+    "name": "Servers.com Public API",
+    "snippet": "Our API utilizes GET, POST, DELETE, and PUT. It allows a server to connect to network images during startup and execute predefined instructions. ssh_key_ ...",
+    "host_name": "developers.servers.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zainpay.ng/developers/card-endpoints?section=test-cards",
+    "name": "Zainpay | Developer Documentation - Card Endpoints",
+    "snippet": "This endpoint generates a unique payment URL that users can be redirected to in order to complete their transactions securely. It supports both sandbox and live ... Read more",
+    "host_name": "zainpay.ng",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://merchants.fiserv.com/content/dam/firstdata/uk/en/pdf/online-payments/gateway-api-integration-guide-v3.1.pdf",
+    "name": "First Data Gateway - Web Service API Integration Guide",
+    "snippet": "After requesting the URL , the server will ask your browser to supply the client certificate to making sure that it is talking to your application correctly. Read more 112 pages",
+    "host_name": "merchants.fiserv.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq. This package is based on ...",
+    "host_name": "github.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
