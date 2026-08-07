@@ -80,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const loadProfile = useCallback(async (authUser: User | null, isBackgroundRefresh = false) => {
     const myVersion = ++loadVersionRef.current;
-    console.log('[AuthContext] loadProfile START', { myVersion, hasUser: !!authUser, isBackgroundRefresh, userId: authUser?.id?.slice(0,8) });
 
     // Only show the loading spinner on initial page load, NOT on background
     // token refreshes. A TOKEN_REFRESHED event means the user is already
@@ -105,9 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (userRole === 'company') {
       const profile = await fetchCompanyByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) { console.log('[AuthContext] loadProfile STALE (company)', { myVersion, current: loadVersionRef.current }); return; }
+      if (loadVersionRef.current !== myVersion) return;
 
-      console.log('[AuthContext] loadProfile COMMIT company', { myVersion, companyId: profile?.id?.slice(0,8) });
       setRole('company');
       setCompanyId(profile?.id ?? null);
       setCompanyProfile(
@@ -120,14 +118,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } else if (userRole === 'driver') {
       const drv = await fetchDriverByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) { console.log('[AuthContext] loadProfile STALE (driver)', { myVersion, current: loadVersionRef.current }); return; }
+      if (loadVersionRef.current !== myVersion) return;
 
-      console.log('[AuthContext] loadProfile COMMIT driver', { myVersion, driverId: drv?.id?.slice(0,8), hasProfile: !!drv });
-      setRole('driver');
-      setDriverId(drv?.id ?? null);
-      setDriverProfile(drv ?? null);
-      setCompanyId(null);
-      setCompanyProfile(null);
+      // If the driver's DB row couldn't be loaded (e.g. RLS, network),
+      // do NOT set role='driver' with a null profile — that creates
+      // inconsistent state where ProtectedRoute allows the driver page
+      // to render but currentDriver is null, causing an infinite redirect
+      // loop. Instead, treat this as a failed auth and clear the role.
+      // The user will be redirected to the auth page where they can retry.
+      if (!drv) {
+        console.error('[AuthContext] fetchDriverByAuthUserId returned null — driver DB row not found. Clearing role.');
+        setRole(null);
+        setDriverId(null);
+        setDriverProfile(null);
+        setCompanyId(null);
+        setCompanyProfile(null);
+      } else {
+        setRole('driver');
+        setDriverId(drv.id);
+        setDriverProfile(drv);
+        setCompanyId(null);
+        setCompanyProfile(null);
+      }
 
     } else {
       if (loadVersionRef.current !== myVersion) return;
@@ -145,9 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Resolve any existing session on mount (handles page refresh)
-    console.log('[AuthContext] useEffect: calling getSession()');
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      console.log('[AuthContext] getSession resolved', { hasSession: !!s, userId: s?.user?.id?.slice(0,8), role: s?.user?.user_metadata?.role });
       setSession(s);
       setUser(s?.user ?? null);
       void loadProfile(s?.user ?? null);
@@ -157,19 +167,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
-      console.log('[AuthContext] onAuthStateChange', { event, hasSession: !!s, userId: s?.user?.id?.slice(0,8) });
       setSession(s);
       setUser(s?.user ?? null);
 
       // Determine whether this is a background refresh that should NOT
-      // reset the loading state. TOKEN_REFRESHED is a routine background
-      // event that happens every ~60 minutes — the user is already signed
-      // in and their session is healthy. Setting isLoading=true here would
-      // unmount the protected route and destroy local component state.
+      // reset the loading state.
       //
-      // Only SIGNED_IN (initial sign-in) and the initial getSession() call
-      // should show the loading spinner.
+      // INITIAL_SESSION: fired by onAuthStateChange when a session already
+      // exists (e.g. on page refresh). This is NOT a new sign-in — the user
+      // is already authenticated. Setting isLoading=true here would unmount
+      // the protected route and destroy local component state for no reason.
+      //
+      // TOKEN_REFRESHED: routine background event every ~60 min.
+      //
+      // PASSWORD_RECOVERY: user clicked a password reset link.
+      //
+      // Only SIGNED_IN (explicit sign-in action) should show the loading
+      // spinner. The initial getSession() call on mount already handles
+      // the very first page load.
       const isBackgroundRefresh =
+        event === 'INITIAL_SESSION' ||
         event === 'TOKEN_REFRESHED' ||
         event === 'PASSWORD_RECOVERY';
 
