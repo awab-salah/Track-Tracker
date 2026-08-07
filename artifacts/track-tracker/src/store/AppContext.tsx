@@ -557,15 +557,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
 
     setLoads((prev) => {
-      const existingIdx = prev.findIndex(
-        (l) =>
-          l.driverId === currentDriverId &&
-          l.productName.trim().toLowerCase() === productName.toLowerCase()
-      );
+      // ── Bug 1 fix: When editing (input.id provided), find by ID, not name ──
+      // Editing should update the existing record including productName changes.
+      // Only use name-based matching when adding a NEW item (no input.id) to
+      // merge quantities for the same product.
+      let existingIdx = -1;
+
+      if (input.id) {
+        // Editing: find the item by its unique ID
+        existingIdx = prev.findIndex(
+          (l) => l.id === input.id && l.driverId === currentDriverId
+        );
+      } else {
+        // Adding new: merge by product name (same product → add qty)
+        existingIdx = prev.findIndex(
+          (l) =>
+            l.driverId === currentDriverId &&
+            l.productName.trim().toLowerCase() === productName.toLowerCase()
+        );
+      }
 
       if (existingIdx !== -1) {
         const updated = [...prev];
-        const existing = { ...updated[existingIdx], quantity: input.quantity, unitPrice: input.unitPrice };
+        // When editing (found by ID), also update productName in case it changed
+        const existing = {
+          ...updated[existingIdx],
+          productName: input.id ? productName : updated[existingIdx].productName,
+          quantity: input.quantity,
+          unitPrice: input.unitPrice,
+        };
         updated[existingIdx] = existing;
 
         void dbUpsertLoad({
