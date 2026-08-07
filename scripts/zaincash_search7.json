@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Merchant Payment Gateway – Integration Guide",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. Please use the following merchant credentials to test transaction ID creation and status ...\nObtain your client_id , client_secret , and API key from ZainCash . Get an ... Please use the following merchant credentials to test transaction ID ...\nComplete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines. Includes test credentials and code examples for Iraq payment processing.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. The Merchant ID obtained from ZainCash . Set ' test ' to false for the live environment after ...\nSpecify the environment for using the ZainCash API. Set ' test ' to false for the live environment after obtaining all credentials from ZainCash . test_url, string ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ... Read more\n... ZainCash account . If you wish, you can then withdraw them to your bank account or cash out from any agent; Apply to any digital channel, Website, Mobile ...",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Quick Start. First of all, you will need to create a ZainCash wallet and a merchant account . you can use the test ones for now. Read more",
+    "host_name": "medium.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business-wallets",
+    "name": "ZainCash | Explore Our Business Wallet Types",
+    "snippet": "ZainCash provides this wallet to empower small merchants with effortless access to digital financial solutions, facilitating smooth transactions, bill ...\nWallet Type, Merchant of Small Projects. Wallet Capacity, 30M. Transaction type, Fees, Limits. Western Union. X. X. Merchant payment gateway, 1% with min ...",
+    "host_name": "zaincash.iq",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.na.worldline-solutions.com/plan-your-integration/software-vendor-integration-guide/create-a-test-account",
+    "name": "Create a Software Vendor Test Account | Worldline NAM",
+    "snippet": "You can create test account (s) here . Please create two test accounts. Once created, please send your merchant IDs to sales.na@worldline.com . Read more\nAll transactions through the API require a merchant ID. It is displayed in the top right corner of the Member Area. You can locate the Merchant ID by navigating ...",
+    "host_name": "docs.na.worldline-solutions.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://swiftpayiq.com/docs",
+    "name": "SwiftPayIQ Integration API",
+    "snippet": "You get API credentials from the SwiftPayIQ merchant dashboard once your business has passed KYC. Every request must include your secret API key as a\nYou get API credentials from the SwiftPayIQ merchant dashboard once your business has passed KYC. There is nothing to install — call the endpoints over ...\nYou get API credentials from the SwiftPayIQ merchant dashboard once your business has passed KYC. There is nothing to install — call the endpoints over ... Read more",
+    "host_name": "swiftpayiq.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help/accounts-faq",
+    "name": "ZainCash Accounts & Wallets | Manage Your Wallet | FAQ",
+    "snippet": "Learn how to create, verify, and manage your ZainCash wallet account . Find answers on activation, login, security, and more.",
+    "host_name": "zaincash.iq",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/mastercard-gateway/documentation/getting-started/accessing-the-api",
+    "name": "Accessing the API | Mastercard Gateway",
+    "snippet": "Remember your test account Merchant ID is prefixed with TEST <your_merchantid> . To configure your profile: Go to the Merchant Administration and customize your ... Read more\nGet a test account . Configure your API credentials. Remember your test account Merchant ID is prefixed with TEST. Use the Merchant Administration to set up ...",
+    "host_name": "developer.mastercard.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.paybito.com/payments/api-doc",
+    "name": "PayBitoPro API Documentation",
+    "snippet": "Validates client credentials and generates a secure client secret key. Returns a secretHash used for authenticating Cart and Checkout APIs along with metadata such as issue time and authorized domain.",
+    "host_name": "www.paybito.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

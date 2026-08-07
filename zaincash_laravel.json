@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq. Read more\nThis is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq. This package is based on the official ZainCash API documentation. You can find the official documentation (https://docs.zaincash.iq).",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/hawkiq/laravel-zaincash",
+    "name": "hawkiq/laravel-zaincash: Using Zain Cash never being",
+    "snippet": "ZainCash offers a simple robust payment gateway to transfer money instantly from anywhere to everywhere inside Iraq, and this package for Laravel developers",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/posts/laravel-news_github-waadmawloodzaincash-zain-cash-activity-7254374025215242240-HbPf",
+    "name": "Laravel News' Post",
+    "snippet": "Oct 21, 2024 — Dive into integrating the ZainCash payment gateway with Laravel. GitHub - waadmawlood/zaincash : Zain Cash payment Integration Gateway package  ...\nCheck out this awesome package! 🎉 Dive into integrating the ZainCash payment gateway with Laravel for seamless transactions in Iraq. Thanks to Waad Mawlood for this detailed guide!",
+    "host_name": "www.linkedin.com",
+    "rank": 2,
+    "date": "Oct 21, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/thejano/zaincash-laravel",
+    "name": "GitHub - thejano/zaincash-laravel",
+    "snippet": "Feb 10, 2025 — ZainCash Laravel is a PHP SDK designed to integrate the ZainCash payment gateway with Laravel applications seamlessly. visit the official API ...",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "Feb 10, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/mahdimirhendi/zaincash-laravel",
+    "name": "Laravel #1 Payment Gateway For Zaincash",
+    "snippet": "This is a Laravel Package for Payment Gateway Integration . This package supports Laravel 5.5+ . Installation. The package can be installed via Composer: $ ... Read more",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

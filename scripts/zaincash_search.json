@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Merchant Payment Gateway – Integration Guide",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. Please use the following merchant credentials to test transaction ID creation and status ...\nMerchant Please use the following merchant credentials to test transaction ID creation and status checks. Ensure you copy the credentials exactly as shown, ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "you will need customer wallet number and PIN. Here are the test credentials for your test purposes. 7. Prepare the redirection handling code. Read more",
+    "host_name": "medium.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. Merchant ID obtained from ZainCash . obtaining all credentials from ZainCash .\nThis is a Laravel package to integrate ZainCash payment gateway API. The Merchant ID obtained from ZainCash. Set 'test' to false for the live environment after ...",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=UZZzn7euTgM",
+    "name": "Sandbox Test Payments API for WooCommerce",
+    "snippet": "In this video, we use our mobile payments gateway API and test it in a sandbox . This will allow us to integrate ready test pieces of code ...",
+    "host_name": "www.youtube.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.dpopay.com/dpo-pay-by-network/reference/sandbox-test-credentials",
+    "name": "Sandbox & Test Credentials - DPO Pay by Network",
+    "snippet": "The DPO Pay sandbox environment allows you to test your integration without processing real transactions. All payments created in the sandbox are simulated and ... Read more\nDPO Pay provides multiple sandbox merchant accounts for testing. Each account is identified by a Company Token and associated Service Type IDs.",
+    "host_name": "docs.dpopay.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.paypal.com/sandbox-testing/overview",
+    "name": "PayPal sandbox testing guide",
+    "snippet": "7 days ago — The PayPal sandbox is a self-contained, virtual testing environment that simulates the live PayPal production environment. Read more",
+    "host_name": "developer.paypal.com",
+    "rank": 5,
+    "date": "Jul 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.tap.company/docs/get-started",
+    "name": "Overview - Tap API Docs 1.0",
+    "snippet": "Click on the MERCHANT section to get the default API keys. Merchant ID: your account . The secret API key that enables you to create transactions in the sandbox ...",
+    "host_name": "developers.tap.company",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/community-pass-payment-apis/documentation/api-tutorials/get-sandbox-credential",
+    "name": "Get Your Sandbox Credentials",
+    "snippet": "This guide walks through the steps required to create a new MCPP APIs project, and to gain access to the Sandbox environment.",
+    "host_name": "developer.mastercard.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://businesshub.affirm.com/hc/en-us/articles/10897179017620-Sandbox-and-Production-Merchant-Portals",
+    "name": "Sandbox and Production Merchant Portals",
+    "snippet": "Nov 17, 2022 — *Important: If you use a Sandbox API key for testing with your Platform Integration or Direct API integration, you have to make sure to swap ... Read more",
+    "host_name": "businesshub.affirm.com",
+    "rank": 8,
+    "date": "Nov 17, 2022",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.squareup.com/docs/devtools/sandbox/payments",
+    "name": "Sandbox Payments",
+    "snippet": "A quick reference of test credit card numbers and payment tokens you can use to make test payments with the Square Sandbox.",
+    "host_name": "developer.squareup.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

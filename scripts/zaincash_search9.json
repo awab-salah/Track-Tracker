@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Your backend authenticates with ZainCash using POST /oauth2/token. You create a transaction using POST /api/v2/ payment-gateway/transaction/init . You ... Read more\nObtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ...\nObtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq.\nThis is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq. Read more",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Create the transaction data object, to initialize a ZC transaction you will need to create an object like the below one. 5. Create the JWT token ...\nCreate the transaction data object , to initialize a ZC transaction you will need to create an object like the below one. 5. Create the JWT token ... Read more",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+    "name": "Managing your personal access tokens",
+    "snippet": "Personal access tokens are an alternative to using passwords for authentication to GitHub when using the GitHub API or the command line.",
+    "host_name": "docs.github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/18935539/authenticate-with-github-using-a-token",
+    "name": "Authenticate with GitHub using a token",
+    "snippet": "And generate the token there. Or from you Github account , Go to: Settings -> Developer Settings -> Personal Access Tokens . Step 2 : Use the token .",
+    "host_name": "stackoverflow.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=IuiH6cBtc58",
+    "name": "GitHub Access Tokens: How To Use Them Properly",
+    "snippet": "Today we learn how to properly use GitHub access tokens . Access Tokens : How To Use Them Properly. How to test GitHub Actions Locally!!! Full ...",
+    "host_name": "www.youtube.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://merchantsafeunipay.com/msu/api/v2/doc",
+    "name": "MSU - API v2 Documentation - Payten Payment Gateway",
+    "snippet": "The recommended way is to create a Session Token with these credentials , and then use this token for subsequent API requests. In this interactive form you can ...",
+    "host_name": "merchantsafeunipay.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://emerchantpay.github.io/gateway-api-docs/gateway-api-docs.pdf",
+    "name": "gateway-api-docs.pdf",
+    "snippet": "May 15, 2020 — This transaction type supports Tokenization. This transaction type supports Level 3 travel data. This transaction type could require business ... 462 pages\nMay 15, 2020 — V2 Initial Recurring. This transaction type supports Tokenization. This transaction type supports Level 3 travel data. 462 pages",
+    "host_name": "emerchantpay.github.io",
+    "rank": 7,
+    "date": "May 15, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app",
+    "name": "Generating a user access token for a GitHub App",
+    "snippet": "A user access token is a type of OAuth token . Unlike a traditional OAuth token , the user access token does not use scopes. Instead, it uses fine-grained ...",
+    "host_name": "docs.github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/mateusdeitos/payment-gateway-integration-api",
+    "name": "mateusdeitos/payment-gateway-integration-api",
+    "snippet": "API made with symfony to integrate multiple payment gateways - mateusdeitos/payment-gateway-integration-api.",
+    "host_name": "github.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

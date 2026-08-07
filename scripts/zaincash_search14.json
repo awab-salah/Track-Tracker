@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ... Read more\nObtain your client_id, client_secret, and API key from ZainCash. Get an OAuth2 access token using client_credentials grant . Call the transaction/init endpoint ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.oauth.com/oauth2-servers/access-tokens/client-credentials",
+    "name": "Client Credentials",
+    "snippet": "Aug 17, 2016 — The Client Credentials grant is used when applications request an access token to access their own resources, not on behalf of a user.",
+    "host_name": "www.oauth.com",
+    "rank": 1,
+    "date": "Aug 17, 2016",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.onespan.com/docs/oauth-20",
+    "name": "OAuth 2.0 Client Credentials Flow",
+    "snippet": "Jul 31, 2025 — To do this, use the client credentials grant by sending a POST request to the / oauth2 / token endpoint of the OnepanSign API to retrieve a token. Read more\nJul 31, 2025 — This article provides a comprehensive guide on authenticating with the OnespanSign API using the OAuth 2.0 client credentials flow. Get a token . Read more",
+    "host_name": "docs.onespan.com",
+    "rank": 2,
+    "date": "Jul 31, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.tangocard.com/docs/acquire-service-account-token",
+    "name": "Acquire service account token - Tango API",
+    "snippet": "To acquire a new API token with OAuth 2.0 , you need four pieces of information from the Tango portal—the client ID , client secret, service account username,\nTo acquire a new API token with OAuth 2.0, you need four pieces of information from the Tango portal—the client ID , client secret, service account username, ... Read more",
+    "host_name": "developers.tangocard.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.zendesk.com/api-reference/ticketing/oauth/grant_type_tokens",
+    "name": "OAuth Tokens for Grant Types",
+    "snippet": "To generate a new OAuth access token , pass a refresh_token parameter to the /oauth/tokens endpoint using grant_type : refresh_token . This process returns a ... Read more",
+    "host_name": "developer.zendesk.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

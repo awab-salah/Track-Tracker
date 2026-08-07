@@ -203,3 +203,36 @@ Stage Summary:
 - Preview! https://track-tracker-fxi3hwn8o-awab-salahs-projects.vercel.app
 - All credentials via env vars — switch to production by changing env vars only
 - Payment flow: OAuth2 → create transaction → redirect → callback verify → activate subscription
+
+---
+Task ID: zaincash-v1-fix
+Agent: main
+Task: Fix HTTP 500 error from ZainCash payment flow by switching from v2 OAuth2 to v1 JWT API
+
+Work Log:
+- Discovered the v2 OAuth2 endpoints (/api/v2/oauth2/token, /api/v2/payment-gateway/transaction/init) return 403 Forbidden from Cloudflare WAF
+- Found that all production ZainCash integrations (Laravel package at github.com/waadmawlood/zaincash) use v1 JWT API
+- Discovered the REAL code being executed is the Express api-server (artifacts/api-server/src/routes/zaincash.ts), NOT the Vercel serverless functions (api/zaincash/*.ts)
+- The root vercel.json routes ALL /api/* requests through the Express api-server, not individual serverless functions
+- Rewrote the Express zaincash.ts route to use v1 JWT flow:
+  1. Create JWT with { amount, serviceType, msisdn, orderId, redirectUrl, iat, exp }
+  2. Sign with HMAC-SHA256 using merchant secret key
+  3. POST to {baseUrl}/transaction/init with { lang, merchantId, token }
+  4. Response: { id, rUrl } → redirect to rUrl + id
+- Also rewrote api/zaincash/*.ts serverless functions for consistency
+- Updated src/services/zaincashService.ts for v1 API
+- Used official sandbox credentials from ZainCash Laravel package:
+  - msisdn: 9647835077893
+  - merchantId: 5ffacf6612b5777c6d44266f
+  - secret: $2y$10$hBbAZo2GfSSvyqAyV2SaqOfYewgYpfR1O19gIh4SqyGWdmySZYPuS
+- Fixed error handling to return real exceptions instead of generic "Internal server error"
+- Added full logging of ZainCash request/response bodies
+- Verified both /api/zaincash/create and /api/zaincash/verify work on production
+
+Stage Summary:
+- Root cause: v2 OAuth2 API blocked by Cloudflare WAF (403 Forbidden)
+- Fix: Switched to v1 JWT API with HMAC-SHA256 signed tokens
+- Also discovered the Express api-server was the actual runtime, not the serverless functions
+- Production verified: POST /api/zaincash/create returns transactionId + redirectUrl
+- Production verified: GET /api/zaincash/verify returns transaction status + details
+- Preview URL: https://track-tracker-app.vercel.app

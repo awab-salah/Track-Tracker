@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Merchant Payment Gateway – Integration Guide",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. Please use the following merchant credentials to test transaction ID creation and status ...\nObtain your client_id, client_secret, and API key from ZainCash. Please use the following merchant credentials to test transaction ID creation and status ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. Merchant ID obtained from ZainCash . secret used to decode and encode JWT during requests. ...\nThis is a Laravel package to integrate ZainCash payment gateway API. The Merchant ID obtained from ZainCash. The secret used to decode and encode JWT during ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials",
+    "name": "Braintree Articles: Important Gateway Credentials",
+    "snippet": "API credentials are unique account identifiers that must be added to your code before you can process payments via the API. sandbox or production.\nAPI credentials are unique account identifiers that must be added to your code before you can process payments via the API. Think of them as your username and ...",
+    "host_name": "developer.paypal.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/merchant-identifier/documentation/integration-and-testing",
+    "name": "Integration and Testing | Merchant Identifier",
+    "snippet": "Once you have created a project on Mastercard Developers and generated sandbox credentials you can start testing . The base URL for calling Sandbox endpoints ... Read more\nOnce you have created a project on Mastercard Developers and generated sandbox credentials you can start testing. The base URL for calling Sandbox endpoints ...",
+    "host_name": "developer.mastercard.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Quick Start. First of all, you will need to create a ZainCash wallet and a merchant account. you can use the test ones for now. Read more\nFirst of all, you will need to create a ZainCash wallet and a merchant account. ... Here are the test credentials for your test purposes. 7.",
+    "host_name": "medium.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.worldpay.com/apis/merchant-credentials",
+    "name": "Merchant Credentials",
+    "snippet": "The Merchant Credentials API allows you to retrieve merchant processing credentials for Worldpay from FIS acquired merchants on the Express platform. Read more",
+    "host_name": "docs.worldpay.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.dpopay.com/dpo-pay-by-network/reference/sandbox-test-credentials",
+    "name": "Sandbox & Test Credentials - DPO Pay by Network",
+    "snippet": "DPO Pay provides multiple sandbox merchant accounts for testing . Each account is identified by a Company Token and associated Service Type IDs. You must include ... Read more",
+    "host_name": "docs.dpopay.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.na.worldline-solutions.com/plan-your-integration/software-vendor-integration-guide/create-a-test-account",
+    "name": "Create a Software Vendor Test Account | Worldline NAM",
+    "snippet": "You can locate the Merchant ID by navigating to administration > Company Info. Ensure you have this information ready when contacting our Customer Care team. Read more",
+    "host_name": "docs.na.worldline-solutions.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://imerchantsolutions.com/docs",
+    "name": "Documentation | iMerchant",
+    "snippet": "PUT /v1/webhooks/ merchant /:id. Update a webhook. DELETE /v1/webhooks/ merchant /:id. Delete a webhook. POST /v1/webhooks/ merchant /:id/ test . Send a test webhook ... Read more",
+    "host_name": "imerchantsolutions.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.viva.com/getting-started/find-your-account-credentials/merchant-id-and-api-key",
+    "name": "Merchant ID and API Key",
+    "snippet": "You can find your Merchant ID and API Key in the Access credentials section at the top of the page: Access Credentials; If needed, you can copy and paste ...",
+    "host_name": "developer.viva.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

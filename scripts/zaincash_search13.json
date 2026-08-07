@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://github.com/osama127001/flutter-transactions-app",
+    "name": "osama127001/flutter-transactions-app",
+    "snippet": "Flutter Mobile Application that keeps an eye on your everyday transactions . This project is a starting point for a Flutter application. offers tutorials, ...",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/LaravelDaily/laravel-api-flutter-app-code/blob/main/lib/widgets/transaction_add.dart",
+    "name": "transaction_add.dart - laravel-api-flutter-app-code",
+    "snippet": "flutter -app- code development by creating an account on GitHub . Search code , repositories, users, issues, pull requests... transaction_add. dart . Fixing dart ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/zainpay/zainpay-flutter-sdk",
+    "name": "Zainpay Flutter SDK",
+    "snippet": "A modern, intuitive Flutter SDK for integrating Zainpay payment gateway into your Flutter applications. Methods: Card payments, bank transfers, and more",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/3bdelazizRs/flutter_credit_payment",
+    "name": "3bdelazizRs/flutter_credit_payment",
+    "snippet": "The purpose of this project is to validate credit cards and facilitate this proccess. This project is a starting point for a Flutter application. offers ...",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/Online-Payments/sdk-client-flutter",
+    "name": "Online-Payments/sdk-client-flutter",
+    "snippet": "1. Initialize the Flutter SDK for this payment · 2. Retrieve the payment products · 3. Retrieve payment product details · 4. Encrypt payment information · 5. Read more",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

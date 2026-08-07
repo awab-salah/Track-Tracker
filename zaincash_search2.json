@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication , payment integration, webhooks, refunds, and brand guidelines.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ...\nIt's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.squareup.com/docs/build-basics/access-tokens",
+    "name": "Access Tokens and Other Credentials",
+    "snippet": "Sandbox requests use the https://connect.squareupsandbox.com/ v2 base URL with an access token that's valid for the Sandbox environment, as shown in the ...\nAccess tokens are credentials that allow applications to securely interact with Square APIs . These access tokens grant full access to the resources in a Square ...",
+    "host_name": "developer.squareup.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.unified.to/concepts/sandboxes",
+    "name": "Sandbox Accounts",
+    "snippet": "These accounts can be used for testing your app with live data. You'll need API access + OAuth2 client credentials from Harri to test .\nYou'll need API access + OAuth2 client credentials from Harri to test. sandbox/testing credentials (API key, username, password) are issued from your ...",
+    "host_name": "docs.unified.to",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://api-docs.zocdoc.com/guides/authentication",
+    "name": "Authentication and Access Tokens",
+    "snippet": "Sandbox credentials can be securely distributed to developers for use. All Zocdoc API resource endpoints require a Bearer Authorization header in their request ...",
+    "host_name": "api-docs.zocdoc.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.uscis.gov/article/how-test-api-sandbox-authorizetry-it-out-feature",
+    "name": "How to test an API in Sandbox - Authorize/Try It Out Feature",
+    "snippet": "The Access Token URL can be found below, for Sandbox or Production environments. Sandbox Environment: https://api-int.uscis.gov/oauth/accesstoken . Production ...\nUsing the Torch API Sandbox is your first step towards developing with USCIS API's. All USCIS API's are secured using OAuth 2.0 client Credentials . Read more",
+    "host_name": "developer.uscis.gov",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.instacart.com/connect/sandbox_guide/tutorials/get_a_token",
+    "name": "Get started with testing",
+    "snippet": "May 14, 2026 — Get started with testing . To make requests to the Sandbox API , you need a bearer token with the client_credentials grant type.",
+    "host_name": "docs.instacart.com",
+    "rank": 6,
+    "date": "May 14, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.optum.com/optumreal-medical/reference/api-setup",
+    "name": "API Setup",
+    "snippet": "The API Setup page explains how developers authenticate and test Optum. Optum Real uses OAuth 2.0 with bearer tokens , and setup is required for both sandbox ...",
+    "host_name": "developer.optum.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.dpopay.com/dpo-pay-by-network/reference/sandbox-test-credentials",
+    "name": "Sandbox & Test Credentials - DPO Pay by Network",
+    "snippet": "Sandbox API Endpoint. Use the following base URL for all API requests in the sandbox environment : https://secure.3gdirectpay.com/API/v6/. Test Merchant Accounts.",
+    "host_name": "docs.dpopay.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . Set ' test ' to false for the live environment after obtaining all credentials from ZainCash .",
+    "host_name": "github.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
