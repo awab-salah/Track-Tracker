@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { capacitorStorage } from '@/lib/capacitor-storage';
 
 /**
  * Supabase connection configuration.
@@ -10,6 +11,12 @@ import { createClient } from '@supabase/supabase-js';
  *
  * The anon key is a *publishable* key designed for client-side code;
  * it is safe to embed in the bundle.
+ *
+ * Session persistence uses the capacitorStorage adapter which stores
+ * the auth session in Capacitor Preferences (Android SharedPreferences
+ * / iOS NSUserDefaults) on native platforms, and localStorage on web.
+ * This ensures the session survives app restarts, OS memory pressure,
+ * and WebView recreation.
  */
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
@@ -36,6 +43,7 @@ export const supabase = createClient<any>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storage: capacitorStorage,
     },
   }
 );
