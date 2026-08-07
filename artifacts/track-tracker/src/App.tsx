@@ -107,6 +107,10 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
     return { hasError: true };
   }
 
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    console.error('[AppErrorBoundary] Unhandled render error:', error, info.componentStack);
+  }
+
   render() {
     if (this.state.hasError) {
       return (

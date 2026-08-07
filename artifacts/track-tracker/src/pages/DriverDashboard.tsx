@@ -54,7 +54,6 @@ function saveActiveTab(tab: TabId): void {
 export default function DriverDashboard() {
   const [, setLocation] = useLocation();
   const { currentDriver, currentDriverId, companySubscriptionActive } = useApp();
-  const { role } = useAuth();
   const [activeTab, setActiveTabRaw] = useState<TabId>(loadActiveTab);
 
   const setActiveTab = (tab: TabId) => {
@@ -69,32 +68,12 @@ export default function DriverDashboard() {
   const locationState = useLocationTracking(currentDriverId ?? null);
 
   // ── Render-loop safety ───────────────────────────────────────────────
-  // There is a window between auth resolving (role='driver') and the
-  // AppContext bootstrap effect populating `currentDriver` (runs AFTER the
-  // first render). During that window `currentDriver` is null.
-  //
-  // Previously, this returned `<Redirect to="/driver-auth" />`, which
-  // caused an infinite redirect loop: DriverDashboard → Redirect to
-  // /driver-auth → GuestRoute sees role='driver' → Redirect back to
-  // /driver-dashboard → repeat. This crashed React with "Maximum update
-  // depth exceeded" and produced a permanent white screen (no ErrorBoundary
-  // existed to catch it).
-  //
-  // Fix: If we know the user is a driver (role='driver') but currentDriver
-  // hasn't been populated yet, show a loading spinner instead of redirecting.
-  // Only redirect if the user truly isn't a driver.
+  // currentDriver is derived with a synchronous fallback to authDriverProfile
+  // in AppContext, so it is NEVER null for a logged-in driver. This guard
+  // only triggers if the user is not authenticated as a driver (e.g. stale
+  // session after sign-out), in which case redirecting to the auth page is
+  // correct.
   if (!currentDriver) {
-    if (role === 'driver') {
-      return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-background">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-4 border-muted rounded-full animate-spin"
-              style={{ borderTopColor: '#0D3B4A' }} />
-            <p className="text-sm text-muted-foreground font-medium">جارٍ التحميل...</p>
-          </div>
-        </div>
-      );
-    }
     return <Redirect to="/driver-auth" />;
   }
 
