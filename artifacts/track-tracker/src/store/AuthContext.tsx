@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const loadProfile = useCallback(async (authUser: User | null, isBackgroundRefresh = false) => {
     const myVersion = ++loadVersionRef.current;
+    console.log('[AuthContext] loadProfile START', { myVersion, hasUser: !!authUser, isBackgroundRefresh, userId: authUser?.id?.slice(0,8) });
 
     // Only show the loading spinner on initial page load, NOT on background
     // token refreshes. A TOKEN_REFRESHED event means the user is already
@@ -104,8 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (userRole === 'company') {
       const profile = await fetchCompanyByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) return; // stale — newer call won
+      if (loadVersionRef.current !== myVersion) { console.log('[AuthContext] loadProfile STALE (company)', { myVersion, current: loadVersionRef.current }); return; }
 
+      console.log('[AuthContext] loadProfile COMMIT company', { myVersion, companyId: profile?.id?.slice(0,8) });
       setRole('company');
       setCompanyId(profile?.id ?? null);
       setCompanyProfile(
@@ -118,8 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } else if (userRole === 'driver') {
       const drv = await fetchDriverByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) return; // stale
+      if (loadVersionRef.current !== myVersion) { console.log('[AuthContext] loadProfile STALE (driver)', { myVersion, current: loadVersionRef.current }); return; }
 
+      console.log('[AuthContext] loadProfile COMMIT driver', { myVersion, driverId: drv?.id?.slice(0,8), hasProfile: !!drv });
       setRole('driver');
       setDriverId(drv?.id ?? null);
       setDriverProfile(drv ?? null);
@@ -142,7 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Resolve any existing session on mount (handles page refresh)
+    console.log('[AuthContext] useEffect: calling getSession()');
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      console.log('[AuthContext] getSession resolved', { hasSession: !!s, userId: s?.user?.id?.slice(0,8), role: s?.user?.user_metadata?.role });
       setSession(s);
       setUser(s?.user ?? null);
       void loadProfile(s?.user ?? null);
@@ -152,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
+      console.log('[AuthContext] onAuthStateChange', { event, hasSession: !!s, userId: s?.user?.id?.slice(0,8) });
       setSession(s);
       setUser(s?.user ?? null);
 

@@ -47,6 +47,7 @@ interface ProtectedRouteProps {
 
 function ProtectedRoute({ component: Component, requiredRole, redirectTo }: ProtectedRouteProps) {
   const { role, isLoading } = useAuth();
+  console.log('[ProtectedRoute]', { requiredRole, role, isLoading });
 
   if (isLoading) return <AuthLoading />;
   if (role !== requiredRole) {
@@ -59,6 +60,7 @@ function ProtectedRoute({ component: Component, requiredRole, redirectTo }: Prot
 /** Redirects already-authenticated users away from auth pages. */
 function GuestRoute({ component: Component }: { component: ComponentType<object> }) {
   const { role, isLoading } = useAuth();
+  console.log('[GuestRoute]', { role, isLoading });
 
   if (isLoading) return <AuthLoading />;
   if (role === 'company') return <Redirect to="/owner-dashboard" />;
@@ -100,21 +102,23 @@ function Router() {
 // depth exceeded" and left the user staring at a blank page forever.
 // This boundary catches any such error and shows a recoverable UI.
 
-class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null; componentStack: string }> {
+  state = { hasError: false, error: null as Error | null, componentStack: '' };
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error('[AppErrorBoundary] Unhandled render error:', error, info.componentStack);
+    this.setState({ componentStack: info.componentStack });
   }
 
   render() {
     if (this.state.hasError) {
+      const err = this.state.error;
       return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background gap-4 p-6">
+        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background gap-4 p-6 overflow-auto">
           <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
             <span className="text-destructive text-2xl">⚠</span>
           </div>
@@ -122,8 +126,17 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
           <p className="text-sm text-muted-foreground text-center max-w-xs">
             حدث خطأ أثناء تحميل التطبيق. يرجى تحديث الصفحة للمحاولة مرة أخرى.
           </p>
+          {/* DEBUG: Show exact error for root-cause investigation */}
+          <div className="mt-2 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg max-w-lg w-full overflow-auto">
+            <p className="text-xs font-bold text-red-800 dark:text-red-200 mb-1">[DEBUG] Error:</p>
+            <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">{err?.message ?? 'unknown'}</pre>
+            <p className="text-xs font-bold text-red-800 dark:text-red-200 mt-2 mb-1">[DEBUG] Stack:</p>
+            <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">{err?.stack ?? ''}</pre>
+            <p className="text-xs font-bold text-red-800 dark:text-red-200 mt-2 mb-1">[DEBUG] Component Stack:</p>
+            <pre className="text-xs text-red-700 dark:text-red-300 whitespace-pre-wrap break-words">{this.state.componentStack}</pre>
+          </div>
           <button
-            onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+            onClick={() => { this.setState({ hasError: false, error: null, componentStack: '' }); window.location.reload(); }}
             className="mt-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm active:scale-[0.97] transition-transform"
           >
             تحديث الصفحة
