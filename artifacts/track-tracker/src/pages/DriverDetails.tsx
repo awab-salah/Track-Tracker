@@ -63,7 +63,7 @@ function SectionTitle({ icon: Icon, title, hint }: { icon: React.ElementType; ti
 export default function DriverDetails() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
-  const { drivers, loads, sales, cargoEditedToday, companySubscriptionActive } = useApp();
+  const { drivers, loads, sales, cargoEditedToday, companySubscriptionActive, isBootstrapped } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   // ── All hooks MUST be called before ANY early return (Rules of Hooks) ──
@@ -134,6 +134,22 @@ export default function DriverDetails() {
   }
 
   if (!driver) {
+    // If AppContext bootstrap hasn't finished yet, the drivers[] array
+    // may be empty even for a company that has drivers. In that case,
+    // we must NOT show "driver not found" — it would flash during refresh.
+    // Instead, keep showing the loading screen until bootstrap completes.
+    if (!isBootstrapped) {
+      return (
+        <MobileLayout>
+          <div className="flex flex-col items-center justify-center flex-1 gap-4 p-6">
+            <div className="w-10 h-10 border-4 border-muted rounded-full animate-spin"
+              style={{ borderTopColor: '#0D3B4A' }} />
+            <p className="text-sm text-muted-foreground font-medium">جارٍ التحميل...</p>
+          </div>
+        </MobileLayout>
+      );
+    }
+    // Bootstrap is done and driver is definitively not found.
     return (
       <MobileLayout>
         <div className="flex flex-col items-center justify-center flex-1 gap-4 p-6">
