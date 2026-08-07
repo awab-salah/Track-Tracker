@@ -48,12 +48,9 @@ interface ProtectedRouteProps {
 function ProtectedRoute({ component: Component, requiredRole, redirectTo }: ProtectedRouteProps) {
   const { role, isLoading } = useAuth();
 
-  console.log(`[ProtectedRoute] role=${role}, isLoading=${isLoading}, requiredRole=${requiredRole}`);
-
   if (isLoading) return <AuthLoading />;
   if (role !== requiredRole) {
     const dest = redirectTo ?? (requiredRole === 'company' ? '/company-auth' : '/driver-auth');
-    console.log(`[ProtectedRoute] REDIRECT to ${dest} — role=${role} !== requiredRole=${requiredRole}`);
     return <Redirect to={dest} />;
   }
   return <Component />;
@@ -62,8 +59,6 @@ function ProtectedRoute({ component: Component, requiredRole, redirectTo }: Prot
 /** Redirects already-authenticated users away from auth pages. */
 function GuestRoute({ component: Component }: { component: ComponentType<object> }) {
   const { role, isLoading } = useAuth();
-
-  console.log(`[GuestRoute] role=${role}, isLoading=${isLoading}`);
 
   if (isLoading) return <AuthLoading />;
   if (role === 'company') return <Redirect to="/owner-dashboard" />;
