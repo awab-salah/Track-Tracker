@@ -910,7 +910,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, authCompanyId, notificationsEnabled]);
 
-  const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
+  // ── Derive currentDriver ────────────────────────────────────────────────────
+  // PRIMARY: from drivers[] state (populated by bootstrap useEffect).
+  // FALLBACK: from authDriverProfile (available synchronously from AuthContext).
+  //
+  // Without the fallback, there is a timing gap between AuthProvider resolving
+  // auth (role='driver', isLoading=false) and AppContext's bootstrap useEffect
+  // populating drivers[]/currentDriverId (runs AFTER the first render). During
+  // that gap, currentDriver was null, which caused DriverDashboard to either:
+  //   - <Redirect> to /driver-auth → infinite loop → crash (original bug)
+  //   - Show a loading spinner (previous fix — still caused ErrorBoundary to
+  //     catch a render error during the transition)
+  //
+  // By falling back to authDriverProfile (which IS the driver profile — the
+  // bootstrap useEffect sets drivers=[authDriverProfile]), currentDriver is
+  // NEVER null for a logged-in driver. The timing gap is eliminated at the
+  // source, and DriverDashboard renders normally from the very first render.
+  const currentDriver = (() => {
+    const fromState = drivers.find((d) => d.id === currentDriverId);
+    if (fromState) return fromState;
+    // Fallback: auth driver is signed in but bootstrap useEffect hasn't run yet.
+    // authDriverProfile contains the same data that the useEffect will put in
+    // drivers[] — use it directly so the driver page never sees a null driver.
+    if (role === 'driver' && authDriverProfile) return authDriverProfile;
+    return null;
+  })();
 
   return (
     <AppContext.Provider
