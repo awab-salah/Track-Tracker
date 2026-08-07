@@ -69,17 +69,32 @@ export default function DriverDashboard() {
   const locationState = useLocationTracking(currentDriverId ?? null);
 
   // ── Render-loop safety ───────────────────────────────────────────────
-  // Do NOT call `setLocation(...)` here during render. There is a window
-  // between auth resolving (role='driver') and the AppContext bootstrap
-  // effect populating `currentDriver` (runs AFTER the first render). During
-  // that window `currentDriver` is null. Calling `setLocation()` during
-  // render triggers React's "Cannot update a component while rendering a
-  // different component" error and bounces the user between /driver-dashboard
-  // and /driver-auth in a loop.
+  // There is a window between auth resolving (role='driver') and the
+  // AppContext bootstrap effect populating `currentDriver` (runs AFTER the
+  // first render). During that window `currentDriver` is null.
   //
-  // `<Redirect>` is safe because it navigates via `useLayoutEffect`
-  // (after render commits), not synchronously during render.
+  // Previously, this returned `<Redirect to="/driver-auth" />`, which
+  // caused an infinite redirect loop: DriverDashboard → Redirect to
+  // /driver-auth → GuestRoute sees role='driver' → Redirect back to
+  // /driver-dashboard → repeat. This crashed React with "Maximum update
+  // depth exceeded" and produced a permanent white screen (no ErrorBoundary
+  // existed to catch it).
+  //
+  // Fix: If we know the user is a driver (role='driver') but currentDriver
+  // hasn't been populated yet, show a loading spinner instead of redirecting.
+  // Only redirect if the user truly isn't a driver.
   if (!currentDriver) {
+    if (role === 'driver') {
+      return (
+        <div className="min-h-screen w-full flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-4 border-muted rounded-full animate-spin"
+              style={{ borderTopColor: '#0D3B4A' }} />
+            <p className="text-sm text-muted-foreground font-medium">جارٍ التحميل...</p>
+          </div>
+        </div>
+      );
+    }
     return <Redirect to="/driver-auth" />;
   }
 

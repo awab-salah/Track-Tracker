@@ -140,7 +140,19 @@ export function LiveLocationMap({ status, coords, locationError }: LiveLocationM
 
     mapRef.current = map;
 
+    // Fix Leaflet + display:none: When the stats tab is inactive, the
+    // parent div has display:none, causing Leaflet to read 0×0. This
+    // ResizeObserver calls invalidateSize() when the container gets
+    // real dimensions, so tiles render correctly.
+    const ro = new ResizeObserver(() => {
+      if (mapRef.current && document.body.contains(el)) {
+        mapRef.current.invalidateSize();
+      }
+    });
+    ro.observe(el);
+
     return () => {
+      ro.disconnect();
       // Null the ref FIRST so the coords effect (which depends on
       // `mapRef.current`) early-exits if it fires during teardown.
       const m = mapRef.current;

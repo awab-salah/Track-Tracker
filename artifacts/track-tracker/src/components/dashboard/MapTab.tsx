@@ -10,7 +10,7 @@
  *   alter publication supabase_realtime add table public.drivers;
  */
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useLocation } from 'wouter';
@@ -59,6 +59,29 @@ interface DriverLocationRow {
   lat: number;
   lng: number;
   location: string;
+}
+
+/**
+ * InvalidateSizeOnResize — Leaflet + display:none fix.
+ *
+ * When the map's parent tab is inactive, it has `display:none`, which causes
+ * Leaflet to read the container as 0×0. When the tab becomes active, the
+ * container gets real dimensions, but Leaflet still thinks it's 0×0 and
+ * renders partially/blank. This component uses a ResizeObserver to call
+ * `map.invalidateSize()` whenever the container's size changes, which tells
+ * Leaflet to recalculate tile positions and render correctly.
+ */
+function InvalidateSizeOnResize() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
 }
 
 export function MapTab() {
@@ -138,6 +161,12 @@ export function MapTab() {
         style={{ width: '100%', height: '100%' }}
         zoomControl={false}
       >
+        {/* Fix Leaflet + display:none: When the tab containing this map is
+            inactive, the parent div has display:none and Leaflet reads the
+            container as 0×0. When the tab becomes active and the container
+            gets real dimensions, this ResizeObserver calls invalidateSize()
+            so Leaflet re-calculates tile positions and renders correctly. */}
+        <InvalidateSizeOnResize />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

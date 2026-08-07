@@ -8,11 +8,13 @@ import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { InfoRow } from '@/components/InfoRow';
 import { AppInput } from '@/components/AppInput';
 import { useApp } from '@/store/AppContext';
+import { useAuth } from '@/store/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export default function DriverProfilePage() {
   const [, setLocation] = useLocation();
   const { currentDriver, updateDriverProfile, logoutDriver } = useApp();
+  const { role } = useAuth();
   const { toast } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -20,9 +22,21 @@ export default function DriverProfilePage() {
   const [editEmail, setEditEmail] = useState('');
   const [editVehicle, setEditVehicle] = useState('');
 
-  // Render-loop safety: use <Redirect> instead of setLocation() during
-  // render. See DriverDashboard.tsx for the full explanation.
+  // Render-loop safety: same fix as DriverDashboard — if we know the user
+  // is a driver but currentDriver hasn't been populated yet, show a loading
+  // spinner instead of redirecting (which caused an infinite loop).
   if (!currentDriver) {
+    if (role === 'driver') {
+      return (
+        <div className="min-h-screen w-full flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-4 border-muted rounded-full animate-spin"
+              style={{ borderTopColor: '#0D3B4A' }} />
+            <p className="text-sm text-muted-foreground font-medium">جارٍ التحميل...</p>
+          </div>
+        </div>
+      );
+    }
     return <Redirect to="/driver-auth" />;
   }
 
