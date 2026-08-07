@@ -323,7 +323,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Bootstrap driver data ──────────────────────────────────────────────────
   // Runs when a driver signs in.
   useEffect(() => {
-    console.log('[AppContext] driver bootstrap effect', { authLoading, role, authDriverId: authDriverId?.slice(0,8), hasAuthDriverProfile: !!authDriverProfile });
     if (authLoading) return;
     if (role !== 'driver' || !authDriverId || !authDriverProfile) return;
     if (!isSupabaseConfigured) {
@@ -929,18 +928,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // source, and DriverDashboard renders normally from the very first render.
   const currentDriver = (() => {
     const fromState = drivers.find((d) => d.id === currentDriverId);
-    if (fromState) {
-      console.log('[AppContext] currentDriver from drivers[]', { id: fromState.id?.slice(0,8), name: fromState.name });
-      return fromState;
-    }
+    if (fromState) return fromState;
     // Fallback: auth driver is signed in but bootstrap useEffect hasn't run yet.
     // authDriverProfile contains the same data that the useEffect will put in
     // drivers[] — use it directly so the driver page never sees a null driver.
-    if (role === 'driver' && authDriverProfile) {
-      console.log('[AppContext] currentDriver FALLBACK from authDriverProfile', { id: authDriverProfile.id?.slice(0,8), name: authDriverProfile.name });
-      return authDriverProfile;
-    }
-    console.log('[AppContext] currentDriver = null!', { role, hasAuthDriverProfile: !!authDriverProfile, driversLen: drivers.length, currentDriverId: currentDriverId?.slice(0,8) });
+    if (role === 'driver' && authDriverProfile) return authDriverProfile;
     return null;
   })();
 
