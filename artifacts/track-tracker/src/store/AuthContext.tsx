@@ -80,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const loadProfile = useCallback(async (authUser: User | null, isBackgroundRefresh = false) => {
     const myVersion = ++loadVersionRef.current;
-    console.log(`[AuthContext] loadProfile V${myVersion} START — isBackgroundRefresh=${isBackgroundRefresh}, userId=${authUser?.id ?? 'null'}`);
 
     // Only show the loading spinner on initial page load, NOT on background
     // token refreshes. A TOKEN_REFRESHED event means the user is already
@@ -91,8 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!authUser || !isSupabaseConfigured) {
-      if (loadVersionRef.current !== myVersion) { console.log(`[AuthContext] loadProfile V${myVersion} STALE (no user)`); return; }
-      console.log(`[AuthContext] loadProfile V${myVersion} — no user, clearing role`);
+      if (loadVersionRef.current !== myVersion) return;
       setRole(null);
       setCompanyId(null);
       setDriverId(null);
@@ -120,8 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } else if (userRole === 'driver') {
       const drv = await fetchDriverByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) { console.log(`[AuthContext] loadProfile V${myVersion} STALE (driver fetch)`); return; }
-      console.log(`[AuthContext] loadProfile V${myVersion} — driver fetch result:`, drv ? `id=${drv.id}, name=${drv.name}` : 'null');
+      if (loadVersionRef.current !== myVersion) return;
 
       // If the driver's DB row couldn't be loaded (e.g. RLS, network),
       // do NOT set role='driver' with a null profile — that creates
@@ -154,10 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (loadVersionRef.current === myVersion) {
-      console.log(`[AuthContext] loadProfile V${myVersion} COMMIT — isLoading=false, role=${userRole}`);
       setIsLoading(false);
-    } else {
-      console.log(`[AuthContext] loadProfile V${myVersion} STALE (final check)`);
     }
   }, []);
 
@@ -173,7 +167,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, s) => {
-      console.log(`[AuthContext] onAuthStateChange event=${event}, hasSession=${!!s}`);
       setSession(s);
       setUser(s?.user ?? null);
 
