@@ -66,27 +66,14 @@ export default function DriverDetails() {
   const { drivers, loads, sales, cargoEditedToday, companySubscriptionActive } = useApp();
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
-  // ── Subscription gate ──
-  // Company owner must be active to view driver details
-  if (!companySubscriptionActive) {
-    return (
-      <MobileLayout>
-        <div className="flex flex-col flex-1 h-[100dvh]">
-          <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background shrink-0">
-            <button
-              onClick={() => setLocation('/owner-dashboard')}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            >
-              <ArrowRight size={22} className="text-foreground" />
-            </button>
-            <span className="font-bold text-base text-foreground">تفاصيل السائق</span>
-            <div className="w-10" aria-hidden />
-          </header>
-          <SubscriptionGate variant="company" />
-        </div>
-      </MobileLayout>
-    );
-  }
+  // ── All hooks MUST be called before ANY early return (Rules of Hooks) ──
+  // useResolvedLocation and useCargoHistory are called unconditionally
+  // so the hook count is stable across renders, even when the subscription
+  // gate fires (companySubscriptionActive=false) or the driver is missing.
+  // Both hooks gracefully handle empty/undefined inputs (no-op).
+
+  const driverIdParam = params.id;
+  const driver = drivers.find((d) => d.id === driverIdParam);
 
   // ── Resolved location text ──
   // Shared hook: detects "lat, lng" pattern and reverse-geocodes via the
@@ -94,12 +81,7 @@ export default function DriverDetails() {
   // pass through unchanged. Per spec: do NOT change how the location is
   // stored. The same hook is reused by DriverCard in the Drivers tab —
   // do NOT duplicate this logic.
-  //
-  // NOTE: `useResolvedLocation` is called UNCONDITIONALLY before the
-  // early-return guard below to respect React's rules of hooks. The
-  // hook itself handles the `undefined` case (no driver).
-  const driverIdParam = params.id;
-  const driver = drivers.find((d) => d.id === driverIdParam);
+  // The hook handles `undefined` input (no driver) gracefully.
   const resolvedLocation = useResolvedLocation(driver?.location);
 
   // ── Day-based cargo view + midnight carry-over ──
@@ -126,6 +108,30 @@ export default function DriverDetails() {
     displayCargo,
     cargoTitle,
   } = useCargoHistory(driverId, cargo, driver?.createdAt, cargoEditedToday);
+
+  // ── Subscription gate ──
+  // Company owner must be active to view driver details.
+  // This early return is AFTER all hooks, so it does NOT violate
+  // React's Rules of Hooks.
+  if (!companySubscriptionActive) {
+    return (
+      <MobileLayout>
+        <div className="flex flex-col flex-1 h-[100dvh]">
+          <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background shrink-0">
+            <button
+              onClick={() => setLocation('/owner-dashboard')}
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              <ArrowRight size={22} className="text-foreground" />
+            </button>
+            <span className="font-bold text-base text-foreground">تفاصيل السائق</span>
+            <div className="w-10" aria-hidden />
+          </header>
+          <SubscriptionGate variant="company" />
+        </div>
+      </MobileLayout>
+    );
+  }
 
   if (!driver) {
     return (
