@@ -806,13 +806,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // from both Realtime and polling delivering the same sale.
   const notifiedSaleIdsRef = useRef<Set<string>>(new Set());
 
+  // ── Seed dedup set from sales state (stable, no channel recreation) ──
+  // Previously, `sales.length` was in the notification useEffect deps, which
+  // caused the entire Realtime channel to be torn down and rebuilt every time
+  // a sale was added. This created a race condition: events arriving during
+  // the teardown/rebuild gap were silently lost, and the company dashboard
+  // never received cross-device notifications.
+  //
+  // Now the dedup set is updated in a separate lightweight effect that just
+  // adds IDs to the ref — the Realtime channel stays connected and stable.
+  useEffect(() => {
+    for (const s of sales) {
+      notifiedSaleIdsRef.current.add(s.id);
+    }
+  }, [sales]);
+
   const showSaleNotification = (saleId: string, driverId: string, totalPrice: number) => {
     // Deduplicate — don't notify for the same sale twice.
     if (notifiedSaleIdsRef.current.has(saleId)) return;
     notifiedSaleIdsRef.current.add(saleId);
 
     const driver = driversRef.current.find((d) => d.id === driverId);
-    if (!driver) return;
+    if (!driver) {
+      console.warn('[AppContext] Sale notification dropped: driver not found for id', driverId);
+      return;
+    }
 
     try {
       new Notification('عملية بيع جديدة', {
@@ -825,16 +843,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── Notification Realtime channel + polling ──
+  // This effect only depends on role / company / toggle — NOT on sales.length.
+  // The channel is created once and stays connected until auth or toggle
+  // changes. Dedup seeding is handled by the separate effect above.
   useEffect(() => {
     if (role !== 'company' || !authCompanyId) return;
     if (!isSupabaseConfigured || !notificationsEnabled) return;
     if (getNotificationPermission() !== 'granted') return;
-
-    // Seed the dedup set with all sale IDs we already know about, so we
-    // don't re-notify for sales that existed before the subscription started.
-    for (const s of sales) {
-      notifiedSaleIdsRef.current.add(s.id);
-    }
 
     // ── PRIMARY: Supabase Realtime ──
     const channel = supabase
@@ -890,9 +906,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void supabase.removeChannel(channel);
       clearInterval(intervalId);
     };
-  // sales included to seed the dedup set; drivers not needed (uses ref)
+  // drivers not needed in deps (uses ref); sales not needed (dedup seeded separately)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, authCompanyId, notificationsEnabled, sales.length]);
+  }, [role, authCompanyId, notificationsEnabled]);
 
   const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
 

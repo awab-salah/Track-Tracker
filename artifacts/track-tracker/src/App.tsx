@@ -1,3 +1,4 @@
+import { Component, type ComponentType, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -19,7 +20,6 @@ import { PWAUpdateBanner } from '@/components/PWAUpdateBanner';
 import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
-import type { ComponentType } from 'react';
 
 const queryClient = new QueryClient();
 
@@ -93,19 +93,59 @@ function Router() {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+// ── Error Boundary ────────────────────────────────────────────────────────────
+// Catches unhandled React render errors that would otherwise produce a
+// permanent white screen. Previously, an infinite redirect loop between
+// /driver-dashboard and /driver-auth crashed React with "Maximum update
+// depth exceeded" and left the user staring at a blank page forever.
+// This boundary catches any such error and shows a recoverable UI.
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background gap-4 p-6">
+          <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
+            <span className="text-destructive text-2xl">⚠</span>
+          </div>
+          <p className="text-base font-bold text-foreground">حدث خطأ غير متوقع</p>
+          <p className="text-sm text-muted-foreground text-center max-w-xs">
+            حدث خطأ أثناء تحميل التطبيق. يرجى تحديث الصفحة للمحاولة مرة أخرى.
+          </p>
+          <button
+            onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+            className="mt-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm active:scale-[0.97] transition-transform"
+          >
+            تحديث الصفحة
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <AuthProvider>
-            {/* AppProvider is inside AuthProvider so it can call useAuth() */}
-            <AppProvider>
-              <PWAShell />
-              <Router />
-            </AppProvider>
-          </AuthProvider>
-        </WouterRouter>
+        <AppErrorBoundary>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+            <AuthProvider>
+              {/* AppProvider is inside AuthProvider so it can call useAuth() */}
+              <AppProvider>
+                <PWAShell />
+                <Router />
+              </AppProvider>
+            </AuthProvider>
+          </WouterRouter>
+        </AppErrorBoundary>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
