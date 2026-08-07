@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://pub.dev/packages/moneyhash_payment",
+    "name": "moneyhash_payment | Flutter package",
+    "snippet": "The MoneyHash Flutter SDK allows developers to integrate MoneyHash payment processing into their web applications. The SDK provides a simple and convenient way ...",
+    "host_name": "pub.dev",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/ariyanpay",
+    "name": "ariyanpay | Flutter package",
+    "snippet": "This is a Flutter package for ariyanpay Payment Gateway. This package can be used in flutter project. any kind of dev or production access keys. Read ariyanpay ...",
+    "host_name": "pub.dev",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev",
+    "name": "Pub.dev",
+    "snippet": "Pub is the package manager for the Dart programming language, containing reusable libraries & packages for Flutter and general Dart programs.",
+    "host_name": "pub.dev",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/intram_sdk_flutter",
+    "name": "intram_sdk_flutter | Flutter package",
+    "snippet": "A Flutter package for integrating Intram mobile payments via WebView. Supports Android and iOS. Features # Mobile money payment (MTN, Moov, Wave, etc.)",
+    "host_name": "pub.dev",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=AdU16hMq55w",
+    "name": "How to Publish a Flutter Package on Pub.dev | Publishing",
+    "snippet": "The easiest way to publish a pub.dev package. How to create and publish a package in Flutter? All you need to know about Dart Packages and the ...",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

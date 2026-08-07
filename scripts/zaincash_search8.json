@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. Example format: 9647835077893. obtaining all credentials from ZainCash.\nThis is a Laravel package to integrate ZainCash payment gateway API . Set ' test ' to false for the live environment after obtaining all credentials from ZainCash .\nThis is a Laravel package to integrate ZainCash payment gateway API . Example format: 9647835077893. obtaining all credentials from ZainCash .",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment ... test credentials and code examples for Iraq payment processing.\nComplete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication , payment integration, webhooks, refunds, and brand guidelines.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=6n0NQW7EMbU",
+    "name": "Tutorial - OAuth2.0 on X API",
+    "snippet": "OAuth 2.0 authentication in Python. Step-by-step tutorial using Flask. X API & Example Files. Configuring OAuth 2.0 Settings. OAuth 2.0 ...\nOAuth 2.0 authentication in Python . Step-by-step tutorial using Flask. X API & Example Files. OAuth 2.0 explained with examples",
+    "host_name": "www.youtube.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps",
+    "name": "Authorizing OAuth apps",
+    "snippet": "GitHub's OAuth implementation supports the standard authorization code grant type and the OAuth 2.0 Device Authorization Grant for apps that don't have access ...\nGitHub's OAuth implementation supports the standard authorization code grant type and the OAuth 2.0 Device Authorization Grant for apps that don't have access ...",
+    "host_name": "docs.github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.servicenow.com/docs/r/zurich/it-service-management/devops-change-velocity/dev-ops-github-apps-oath-jwt.html",
+    "name": "OAuth 2.0 credentials for GitHub Apps - JWT",
+    "snippet": "OAuth 2.0 Credentials form fields Field. For example, enter My GitHub App Credential . Get OAuth Token related link to generate the OAuth token.\nOAuth 2.0 Credentials form fields Field. For example , enter My GitHub App Credential . Select the Get OAuth Token related link to generate the OAuth token.",
+    "host_name": "www.servicenow.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/getAlby/oauth2server",
+    "name": "getAlby/oauth2server: OAuth server and API Gateway",
+    "snippet": "If you want to create an oauth code/token, you can use the preloaded client credentials id/secret and redirect_uri http://localhost:8080 . You need a valid JWT\nThis service is responsible for generating access tokens, so Alby users can authorize 3rd party applications to access the Alby Wallet API in their name. Read more\nOAuth2 server This service is responsible for generating access tokens, can analyze your invoices or payments , it will auto-create client credentials and ...",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@tony.infisical/guide-to-using-oauth-2-0-to-access-github-api-818383862591",
+    "name": "Guide to using OAuth 2.0 to access GitHub API | by Tony",
+    "snippet": "In this article, I demonstrate how you can set up your application to authenticate with the GitHub API using OAuth 2.0; many examples\nIn this article, I demonstrate how you can set up your application to authenticate with the GitHub API using OAuth 2.0 ;\nIn this article, I demonstrate how you can set up your application to authenticate with the GitHub API using OAuth 2.0 ; many examples shown",
+    "host_name": "medium.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=mX0xCyQ5GVY",
+    "name": "How to Create a GitHub OAuth App | Step-by-Step Guide",
+    "snippet": "I'll guide you through the entire process of setting up your GitHub OAuth app, GitHub OAuth 2.0 Authentication) Step-by-Step Login\nIn today's video we will be mainly focusing on how to create an oo application using GitHub . I'll explain you the complete process.",
+    "host_name": "www.youtube.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/Mastercard/oauth2-client-js",
+    "name": "Mastercard/oauth2-client-js: Access",
+    "snippet": "All credentials shown here are examples from Using OAuth 2.0 to Access Mastercard APIs. Replace them with your own. For more information on scope resolvers ...\nThe OAuth2ClientBuilder provides a fluent API to configure your client credentials, DPoP keys, token endpoint, and other settings for OAuth 2.0 authentication. Read more",
+    "host_name": "github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=_rFJkM3uhtA",
+    "name": "A Practical Guide to OAuth 2.0 using GitHub's API",
+    "snippet": "Learn how to use and apply OAuth 2.0 in any application like a web app to authenticate and authorize users.",
+    "host_name": "www.youtube.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

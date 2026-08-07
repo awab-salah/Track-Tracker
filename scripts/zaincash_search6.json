@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "grant_type , string, yes, Must be client_credentials . client_id, string, yes, Your ... Please use the following merchant credentials to test transaction ID ... Read more\nGet an OAuth2 access token using client_credentials grant . Test credentials used to make tests. Please use the following merchant credentials to test ...\nComplete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines. Includes test credentials and code examples for Iraq payment processing.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "First of all, you will need to create a ZainCash wallet and a merchant account. Here are the test credentials for your test purposes.",
+    "host_name": "medium.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq.",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.db.com/apidocumentation/oauthflows/oauthclientgrant",
+    "name": "Client credentials grant",
+    "snippet": "Client credentials grant . The Client Credentials grant type is used by clients without any user context involved to obtain an access token.",
+    "host_name": "developer.db.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow",
+    "name": "OAuth 2.0 client credentials flow on the Microsoft identity",
+    "snippet": "Jan 30, 2026 — The OAuth 2.0 client credentials grant flow permits a web service (confidential client) to use its own credentials , instead of impersonating ...\nThe OAuth 2.0 client credentials grant flow permits a web service (confidential client) to use its own credentials, instead of impersonating a user, to authenticate when calling another web service. The grant specified in RFC 6749, sometimes called two-legged OAuth, can be used to access web-hosted resources by using the identity of an application. This type is commonly used for server-to ...",
+    "host_name": "learn.microsoft.com",
+    "rank": 4,
+    "date": "Jan 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://oauth.net/2/grant-types/client-credentials",
+    "name": "OAuth 2.0 Client Credentials Grant Type",
+    "snippet": "The Client Credentials grant type is used by clients to obtain an access token outside of the context of a user . with OAuth 2.0 Client Credentials",
+    "host_name": "oauth.net",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.va.gov/explore/api/benefits-claims/client-credentials",
+    "name": "Benefits Claims API Client Credentials Grant - VA API Platform",
+    "snippet": "VA's OAuth 2.0 Client Credentials Grant (CCG) grants access by using your RSA public key in JSON Web Key (JWK) format, as described in the OpenID spec. test it ...",
+    "host_name": "developer.va.gov",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer-community.sage.com/topic/19937-grant-type-client-credentials",
+    "name": "Grant Type - Client Credentials - Sage Developer Community",
+    "snippet": "Jan 27, 2025 — I have successfully tested the Client Credentials Grant Type using both Postman and curl. You will need to provide your full request … test and ...",
+    "host_name": "developer-community.sage.com",
+    "rank": 7,
+    "date": "Jan 27, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.apigee.com/api-platform/security/oauth/oauth-20-client-credentials-grant-type",
+    "name": "Implementing the client credentials grant type | Apigee Edge",
+    "snippet": "This topic offers a general description of the OAuth 2.0 client credentials grant type and discusses how to implement this flow on Apigee Edge. Use cases. Most ...",
+    "host_name": "docs.apigee.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://shellyard.com/blog/oauth2-client-credentials-api-testing",
+    "name": "OAuth2 Client Credentials: A Step-by-Step Walkthrough for API",
+    "snippet": "You have a client_id and client_secret and the API keeps returning 401. Here's the full client_credentials flow — token endpoint vs auth endpoint, scopes, common mistakes, and how to attach the token to every subsequent request.",
+    "host_name": "shellyard.com",
+    "rank": 9,
+    "date": "Jun 4, 2026",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://github.com/topics/payments?l=dart&o=desc&s=updated&utf8=%E2%9C%93",
+    "name": "payments · GitHub Topics",
+    "snippet": "A Flutter package to integrate PayFast payments into your app. An open source Flutter package for integrating the Square Web Payments SDK.\nFlutter desktop app . A Flutter package to integrate PayFast payments into your app. An open source Flutter package for integrating the Square Web Payments SDK.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/karrarkazuya/zaincash_flutter",
+    "name": "karrarkazuya/zaincash_flutter: Zaincash payment gateway",
+    "snippet": "Zaincash payment gateway integration for flutter . Contribute to karrarkazuya/zaincash_flutter development by creating an account on GitHub.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/topics/payment-integration?l=dart&o=desc&s=updated&utf8=%E2%9C%93",
+    "name": "payment-integration · GitHub Topics",
+    "snippet": "A Flutter / Dart client package for integrating with the MX Merchant REST APIs, including checkout, payments , customers, and vaulted accounts.",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/247489276567144/posts/1139928150656581",
+    "name": "Uddoktapay payment gateway package for Flutter apps",
+    "snippet": "UddoktaPay, seamlessly integrate payment gateways into your Flutter projects . Grab it on GitHub: https://github. com/UddoktaPay/ ...",
+    "host_name": "www.facebook.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/topics/payment-gateway-integration?l=dart&o=desc&s=stars",
+    "name": "payment-gateway-integration",
+    "snippet": "A Dart- Flutter eCommerce App using. A Flutter package to integrate Payfast payments into your Flutter web application. Add a description, image, and links to ...\nA Dart-Flutter eCommerce App using. A Flutter package to integrate Payfast payments into your Flutter web application. Add a description, image, and links to ...",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/76601815/payment-gatewayno-flutter-sdk-integrate-flutter",
+    "name": "payment gateway(No flutter SDK) integrate flutter",
+    "snippet": "You should create your own flutter package and wrap both ios and android payment framework. You can see this example https:// github .com/ ...",
+    "host_name": "stackoverflow.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/topics/payment?l=dart&o=asc&s=forks",
+    "name": "payment · GitHub Topics",
+    "snippet": "A Flutter app for experimental integration of the Chapa payment gateway , Includes sample code and setup guide.\nA Flutter app that demonstrates secure online payments using Stripe and PayPal, built with clean architecture and Bloc state management. dart paypal checkout ...",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/586207358389571/posts/2270373006639656",
+    "name": "Integrating Stripe Payment Gateway into Flutter App",
+    "snippet": "Just unlocked a new skill in Flutter! 🎉Integrated Stripe payment gateway seamlessly into my app. 💳 Excited to simplify transactions and enhance ...",
+    "host_name": "www.facebook.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fluttergems.dev/payment-api-sdk",
+    "name": "Top Flutter In-app Payment API/SDK packages",
+    "snippet": "A Flutter package for integrating pay_with_paymob services, enabling Visa and mobile wallet payments with customizable UI and secure payment processing. READ ...\nThe Flutter package that makes it super easy to integrate Paystack's payment gateway into your app with just few lines of code . accept Jazzcash/Easypaisa/Card  ...",
+    "host_name": "fluttergems.dev",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "ZainCash is a mobile payment method. ZainCash payment gateway is a web-based solution that you can be injected into your website/application.",
+    "host_name": "medium.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

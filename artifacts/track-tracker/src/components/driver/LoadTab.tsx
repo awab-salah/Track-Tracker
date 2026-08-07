@@ -19,7 +19,7 @@ interface LoadTabProps {
  * Driver Statistics, Company Driver Details, Company Statistics, and charts.
  */
 export function LoadTab({ editingLoad, onDoneEditing }: LoadTabProps) {
-  const { upsertLoad } = useApp();
+  const { upsertLoad, removeLoad } = useApp();
   const { toast } = useToast();
 
   const [productName, setProductName] = useState('');
@@ -43,6 +43,15 @@ export function LoadTab({ editingLoad, onDoneEditing }: LoadTabProps) {
   };
 
   const handleSave = () => {
+    // ── Bug 2 fix: quantity 0 on an existing item → delete ──
+    if (quantity === 0 && editingLoad?.id) {
+      removeLoad(editingLoad.id);
+      toast({ title: 'تم حذف المنتج من الحمولة' });
+      resetForm();
+      onDoneEditing();
+      return;
+    }
+
     const nextErrors: typeof errors = {};
     if (!productName.trim()) nextErrors.productName = 'اسم المنتج مطلوب';
     const priceValue = Number(unitPrice);
@@ -100,7 +109,11 @@ export function LoadTab({ editingLoad, onDoneEditing }: LoadTabProps) {
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-foreground">الكمية</label>
-            <QuantityStepperInput value={quantity} onChange={setQuantity} min={1} testId="stepper-load-quantity" />
+            {/* Bug 2 fix: allow min=0 when editing so user can set qty to 0 to delete */}
+            <QuantityStepperInput value={quantity} onChange={setQuantity} min={editingLoad ? 0 : 1} testId="stepper-load-quantity" />
+            {editingLoad && quantity === 0 && (
+              <p className="text-xs text-red-500 font-medium">سيتم حذف المنتج عند الحفظ بكمية ٠</p>
+            )}
           </div>
 
           <AppInput

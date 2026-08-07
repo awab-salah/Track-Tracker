@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Learn OAuth2 authentication , payment integration, webhooks, refunds, and brand guidelines. Your backend authenticates with ZainCash using POST /oauth2/token. ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://oauth.net/2/access-tokens",
+    "name": "What is an Access Token - OAuth 2.0",
+    "snippet": "An OAuth Access Token is a string that the OAuth client uses to make requests to the resource server. Access tokens do not have to be in any particular format,",
+    "host_name": "oauth.net",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.google.com/identity/protocols/oauth2",
+    "name": "Using OAuth 2.0 to Access Google APIs | Authorization",
+    "snippet": "May 26, 2026 — Basic steps 1. Obtain OAuth 2.0 credentials from the Google API Console. 2. Obtain an access token from the Google Authorization Server . 3. ...",
+    "host_name": "developers.google.com",
+    "rank": 2,
+    "date": "May 26, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow",
+    "name": "Microsoft identity platform and OAuth 2.0 authorization",
+    "snippet": "Jan 9, 2026 — The OAuth 2.0 authorization code grant type, or auth code flow, enables a client application to obtain authorized access to protected resources ...",
+    "host_name": "learn.microsoft.com",
+    "rank": 3,
+    "date": "Jan 9, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.oauth.com/oauth2-servers/access-tokens",
+    "name": "Access Tokens",
+    "snippet": "Aug 17, 2016 — Access tokens are the thing that applications use to make API requests on behalf of a user. The access token represents the authorization of a ...",
+    "host_name": "www.oauth.com",
+    "rank": 4,
+    "date": "Aug 17, 2016",
+    "favicon": ""
+  },
+  {
+    "url": "https://oauth.tools",
+    "name": "OAuth Tools",
+    "snippet": "Tools for exploring and testing OAuth and OpenID Connect flows . With this free tool you can learn. Paste a JWT or an SD-JWT and decode its header, payload, ...",
+    "host_name": "oauth.tools",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://auth0.com/intro-to-iam/what-is-oauth-2",
+    "name": "What is OAuth 2.0? Definition & Examples",
+    "snippet": "OAuth 2.0 uses Access Tokens . An Access Token is a piece of data that represents the authorization to access resources on behalf of the end-user.",
+    "host_name": "auth0.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=ZDuRmhLSLOY",
+    "name": "OAuth 2.0 explained with examples",
+    "snippet": "Welcome to the ultimate guide on OAuth 2.0 ! In this 10-minute video, we'll unravel the complexities of OAuth 2.0, exploring its fundamental ...",
+    "host_name": "www.youtube.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://appomni.com/blog/oauth-token-what-it-is-how-it-works-and-its-vulnerabilities",
+    "name": "OAuth Token: What It Is, How It Works, and Its Vulnerabilities",
+    "snippet": "Feb 14, 2024 — OAuth 2.0 is an open standard authorization protocol or framework that allows users to grant SaaS apps and other websites limited access to ...",
+    "host_name": "appomni.com",
+    "rank": 8,
+    "date": "Feb 14, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scalekit.com/blog/oauth-tokens-m2m-authentication",
+    "name": "OAuth Tokens Explained: for M2M Authentication",
+    "snippet": "Apr 22, 2025 — Learn how OAuth 2.0 access tokens secure machine-to-machine APIs using the Client Credentials Flow. Understand token generation ...",
+    "host_name": "www.scalekit.com",
+    "rank": 9,
+    "date": "Apr 22, 2025",
+    "favicon": ""
+  }
+]

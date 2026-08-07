@@ -1,0 +1,20 @@
+{
+  "code": 200,
+  "data": {
+    "description": "",
+    "html": "<html><head><meta name=\"color-scheme\" content=\"light dark\"></head><body><pre style=\"word-wrap: break-word; white-space: pre-wrap;\"># zaincash_flutter\nA none offical Zaincash payment gateway integration for flutter\n\n# INSTALL\n\nin your project terminal enter\n```\n  dart pub add zaincash\n```\n\n# USE\nFirst you will need a transaction_id created by using your merchant credentials on backend and then forwarded over to the mobile app, if you do not have merchant credentials please contact the zaincash support to get one\n\nThen use zaincash as a widget inside your view\n```\n  ZainCash(transactionId: \"61b3976de65fb79d1b5ffc3c\", production: false, closeOnSuccess: true, closeOnError: true)\n```\nAnd you can listen to the state change events using the listener\n```\n  ZaincashService.paymentStateListener.listen((state) {\n      /// on success\n      if(state['success'] == 1){\n      // TO DO\n      }\n      /// on error\n      if(state['success'] == 0){\n      // TO DO\n      }\n  });\n```\n\n# SCREENSHOTS\n<p float=\"left\">\n<img src=\"https://github.com/karrarkazuya/zaincash_flutter/raw/main/git_images/1.png\" alt=\"1\" height=\"500\">\n<img src=\"https://github.com/karrarkazuya/zaincash_flutter/raw/main/git_images/2.png\" alt=\"1\" height=\"500\">\n<img src=\"https://github.com/karrarkazuya/zaincash_flutter/raw/main/git_images/3.png\" alt=\"1\" height=\"500\">\n<img src=\"https://github.com/karrarkazuya/zaincash_flutter/raw/main/git_images/4.png\" alt=\"1\" height=\"500\">\n</p>\n</pre></body></html>",
+    "httpStatus": 200,
+    "httpStatusText": "",
+    "title": "",
+    "url": "https://raw.githubusercontent.com/karrarkazuya/zaincash_flutter/main/README.md",
+    "usage": {
+      "tokens": 399
+    }
+  },
+  "meta": {
+    "usage": {
+      "tokens": 399
+    }
+  },
+  "status": 200
+}
