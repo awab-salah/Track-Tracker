@@ -932,7 +932,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Fallback: auth driver is signed in but bootstrap useEffect hasn't run yet.
     // authDriverProfile contains the same data that the useEffect will put in
     // drivers[] — use it directly so the driver page never sees a null driver.
-    if (role === 'driver' && authDriverProfile) return authDriverProfile;
+    if (role === 'driver' && authDriverProfile) {
+      console.log('[AppContext] currentDriver FALLBACK — using authDriverProfile (drivers[] not populated yet)');
+      return authDriverProfile;
+    }
+    if (role === 'driver' && !authDriverProfile) {
+      console.error('[AppContext] currentDriver NULL — role=driver but authDriverProfile is null! This will cause a redirect loop.');
+    }
     return null;
   })();
 

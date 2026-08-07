@@ -56,6 +56,8 @@ export default function DriverDashboard() {
   const { currentDriver, currentDriverId, companySubscriptionActive } = useApp();
   const [activeTab, setActiveTabRaw] = useState<TabId>(loadActiveTab);
 
+  console.log(`[DriverDashboard] RENDER — currentDriver=${currentDriver ? currentDriver.name : 'null'}, currentDriverId=${currentDriverId ?? 'null'}`);
+
   const setActiveTab = (tab: TabId) => {
     setActiveTabRaw(tab);
     saveActiveTab(tab);

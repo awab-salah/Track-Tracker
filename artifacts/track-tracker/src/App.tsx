@@ -48,9 +48,12 @@ interface ProtectedRouteProps {
 function ProtectedRoute({ component: Component, requiredRole, redirectTo }: ProtectedRouteProps) {
   const { role, isLoading } = useAuth();
 
+  console.log(`[ProtectedRoute] role=${role}, isLoading=${isLoading}, requiredRole=${requiredRole}`);
+
   if (isLoading) return <AuthLoading />;
   if (role !== requiredRole) {
     const dest = redirectTo ?? (requiredRole === 'company' ? '/company-auth' : '/driver-auth');
+    console.log(`[ProtectedRoute] REDIRECT to ${dest} — role=${role} !== requiredRole=${requiredRole}`);
     return <Redirect to={dest} />;
   }
   return <Component />;
@@ -59,6 +62,8 @@ function ProtectedRoute({ component: Component, requiredRole, redirectTo }: Prot
 /** Redirects already-authenticated users away from auth pages. */
 function GuestRoute({ component: Component }: { component: ComponentType<object> }) {
   const { role, isLoading } = useAuth();
+
+  console.log(`[GuestRoute] role=${role}, isLoading=${isLoading}`);
 
   if (isLoading) return <AuthLoading />;
   if (role === 'company') return <Redirect to="/owner-dashboard" />;
@@ -100,19 +105,34 @@ function Router() {
 // depth exceeded" and left the user staring at a blank page forever.
 // This boundary catches any such error and shows a recoverable UI.
 
-class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
+class AppErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null; componentStack: string | null }
+> {
+  state = { hasError: false, error: null as Error | null, componentStack: null as string | null };
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error('[AppErrorBoundary] Unhandled render error:', error, info.componentStack);
+    // Persist to localStorage so we can inspect after reload
+    try {
+      localStorage.setItem('tt_last_error', JSON.stringify({
+        message: error.message,
+        stack: error.stack,
+        componentStack: info.componentStack,
+        ts: new Date().toISOString(),
+      }));
+    } catch { /* ignore */ }
   }
 
   render() {
     if (this.state.hasError) {
+      const errMsg = this.state.error?.message ?? 'Unknown error';
+      const stack = this.state.error?.stack ?? '';
+      const compStack = this.state.componentStack ?? '';
       return (
         <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background gap-4 p-6">
           <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -122,8 +142,17 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
           <p className="text-sm text-muted-foreground text-center max-w-xs">
             حدث خطأ أثناء تحميل التطبيق. يرجى تحديث الصفحة للمحاولة مرة أخرى.
           </p>
+          {/* Diagnostic: show the actual error so we can identify root cause */}
+          <details className="mt-4 w-full max-w-md">
+            <summary className="text-xs text-muted-foreground cursor-pointer">
+              Error details (tap to expand)
+            </summary>
+            <pre className="mt-2 p-3 bg-muted rounded-lg text-xs text-destructive overflow-auto max-h-48 whitespace-pre-wrap break-all">
+              {errMsg}\n\nComponent Stack:\n{compStack}\n\nStack:\n{stack}
+            </pre>
+          </details>
           <button
-            onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+            onClick={() => { this.setState({ hasError: false, error: null, componentStack: null }); window.location.reload(); }}
             className="mt-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm active:scale-[0.97] transition-transform"
           >
             تحديث الصفحة
