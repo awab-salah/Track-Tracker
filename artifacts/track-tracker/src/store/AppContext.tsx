@@ -97,6 +97,18 @@ interface AppContextType {
   notificationPermission: NotificationPermission | 'unsupported';
   enableNotifications: () => Promise<void>;
   disableNotifications: () => void;
+
+  /**
+   * Whether AppContext has finished its initial bootstrap fetch.
+   * - For company owners: true once drivers/loads/sales have been fetched.
+   * - For drivers: true once the driver profile and company subscription
+   *   have been fetched.
+   * - False during the gap between auth resolving (isLoading=false) and
+   *   AppContext's bootstrap useEffect completing its async fetch.
+   *   During this gap, `drivers` may be empty even for a company that has
+   *   drivers — so "driver not found" must NOT be shown until this is true.
+   */
+  isBootstrapped: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -220,6 +232,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // the fetch completes.
   const [driverCompanySubscriptionActive, setDriverCompanySubscriptionActive] = useState(false);
 
+  // ── Bootstrap completed flag ───────────────────────────────────────────────
+  // True once the initial bootstrap fetch (company or driver) has finished.
+  // Used by DriverDetails to avoid flashing "driver not found" while the
+  // drivers[] array is still being populated.
+  const [isBootstrapped, setIsBootstrapped] = useState(false);
+
   // ── Cargo-edited-today latch ───────────────────────────────────────────────
   //
   // Latched flag: true iff the current driver has performed ANY cargo mutation
@@ -285,6 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (role !== 'company' || !authCompanyId || !authCompany) return;
     if (!isSupabaseConfigured) {
       setCompany(authCompany);
+      setIsBootstrapped(true);
       return;
     }
 
@@ -306,6 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
       setCurrentDriverId(null);
+      setIsBootstrapped(true);
 
       // Finalize yesterday's snapshot for each driver. Fire-and-forget —
       // each call is idempotent (unique constraint + ON CONFLICT DO NOTHING).
@@ -330,6 +350,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDrivers([authDriverProfile]);
       // Without Supabase, assume active so the app works in mock mode
       setDriverCompanySubscriptionActive(true);
+      setIsBootstrapped(true);
       return;
     }
 
@@ -370,6 +391,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
+      setIsBootstrapped(true);
 
       // Finalize yesterday's snapshot for this driver. Fire-and-forget —
       // idempotent. Reads current DB loads (no mutation today yet).
@@ -389,6 +411,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSales([]);
       setCurrentDriverId(null);
       setDriverCompanySubscriptionActive(false);
+      setIsBootstrapped(false);
     }
   }, [role, authLoading]);
 
@@ -973,6 +996,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notificationPermission,
         enableNotifications,
         disableNotifications,
+        isBootstrapped,
       }}
     >
       {children}
