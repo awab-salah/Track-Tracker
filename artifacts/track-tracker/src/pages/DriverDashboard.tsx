@@ -54,9 +54,8 @@ function saveActiveTab(tab: TabId): void {
 export default function DriverDashboard() {
   const [, setLocation] = useLocation();
   const { currentDriver, currentDriverId, companySubscriptionActive } = useApp();
+  const { role } = useAuth();
   const [activeTab, setActiveTabRaw] = useState<TabId>(loadActiveTab);
-
-  console.log(`[DriverDashboard] RENDER — currentDriver=${currentDriver ? currentDriver.name : 'null'}, currentDriverId=${currentDriverId ?? 'null'}`);
 
   const setActiveTab = (tab: TabId) => {
     setActiveTabRaw(tab);
@@ -70,12 +69,26 @@ export default function DriverDashboard() {
   const locationState = useLocationTracking(currentDriverId ?? null);
 
   // ── Render-loop safety ───────────────────────────────────────────────
-  // currentDriver is derived with a synchronous fallback to authDriverProfile
-  // in AppContext, so it is NEVER null for a logged-in driver. This guard
-  // only triggers if the user is not authenticated as a driver (e.g. stale
-  // session after sign-out), in which case redirecting to the auth page is
-  // correct.
+  // If the user is authenticated as a driver (role='driver') but
+  // currentDriver hasn't been populated yet (timing gap between AuthContext
+  // resolving and AppContext's bootstrap useEffect), return null instead of
+  // redirecting. Redirecting to /driver-auth while role='driver' causes
+  // GuestRoute to redirect back to /driver-dashboard, creating an infinite
+  // loop that crashes React with "Maximum update depth exceeded".
+  //
+  // Returning null is safe — React will re-render when the bootstrap
+  // useEffect populates currentDriver (which happens in the same tick or
+  // the next microtask). The user sees no flash because the AuthLoading
+  // spinner is shown by ProtectedRoute until isLoading=false, and by that
+  // point authDriverProfile is available so the currentDriver fallback
+  // in AppContext provides a non-null value.
   if (!currentDriver) {
+    if (role === 'driver') {
+      // Driver is authenticated but currentDriver not yet populated.
+      // This is a transient state — do NOT redirect.
+      return null;
+    }
+    // User is not a driver — redirect to auth page.
     return <Redirect to="/driver-auth" />;
   }
 

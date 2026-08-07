@@ -8,11 +8,13 @@ import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { InfoRow } from '@/components/InfoRow';
 import { AppInput } from '@/components/AppInput';
 import { useApp } from '@/store/AppContext';
+import { useAuth } from '@/store/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export default function DriverProfilePage() {
   const [, setLocation] = useLocation();
   const { currentDriver, updateDriverProfile, logoutDriver } = useApp();
+  const { role } = useAuth();
   const { toast } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -20,10 +22,13 @@ export default function DriverProfilePage() {
   const [editEmail, setEditEmail] = useState('');
   const [editVehicle, setEditVehicle] = useState('');
 
-  // currentDriver is derived with a synchronous fallback in AppContext,
-  // so it is never null for a logged-in driver. This guard only triggers
-  // for unauthenticated users.
+  // Same render-loop safety as DriverDashboard: if role='driver' but
+  // currentDriver is null (timing gap), return null instead of redirecting
+  // to avoid the infinite redirect loop.
   if (!currentDriver) {
+    if (role === 'driver') {
+      return null;
+    }
     return <Redirect to="/driver-auth" />;
   }
 
