@@ -26,6 +26,8 @@ import {
 import { useAuth } from '@/store/AuthContext';
 import type { CompanyProfile } from '@/types';
 import { baghdadToday } from '@/lib/dateUtils';
+import { requestFcmToken, removeFcmToken, notifySaleViaEdgeFunction } from '@/services/fcmService';
+import { registerFcmForegroundHandler, isFcmAvailable } from '@/lib/firebase';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -313,6 +315,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void Promise.all(
         remoteDrivers.map((d) => finalizeYesterdayIfNeeded(d.id))
       );
+
+      // ── Re-register FCM token on page refresh ───────────────────────
+      // If notifications were previously enabled, ensure the FCM token is
+      // still registered (tokens can rotate or expire). Fire-and-forget.
+      if (
+        notificationsEnabled &&
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        void requestFcmToken(authCompanyId).then((token) => {
+          if (token) {
+            console.info('[AppContext] FCM token re-registered after page refresh');
+          }
+        });
+      }
     })();
 
     return () => { cancelled = true; };
@@ -736,6 +754,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSales((prev) => [newSale, ...prev]);
     void createSale(newSale.id, currentDriverId, date, items, totalPrice, receiptImageUrl ?? null);
 
+    // ── Trigger FCM push notification ────────────────────────────────────
+    // Fire-and-forget: the Edge Function queries fcm_tokens and pushes to
+    // each registered device/browser for the company. This enables background
+    // (service-worker) notifications. Foreground notifications are handled
+    // by the Supabase Realtime subscription above.
+    {
+      const notifyCompanyId = role === 'company' ? authCompanyId : authDriverProfile?.companyId;
+      if (notifyCompanyId) {
+        const driver = driversRef.current.find((d) => d.id === currentDriverId);
+        void notifySaleViaEdgeFunction(
+          currentDriverId,
+          driver?.name || 'سائق',
+          totalPrice,
+          notifyCompanyId,
+        );
+      }
+    }
+
     // Per the revised midnight-logic spec, a sale IS a cargo mutation —
     // it decrements live quantities. Latch the "cargo edited today" flag
     // so the Day-2 carry-over title flips from "الحمولة المتبقية من اليوم
@@ -760,6 +796,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (permission === 'granted') {
       setNotificationsEnabled(true);
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '1');
+
+      // ── FCM token registration ──────────────────────────────────────────
+      // Register the browser's FCM push token so the Edge Function can
+      // deliver background pushes. Fire-and-forget — non-blocking.
+      if (role === 'company' && authCompanyId) {
+        void requestFcmToken(authCompanyId).then((token) => {
+          if (token) {
+            console.info('[AppContext] FCM token registered for push notifications');
+          } else {
+            console.warn('[AppContext] FCM token not obtained — background push may not work');
+          }
+        });
+      }
     } else {
       // Denied or dismissed — keep the toggle off.
       setNotificationsEnabled(false);
@@ -770,6 +819,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const disableNotifications = () => {
     setNotificationsEnabled(false);
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+    // Remove FCM token so background pushes stop.
+    void removeFcmToken();
   };
 
   // ── Sale notifications — Supabase Realtime subscription ───────────────────
@@ -806,8 +857,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
+    // ── FCM foreground message handler ────────────────────────────────────
+    // When a push arrives while the tab is in the foreground, the service
+    // worker does NOT show a notification — the onMessage callback must do it.
+    let unsubFcm: (() => void) | null = null;
+    void registerFcmForegroundHandler((payload) => {
+      const title = payload.notification?.title || 'عملية بيع جديدة';
+      const body = payload.notification?.body || 'سجّل سائق عملية بيع جديدة';
+      try {
+        new Notification(title, {
+          body,
+          icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
+          tag: `sale-fg-${Date.now()}`,
+        });
+      } catch (err) {
+        console.error('[AppContext] FCM foreground notification failed:', err);
+      }
+    }).then((unsub) => { unsubFcm = unsub ?? null; });
+
     return () => {
       void supabase.removeChannel(channel);
+      unsubFcm?.();
     };
   }, [role, authCompanyId, notificationsEnabled]);
 

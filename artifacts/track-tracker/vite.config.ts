@@ -68,6 +68,10 @@ export default defineConfig({
         navigateFallback: `${basePath}index.html`,
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        // Import the FCM service worker so it runs alongside Workbox.
+        // firebase-messaging-sw.js lives in /public and is copied to the
+        // build root by Vite. Workbox's generated SW will importScripts it.
+        importScripts: ['firebase-messaging-sw.js'],
         // DO NOT set skipWaiting or clientsClaim here.
         //
         // With registerType: 'prompt', the user explicitly chooses when to
