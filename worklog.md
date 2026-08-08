@@ -258,3 +258,27 @@ Stage Summary:
 - 4 files changed: AppContext.tsx, fcmService.ts, notify-sale/index.ts, firebase-messaging-sw.js
 - Edge Function needs manual deployment (no Supabase CLI access token)
 - Vercel deployment triggered by GitHub push (if auto-deploy is configured)
+
+---
+Task ID: 1
+Agent: main
+Task: Deploy notify-sale Edge Function and verify duplicate notification fix
+
+Work Log:
+- Deployed notify-sale Edge Function to Supabase (project qexafenusvjkyzfhtpda) using provided PAT
+- Verified deployment: Function is ACTIVE, version 15
+- Verified deployed function validates saleId (returns 400 if missing)
+- Verified frontend auto-deployed to Vercel via GitHub integration (commit 1336b65)
+- Verified deployed JS bundle contains dedup guard ("Skipping duplicate"), saleId-based tag, and data?.saleId access
+- Verified deployed service worker uses saleId-based tag and data-only message handling
+- Ran comprehensive 47-test suite: ALL PASS
+- Attempted headless browser E2E test: Notification permission denied by headless Chrome (known limitation)
+- Used Notification API override: Toggle works, but FCM Push API can't be overridden in headless mode
+- Verified Edge Function API-level behavior: saleId validation, data-only payload, CORS headers, error handling
+
+Stage Summary:
+- Edge Function deployed and verified with data-only FCM payload + saleId
+- Frontend deployed and verified with dedup guard + saleId-based tags
+- 47/47 automated tests pass
+- Headless browser can't test FCM push delivery (Push API limitation) - manual browser test needed
+- Root cause confirmed: notification key in FCM → auto-show + handler = duplicate. Fix: data-only + saleId tag + dedup Map
