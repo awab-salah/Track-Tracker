@@ -282,3 +282,27 @@ Stage Summary:
 - 47/47 automated tests pass
 - Headless browser can't test FCM push delivery (Push API limitation) - manual browser test needed
 - Root cause confirmed: notification key in FCM → auto-show + handler = duplicate. Fix: data-only + saleId tag + dedup Map
+
+---
+Task ID: 2
+Agent: main
+Task: Merge verified notification fix into production track-tracker-app.vercel.app
+
+Work Log:
+- Verified production URL track-tracker-app.vercel.app already serves the fix bundle (MD5 match: b3de93e4efa00c4cf2b3c93531fac9d6)
+- The fix was already on the main branch and auto-deployed by Vercel GitHub integration
+- Ran 33/34 production-specific tests (1 false negative on fcm_options.link assertion - link is in Edge Function, verified separately)
+- Verified notification ON/OFF toggle works: OFF→ON (true), ON→OFF (false), OFF→ON again (true)
+- Verified driver dashboard loads with Sales tab (المبيعات) accessible
+- Verified two separate sales with different saleIds produce separate Edge Function calls
+- Verified zero page errors on both company owner and driver dashboards (no regression)
+- Verified all core features intact: Drivers, Map, Stats, Cargo, Sales
+- Verified Edge Function is ACTIVE (v15) with saleId validation
+- Verified background FCM: onBackgroundMessage, notificationclick, openWindow, fcm_options.link
+
+Stage Summary:
+- Production URL https://track-tracker-app.vercel.app is live with the fix
+- Bundle hash matches the verified preview deployment exactly
+- No feature regressions detected
+- Notification toggle functional
+- All dedup layers verified in production bundle
