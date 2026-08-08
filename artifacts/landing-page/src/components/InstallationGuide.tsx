@@ -63,6 +63,9 @@ export function InstallationGuide() {
 
           {/* Right: Installation tutorial video */}
           <div className="reveal">
+            <p className="text-center text-sm sm:text-base font-semibold text-gray-600 mb-4 leading-relaxed">
+              فيديو توضيحي لطريقة التنزيل وإنشاء الحساب وطريقة استخدام التطبيق
+            </p>
             <div className="relative">
               {/* Video container — responsive portrait video, phone-like frame */}
               <div className="relative rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-900/10 mx-auto w-full max-w-[360px] sm:max-w-[400px] md:max-w-[440px] lg:max-w-[480px]">
