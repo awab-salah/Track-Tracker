@@ -31,15 +31,28 @@ let currentFcmToken: string | null = null;
 export async function requestFcmToken(companyId: string): Promise<string | null> {
   const fcmAvailable = await isFcmAvailable();
   if (!fcmAvailable || !messaging || !isSupabaseConfigured || !companyId) {
+    console.warn('[fcmService] requestFcmToken skipped:', {
+      fcmAvailable,
+      hasMessaging: !!messaging,
+      isSupabaseConfigured,
+      hasCompanyId: !!companyId,
+    });
     return null;
   }
 
   try {
+    // Wait for the service worker to be ready before requesting a token.
+    // Without this, getToken() may fail because no SW is registered yet
+    // (especially on first page load before the PWA SW installs).
+    await navigator.serviceWorker.ready;
+
     const token = await getFcmToken(messaging, { vapidKey: VAPID_KEY });
     if (!token) {
       console.warn('[fcmService] getToken returned empty — push subscription failed.');
       return null;
     }
+
+    console.log('[fcmService] FCM token obtained, persisting to fcm_tokens for company', companyId);
 
     // Persist to Supabase. Use upsert-like logic: insert if not exists,
     // ignore on conflict (unique constraint on company_id + token).
@@ -54,6 +67,8 @@ export async function requestFcmToken(companyId: string): Promise<string | null>
       console.error('[fcmService] Failed to persist FCM token:', error.message);
       // Still return the token — it's valid for foreground messaging even
       // if the DB write failed. The Edge Function just won't find it.
+    } else {
+      console.log('[fcmService] FCM token persisted to fcm_tokens successfully');
     }
 
     currentFcmToken = token;
@@ -126,16 +141,27 @@ export async function notifySaleViaEdgeFunction(
   totalPrice: number,
   companyId: string
 ): Promise<void> {
-  const fcmAvailable = await isFcmAvailable();
-  if (!fcmAvailable || !isSupabaseConfigured || !companyId) return;
+  // NOTE: We do NOT check isFcmAvailable() here.
+  // The driver's browser doesn't need FCM — only the company owner does.
+  // The Edge Function will look up the company's FCM tokens server-side.
+  // Checking isFcmAvailable() on the driver's browser would incorrectly
+  // block the notification when the driver hasn't granted notification
+  // permission (which they don't need to do).
+  if (!isSupabaseConfigured || !companyId) {
+    console.warn('[fcmService] notify-sale skipped: Supabase not configured or companyId missing');
+    return;
+  }
 
   try {
+    console.log('[fcmService] Invoking notify-sale Edge Function for company', companyId);
     const { error } = await supabase.functions.invoke('notify-sale', {
       body: { driverId, driverName, totalPrice, companyId },
     });
 
     if (error) {
       console.error('[fcmService] notify-sale Edge Function error:', error.message);
+    } else {
+      console.log('[fcmService] notify-sale Edge Function invoked successfully');
     }
   } catch (err) {
     console.error('[fcmService] notifySaleViaEdgeFunction error:', err);

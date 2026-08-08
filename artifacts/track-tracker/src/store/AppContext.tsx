@@ -782,12 +782,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Only drivers create sales, so we use authDriverProfile.companyId.
     if (authDriverProfile?.companyId) {
       const driverName = authDriverProfile.name || 'سائق';
+      console.log('[AppContext] Sale created, invoking notify-sale for company', authDriverProfile.companyId);
       void notifySaleViaEdgeFunction(
         currentDriverId,
         driverName,
         totalPrice,
         authDriverProfile.companyId
       );
+    } else {
+      console.warn('[AppContext] Cannot notify company: authDriverProfile.companyId is missing');
     }
 
     // Per the revised midnight-logic spec, a sale IS a cargo mutation —
@@ -817,17 +820,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // ── FCM: register push token ───────────────────────────────────────
       // After permission is granted, also request an FCM token for push
-      // notifications when the app is in the background. Fire-and-forget —
-      // the existing Realtime subscription handles foreground notifications.
+      // notifications when the app is in the background.
       if (authCompanyId) {
-        void requestFcmToken(authCompanyId).then((token) => {
-          if (token) {
-            fcmTokenRef.current = token;
-          }
-        });
+        console.log('[AppContext] Notification permission granted, registering FCM token for company', authCompanyId);
+        const token = await requestFcmToken(authCompanyId);
+        if (token) {
+          fcmTokenRef.current = token;
+          console.log('[AppContext] FCM token registered successfully');
+        } else {
+          console.warn('[AppContext] FCM token registration failed — background push will not work. Foreground (Realtime) notifications will still work.');
+        }
+      } else {
+        console.warn('[AppContext] Cannot register FCM token: authCompanyId is null');
       }
     } else {
       // Denied or dismissed — keep the toggle off.
+      console.warn('[AppContext] Notification permission not granted:', permission);
       setNotificationsEnabled(false);
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
     }
@@ -883,6 +891,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       void supabase.removeChannel(channel);
     };
+  }, [role, authCompanyId, notificationsEnabled]);
+
+  // ── FCM: re-register push token on page load ────────────────────────────────
+  // When the company owner refreshes the page (or returns later), the
+  // notificationsEnabled flag is restored from localStorage, but the FCM
+  // push token is NOT re-registered because enableNotifications() is only
+  // called when the user clicks the toggle. Without this effect, background
+  // push notifications silently break on every page refresh because no
+  // token exists in the fcm_tokens table for the Edge Function to find.
+  useEffect(() => {
+    if (role !== 'company' || !authCompanyId) return;
+    if (!notificationsEnabled) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    // Re-register the FCM token (idempotent — upsert with onConflict).
+    // This ensures the token is always in the DB even after a page refresh.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await requestFcmToken(authCompanyId);
+        if (cancelled) return;
+        if (token) {
+          fcmTokenRef.current = token;
+          console.log('[AppContext] FCM token re-registered on page load');
+        } else {
+          console.warn('[AppContext] FCM token registration returned null — push notifications may not work in background');
+        }
+      } catch (err) {
+        console.error('[AppContext] FCM token re-registration failed:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [role, authCompanyId, notificationsEnabled]);
 
   // ── FCM foreground message listener ────────────────────────────────────────
