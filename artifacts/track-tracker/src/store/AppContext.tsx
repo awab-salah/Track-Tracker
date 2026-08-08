@@ -855,9 +855,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Sale notifications — Supabase Realtime subscription ───────────────────
-  // Fires a Web Notification the instant any driver in this company records a
-  // new sale. Active only while: signed in as the company owner, the toggle is
-  // on, and the browser permission is actually granted.
+  // Keeps the channel open so that future features (e.g. auto-refreshing the
+  // sales list) can use it, but does NOT display a notification here.
+  // FCM (foreground onMessage + background service worker) now handles all
+  // sale notifications. Previously this Realtime handler also called
+  // new Notification(), which caused duplicate notifications when FCM was
+  // enabled — the same sale would trigger both this Realtime notification
+  // AND the FCM onMessage notification.
   useEffect(() => {
     if (role !== 'company' || !authCompanyId) return;
     if (!isSupabaseConfigured || !notificationsEnabled) return;
@@ -868,22 +872,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'sales' },
-        (payload) => {
-          const row = payload.new as { driver_id: string; total_price: number };
-          // sales has no company_id column — filter client-side against this
-          // company's known driver ids (kept fresh via driversRef).
-          const driver = driversRef.current.find((d) => d.id === row.driver_id);
-          if (!driver) return;
-
-          try {
-            new Notification('عملية بيع جديدة', {
-              body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(row.total_price)}`,
-              icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
-              tag: `sale-${row.driver_id}-${Date.now()}`,
-            });
-          } catch (err) {
-            console.error('[AppContext] Failed to display sale notification:', err);
-          }
+        () => {
+          // Intentionally not showing a notification here.
+          // FCM handles both foreground (onMessage) and background
+          // (service worker) sale notifications. This Realtime channel
+          // is kept open for potential future use (e.g. sales list refresh).
         },
       )
       .subscribe();
@@ -947,9 +940,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       try {
         unsubscribe = onMessage(messaging, (payload) => {
-          const title = payload.data?.title || 'عملية بيع جديدة';
-          const body = payload.data?.body || '';
-          const icon = payload.data?.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
+          // FCM messages with a `notification` key put title/body under
+          // payload.notification; data-only messages put them under payload.data.
+          // Handle both cases.
+          const title = payload.notification?.title || payload.data?.title || 'عملية بيع جديدة';
+          const body = payload.notification?.body || payload.data?.body || '';
+          const icon = payload.notification?.icon || payload.data?.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
 
           try {
             new Notification(title, {

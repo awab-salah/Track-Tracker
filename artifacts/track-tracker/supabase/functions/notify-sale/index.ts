@@ -101,7 +101,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJson);
-    const accessToken = await getGoogleAccessToken(serviceAccount);
+    console.log('[notify-sale] Service account parsed. project_id:', serviceAccount.project_id);
+
+    let accessToken: string;
+    try {
+      accessToken = await getGoogleAccessToken(serviceAccount);
+      console.log('[notify-sale] Google access token obtained successfully');
+    } catch (tokenErr) {
+      console.error('[notify-sale] Failed to get Google access token:', tokenErr);
+      return new Response(JSON.stringify({ error: 'Failed to get Google access token', detail: String(tokenErr) }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // ── 3. Send FCM push to each token ──────────────────────────────────────
     const projectId = serviceAccount.project_id;
@@ -113,6 +125,7 @@ Deno.serve(async (req: Request) => {
 
     let sentCount = 0;
     const failedTokens: string[] = [];
+    const sendErrors: string[] = [];
 
     // Send to all tokens in parallel (but don't block on failures)
     const sendPromises = tokens.map(async (token) => {
@@ -126,20 +139,28 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             message: {
               token,
-              // Use BOTH notification and data keys.
-              // - notification: enables the service worker's onBackgroundMessage()
-              //   to auto-show a notification when the app is in the background
-              // - data: carries custom fields for the notificationclick handler
-              //   and the foreground onMessage() handler
+              // FCM HTTP v1 API notification object only supports title/body/image.
+              // 'icon' is NOT valid here — it causes a 400 INVALID_ARGUMENT.
+              // The icon is set via webpush.fcm_options or handled by the
+              // service worker's onBackgroundMessage handler instead.
               notification: {
                 title: pushTitle,
                 body: pushBody,
-                icon: pushIcon,
               },
               data: {
                 driverId,
                 companyId,
                 type: 'sale',
+                icon: pushIcon,
+              },
+              // webpush options for browser-specific notification customization
+              webpush: {
+                notification: {
+                  icon: pushIcon,
+                },
+                fcm_options: {
+                  link: '/',
+                },
               },
             },
           }),
@@ -147,9 +168,12 @@ Deno.serve(async (req: Request) => {
 
         if (response.ok) {
           sentCount++;
+          console.log('[notify-sale] FCM push succeeded for token', token.substring(0, 10));
         } else {
           const errorBody = await response.text();
-          console.error(`[notify-sale] FCM push failed for token ${token.substring(0, 10)}...:`, errorBody);
+          const errSummary = `token ${token.substring(0, 10)}... status=${response.status} body=${errorBody.substring(0, 200)}`;
+          console.error(`[notify-sale] FCM push failed: ${errSummary}`);
+          sendErrors.push(errSummary);
 
           // If FCM says the token is invalid/unregistered, mark it for cleanup
           if (response.status === 404 || errorBody.includes('UNREGISTERED') || errorBody.includes('invalid-registration-token')) {
@@ -157,7 +181,9 @@ Deno.serve(async (req: Request) => {
           }
         }
       } catch (err) {
-        console.error(`[notify-sale] FCM push error for token ${token.substring(0, 10)}...:`, err);
+        const errSummary = `token ${token.substring(0, 10)}... exception=${String(err)}`;
+        console.error(`[notify-sale] FCM push error: ${errSummary}`);
+        sendErrors.push(errSummary);
       }
     });
 
@@ -175,7 +201,11 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ sent: sentCount, total: tokens.length }), {
+    const result: Record<string, unknown> = { sent: sentCount, total: tokens.length };
+    if (sendErrors.length > 0) {
+      result.errors = sendErrors;
+    }
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
