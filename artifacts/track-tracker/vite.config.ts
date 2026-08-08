@@ -68,6 +68,11 @@ export default defineConfig({
         navigateFallback: `${basePath}index.html`,
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        // Import the Firebase messaging service worker so it can handle
+        // background push messages from FCM. The Workbox-generated SW
+        // will importScripts this file, which registers 'push' and
+        // 'notificationclick' event listeners.
+        importScripts: ['firebase-messaging-sw.js'],
         // DO NOT set skipWaiting or clientsClaim here.
         //
         // With registerType: 'prompt', the user explicitly chooses when to
