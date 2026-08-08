@@ -784,6 +784,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const driverName = authDriverProfile.name || 'سائق';
       console.log('[AppContext] Sale created, invoking notify-sale for company', authDriverProfile.companyId);
       void notifySaleViaEdgeFunction(
+        newSale.id,
         currentDriverId,
         driverName,
         totalPrice,
@@ -922,9 +923,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── FCM foreground message listener ────────────────────────────────────────
   // When a push message arrives while the app is in the foreground, FCM
-  // does NOT auto-show a notification (unlike background push, which the
-  // service worker handles). We listen via `onMessage` and show a
-  // Notification manually — consistent with the existing Realtime handler.
+  // does NOT auto-show a notification (data-only messages never auto-show).
+  // We listen via `onMessage` and show a Notification manually, using the
+  // saleId from payload.data as the notification tag for browser-level dedup.
+  //
+  // Deduplication: a Map of sale ID → notify-timestamp prevents duplicate
+  // notifications even if FCM re-delivers the same message (e.g. on
+  // reconnect). Entries older than 5 minutes are pruned to bound memory.
+  const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
+
   useEffect(() => {
     if (role !== 'company' || !notificationsEnabled) return;
     if (getNotificationPermission() !== 'granted') return;
@@ -940,18 +947,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       try {
         unsubscribe = onMessage(messaging, (payload) => {
-          // FCM messages with a `notification` key put title/body under
-          // payload.notification; data-only messages put them under payload.data.
-          // Handle both cases.
+          // Data-only messages: title/body/icon are in payload.data.
+          // (We no longer send a `notification` key from the Edge Function,
+          //  but handle it defensively in case of legacy messages.)
+          const saleId = (payload.data?.saleId as string) || '';
           const title = payload.notification?.title || payload.data?.title || 'عملية بيع جديدة';
           const body = payload.notification?.body || payload.data?.body || '';
           const icon = payload.notification?.icon || payload.data?.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
+
+          // ── Dedup guard ──
+          // If we already notified for this sale, skip. Also prune stale
+          // entries (older than 5 minutes) to prevent unbounded growth.
+          const now = Date.now();
+          const DEDUP_TTL = 5 * 60 * 1000;
+          const dedupMap = notifiedSaleIdsRef.current;
+
+          if (saleId && dedupMap.has(saleId)) {
+            console.log('[AppContext] Skipping duplicate FCM notification for sale:', saleId);
+            return;
+          }
+
+          // Prune stale entries.
+          for (const [id, ts] of dedupMap) {
+            if (now - ts > DEDUP_TTL) dedupMap.delete(id);
+          }
+
+          if (saleId) dedupMap.set(saleId, now);
 
           try {
             new Notification(title, {
               body,
               icon,
-              tag: `fcm-sale-${Date.now()}`,
+              // Use saleId in the tag for browser-level dedup: if a
+              // notification with the same tag is already visible, the
+              // browser replaces it instead of showing a second one.
+              tag: saleId ? `sale-${saleId}` : `sale-${Date.now()}`,
             });
           } catch (err) {
             console.error('[AppContext] Failed to display FCM foreground notification:', err);

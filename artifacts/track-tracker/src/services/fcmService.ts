@@ -130,12 +130,14 @@ export async function removeFcmToken(companyId: string): Promise<void> {
  * persisted. It's fire-and-forget — the sale is already saved; the
  * push notification is a best-effort add-on.
  *
- * @param driverId — the UUID of the driver who made the sale
+ * @param saleId    — the UUID of the sale (used for dedup via notification tag)
+ * @param driverId  — the UUID of the driver who made the sale
  * @param driverName — the driver's display name (for the notification body)
  * @param totalPrice — the total sale price in IQD
  * @param companyId — the UUID of the company to notify
  */
 export async function notifySaleViaEdgeFunction(
+  saleId: string,
   driverId: string,
   driverName: string,
   totalPrice: number,
@@ -155,7 +157,7 @@ export async function notifySaleViaEdgeFunction(
   try {
     console.log('[fcmService] Invoking notify-sale Edge Function for company', companyId);
     const { error } = await supabase.functions.invoke('notify-sale', {
-      body: { driverId, driverName, totalPrice, companyId },
+      body: { saleId, driverId, driverName, totalPrice, companyId },
     });
 
     if (error) {

@@ -33,9 +33,12 @@ const messaging = firebase.messaging();
 
 // Background message handler — shows a system notification.
 // This is called when a push message arrives while the app is in the background.
+// The Edge Function sends data-only messages (no `notification` key), so we
+// construct the notification manually from payload.data.
 messaging.onBackgroundMessage((payload) => {
-  // FCM data-only messages have data under payload.data
-  // Notification messages have data under payload.notification
+  // Data-only messages: all fields are in payload.data.
+  // (Legacy notification-key messages: title/body also in payload.notification.)
+  const saleId = payload.data?.saleId || '';
   const title = payload.notification?.title || payload.data?.title || 'عملية بيع جديدة';
   const body = payload.notification?.body || payload.data?.body || 'سجّل سائق عملية بيع جديدة';
   const icon = payload.notification?.icon || payload.data?.icon || '/icons/icon-192.png';
@@ -43,8 +46,11 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(title, {
     body,
     icon,
-    // Use a unique tag so each sale gets its own notification
-    tag: 'sale-' + Date.now(),
+    // Use saleId in the tag for browser-level dedup: if a notification with
+    // the same tag is already visible, the browser replaces it instead of
+    // showing a second one. This prevents duplicate notifications for the
+    // same sale (e.g., if FCM re-delivers the message).
+    tag: saleId ? 'sale-' + saleId : 'sale-' + Date.now(),
     data: payload.data,
   });
 });

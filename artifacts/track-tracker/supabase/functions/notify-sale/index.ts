@@ -24,6 +24,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface NotifySaleRequest {
+  saleId: string;
   driverId: string;
   driverName: string;
   totalPrice: number;
@@ -66,9 +67,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body: NotifySaleRequest = await req.json();
-    const { driverId, driverName, totalPrice, companyId } = body;
+    const { saleId, driverId, driverName, totalPrice, companyId } = body;
 
-    if (!driverId || !driverName || totalPrice === undefined || !companyId) {
+    if (!saleId || !driverId || !driverName || totalPrice === undefined || !companyId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -136,6 +137,13 @@ Deno.serve(async (req: Request) => {
     const pushBody = `${driverName} سجّل عملية بيع بقيمة ${totalPrice}`;
     const pushIcon = '/icons/icon-192.png';
 
+    // We send a DATA-ONLY message (no top-level `notification` key).
+    // This prevents the browser from auto-showing a notification, which
+    // would duplicate the one created by the onMessage / onBackgroundMessage
+    // handler. Both foreground and background handlers construct the
+    // notification manually from payload.data, using saleId in the tag
+    // for browser-level dedup.
+
     let sentCount = 0;
     const failedTokens: string[] = [];
     const sendErrors: string[] = [];
@@ -152,25 +160,21 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             message: {
               token,
-              // FCM HTTP v1 API notification object only supports title/body/image.
-              // 'icon' is NOT valid here — it causes a 400 INVALID_ARGUMENT.
-              // The icon is set via webpush.fcm_options or handled by the
-              // service worker's onBackgroundMessage handler instead.
-              notification: {
-                title: pushTitle,
-                body: pushBody,
-              },
+              // DATA-ONLY message — no top-level `notification` key.
+              // Both foreground (onMessage) and background (onBackgroundMessage)
+              // handlers construct the notification manually from payload.data.
+              // This eliminates the auto-show duplicate that occurs when FCM
+              // receives a message with a `notification` key.
               data: {
+                saleId,
                 driverId,
                 companyId,
                 type: 'sale',
+                title: pushTitle,
+                body: pushBody,
                 icon: pushIcon,
               },
-              // webpush options for browser-specific notification customization
               webpush: {
-                notification: {
-                  icon: pushIcon,
-                },
                 fcm_options: {
                   link: '/',
                 },
