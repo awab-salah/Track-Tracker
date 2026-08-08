@@ -126,13 +126,20 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             message: {
               token,
-              data: {
+              // Use BOTH notification and data keys.
+              // - notification: enables the service worker's onBackgroundMessage()
+              //   to auto-show a notification when the app is in the background
+              // - data: carries custom fields for the notificationclick handler
+              //   and the foreground onMessage() handler
+              notification: {
                 title: pushTitle,
                 body: pushBody,
                 icon: pushIcon,
-                // Include driver info for potential future use
+              },
+              data: {
                 driverId,
                 companyId,
+                type: 'sale',
               },
             },
           }),

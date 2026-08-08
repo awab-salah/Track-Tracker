@@ -6,49 +6,62 @@
  * It handles push messages from FCM when the app is not in the
  * foreground (browser tab closed or minimized).
  *
+ * IMPORTANT: We use the Firebase compat SDK's onBackgroundMessage()
+ * instead of a raw push event listener. This is required for the
+ * foreground onMessage() handler in AppContext to work correctly.
+ * Without this, FCM foreground messages won't be delivered.
+ *
  * This MUST be plain JS (no TypeScript, no ESM imports) because it runs
  * inside the service worker context and is loaded via importScripts.
  */
 
-// ── Handle incoming push messages ─────────────────────────────────────────────
-self.addEventListener('push', function(event) {
-  var payload;
-  try {
-    payload = event.data ? event.data.json() : null;
-  } catch (e) {
-    payload = null;
-  }
-  if (!payload) return;
+// Import Firebase compat SDK for service worker
+importScripts('https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.17.1/firebase-messaging-compat.js');
 
-  // FCM HTTP v1 API sends the data payload under `payload.data`
-  var data = payload.data || {};
-  var title = data.title || 'عملية بيع جديدة';
-  var body = data.body || '';
-  var icon = data.icon || '/icons/icon-192.png';
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body: body,
-      icon: icon,
-      // Use a unique tag so each sale gets its own notification
-      // (instead of replacing the previous one).
-      tag: 'sale-' + Date.now()
-    })
-  );
+// Initialize Firebase in the service worker.
+// These values come from the Firebase project console — they are public (not secret).
+firebase.initializeApp({
+  apiKey: 'AIzaSyC-0D4K-Rzq3jdWjkduWCihlD1rSb_BqQI',
+  authDomain: 'track-tracker-ca74a.firebaseapp.com',
+  projectId: 'track-tracker-ca74a',
+  messagingSenderId: '659715394517',
+  appId: '1:659715394517:web:5e02f9a2e7541f92a68b5c',
 });
 
-// ── Handle notification click ─────────────────────────────────────────────────
-// When the user clicks the notification, focus or open the app.
-self.addEventListener('notificationclick', function(event) {
+const messaging = firebase.messaging();
+
+// Background message handler — shows a system notification.
+// This is called when a push message arrives while the app is in the background.
+messaging.onBackgroundMessage((payload) => {
+  // FCM data-only messages have data under payload.data
+  // Notification messages have data under payload.notification
+  const title = payload.notification?.title || payload.data?.title || 'عملية بيع جديدة';
+  const body = payload.notification?.body || payload.data?.body || 'سجّل سائق عملية بيع جديدة';
+  const icon = payload.notification?.icon || payload.data?.icon || '/icons/icon-192.png';
+
+  self.registration.showNotification(title, {
+    body,
+    icon,
+    // Use a unique tag so each sale gets its own notification
+    tag: 'sale-' + Date.now(),
+    data: payload.data,
+  });
+});
+
+// Handle notification click — focus or open the app.
+self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
-      // If the app is already open in a tab, focus it.
-      if (windowClients.length > 0) {
-        return windowClients[0].focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window client is already open, focus it.
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
       }
-      // Otherwise, open a new tab.
+      // Otherwise open a new window.
       return self.clients.openWindow('/');
     })
   );
