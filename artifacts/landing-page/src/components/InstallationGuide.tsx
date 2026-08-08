@@ -1,4 +1,4 @@
-import { Smartphone, Globe, Share, CheckCircle2, Download } from 'lucide-react';
+import { Globe, Share, CheckCircle2, Download } from 'lucide-react';
 
 const STEPS = [
   {
@@ -61,22 +61,21 @@ export function InstallationGuide() {
             </div>
           </div>
 
-          {/* Right: Visual mockup */}
+          {/* Right: Installation tutorial video */}
           <div className="reveal">
             <div className="relative">
-              {/* Phone mockup */}
-              <div className="relative bg-gray-900 rounded-[2.5rem] p-4 shadow-2xl max-w-[280px] mx-auto">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-gray-900 rounded-b-xl z-10" />
-                <div className="bg-gradient-to-br from-teal-700 to-teal-900 rounded-[2rem] aspect-[9/19.5] flex flex-col items-center justify-center gap-4 p-6">
-                  <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                    <Smartphone size={32} className="text-white/60" />
-                  </div>
-                  <p className="text-white/80 font-bold text-sm text-center">TrackTracker</p>
-                  <p className="text-white/40 text-xs text-center">اضغط "إضافة إلى الشاشة الرئيسية"</p>
-                  <div className="mt-4 px-4 py-2 bg-white/10 rounded-xl">
-                    <p className="text-white/60 text-xs font-medium">⬆ إضافة إلى الشاشة الرئيسية</p>
-                  </div>
-                </div>
+              {/* Video container — responsive, respects section bounds */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl mx-auto w-full max-w-[400px] lg:max-w-none">
+                <video
+                  className="w-full h-auto rounded-2xl object-contain bg-gray-900"
+                  controls
+                  preload="metadata"
+                  poster="/icons/logo.png"
+                  playsInline
+                >
+                  <source src="/installation-guide.mp4" type="video/mp4" />
+                  متصفحك لا يدعم تشغيل الفيديو.
+                </video>
               </div>
 
               {/* Decorative elements */}

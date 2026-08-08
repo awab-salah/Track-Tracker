@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SCREENSHOTS = [
   {
@@ -146,19 +146,7 @@ export function ScreenshotCarousel() {
           ))}
         </div>
 
-        {/* Video placeholder */}
-        <div className="reveal mt-16 max-w-3xl mx-auto">
-          <div className="relative bg-gray-900 rounded-2xl aspect-video flex items-center justify-center overflow-hidden shadow-xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-800/50 to-gray-900/80" />
-            <div className="relative text-center z-10">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 mx-auto cursor-pointer hover:bg-white/30 transition-colors">
-                <Play size={28} className="text-white mr-[-2px]" />
-              </div>
-              <p className="text-white/70 font-medium">فيديو شرح التثبيت</p>
-              <p className="text-white/40 text-sm mt-1">قريبًا</p>
-            </div>
-          </div>
-        </div>
+
       </div>
     </section>
   );
