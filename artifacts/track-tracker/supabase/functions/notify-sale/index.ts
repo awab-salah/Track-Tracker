@@ -43,11 +43,24 @@ interface FcmTokenRow {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  // ── CORS ──────────────────────────────────────────────────────────────────
+  // The Edge Function is invoked cross-origin from the deployed Vercel app.
+  // Without CORS headers, the browser blocks the request (Failed to fetch).
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
+  // Handle CORS preflight (OPTIONS) request
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   // Only accept POST
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 
@@ -58,7 +71,7 @@ Deno.serve(async (req: Request) => {
     if (!driverId || !driverName || totalPrice === undefined || !companyId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -77,7 +90,7 @@ Deno.serve(async (req: Request) => {
       console.error('[notify-sale] Failed to query fcm_tokens:', dbError.message);
       return new Response(JSON.stringify({ error: 'Database query failed' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -86,7 +99,7 @@ Deno.serve(async (req: Request) => {
       // No devices registered — nothing to push to. Not an error.
       return new Response(JSON.stringify({ sent: 0 }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -96,7 +109,7 @@ Deno.serve(async (req: Request) => {
       console.error('[notify-sale] FIREBASE_SERVICE_ACCOUNT env var is missing');
       return new Response(JSON.stringify({ error: 'Firebase not configured' }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -111,7 +124,7 @@ Deno.serve(async (req: Request) => {
       console.error('[notify-sale] Failed to get Google access token:', tokenErr);
       return new Response(JSON.stringify({ error: 'Failed to get Google access token', detail: String(tokenErr) }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -207,13 +220,13 @@ Deno.serve(async (req: Request) => {
     }
     return new Response(JSON.stringify(result), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (err) {
     console.error('[notify-sale] Unexpected error:', err);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 });
