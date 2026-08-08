@@ -1,4 +1,4 @@
-import { Smartphone, Globe, Share, CheckCircle2, Download } from 'lucide-react';
+import { Globe, Share, CheckCircle2, Download } from 'lucide-react';
 
 const STEPS = [
   {
@@ -29,7 +29,7 @@ const STEPS = [
 
 export function InstallationGuide() {
   return (
-    <section id="installation" className="section-padding bg-gray-50">
+    <section id="installation" className="section-padding bg-gray-50 overflow-x-clip">
       <div className="container-max">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left: Text content */}
@@ -61,27 +61,26 @@ export function InstallationGuide() {
             </div>
           </div>
 
-          {/* Right: Visual mockup */}
+          {/* Right: Installation tutorial video */}
           <div className="reveal">
             <div className="relative">
-              {/* Phone mockup */}
-              <div className="relative bg-gray-900 rounded-[2.5rem] p-4 shadow-2xl max-w-[280px] mx-auto">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-gray-900 rounded-b-xl z-10" />
-                <div className="bg-gradient-to-br from-teal-700 to-teal-900 rounded-[2rem] aspect-[9/19.5] flex flex-col items-center justify-center gap-4 p-6">
-                  <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                    <Smartphone size={32} className="text-white/60" />
-                  </div>
-                  <p className="text-white/80 font-bold text-sm text-center">TrackTracker</p>
-                  <p className="text-white/40 text-xs text-center">اضغط "إضافة إلى الشاشة الرئيسية"</p>
-                  <div className="mt-4 px-4 py-2 bg-white/10 rounded-xl">
-                    <p className="text-white/60 text-xs font-medium">⬆ إضافة إلى الشاشة الرئيسية</p>
-                  </div>
-                </div>
+              {/* Video container — responsive portrait video, phone-like frame */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-900/10 mx-auto w-full max-w-[360px] sm:max-w-[400px] md:max-w-[440px] lg:max-w-[480px]">
+                <video
+                  className="w-full h-auto block"
+                  controls
+                  preload="metadata"
+                  poster="/icons/logo.png"
+                  playsInline
+                >
+                  <source src="/installation-guide.mp4" type="video/mp4" />
+                  متصفحك لا يدعم تشغيل الفيديو.
+                </video>
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute -top-4 -left-4 w-24 h-24 bg-orange-100 rounded-2xl -z-10" />
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-teal-100 rounded-2xl -z-10" />
+              <div className="absolute -top-3 -left-3 w-20 h-20 bg-orange-100 rounded-2xl -z-10" />
+              <div className="absolute -bottom-3 -right-3 w-24 h-24 bg-teal-100 rounded-2xl -z-10" />
             </div>
           </div>
         </div>
