@@ -271,6 +271,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     driversRef.current = drivers;
   }, [drivers]);
 
+  // In-memory dedup for sale notifications — prevents duplicate Realtime
+  // deliveries (e.g. on reconnect) from showing the same sale twice.
+  const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
+
   // ── Dark mode ──────────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -787,18 +791,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'sales' },
         (payload) => {
-          const row = payload.new as { driver_id: string; total_price: number };
+          const row = payload.new as { id: string; driver_id: string; total_price: number };
           // sales has no company_id column — filter client-side against this
           // company's known driver ids (kept fresh via driversRef).
           const driver = driversRef.current.find((d) => d.id === row.driver_id);
           if (!driver) return;
 
+          // Dedup guard: skip if we already notified for this sale within 5 min
+          const saleId = row.id || '';
+          const now = Date.now();
+          const DEDUP_TTL = 5 * 60 * 1000;
+          const dedupMap = notifiedSaleIdsRef.current;
+          if (saleId && dedupMap.has(saleId)) {
+            console.log('[AppContext] Skipping duplicate Realtime notification for sale:', saleId);
+            return;
+          }
+          // Expire old entries
+          for (const [id, ts] of dedupMap) {
+            if (now - ts > DEDUP_TTL) dedupMap.delete(id);
+          }
+          if (saleId) dedupMap.set(saleId, now);
+
+          const title = 'عملية بيع جديدة';
+          const options: NotificationOptions = {
+            body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(row.total_price)}`,
+            icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
+            tag: saleId ? `sale-${saleId}` : `sale-${Date.now()}`,
+          };
+
           try {
-            new Notification('عملية بيع جديدة', {
-              body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(row.total_price)}`,
-              icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
-              tag: `sale-${row.driver_id}-${Date.now()}`,
-            });
+            // Use Service Worker showNotification() when available — produces a
+            // single "TrackTracker"-branded notification instead of a "Chrome" one
+            // plus a SW-intercepted one (the cause of duplicates in PWAs).
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+              navigator.serviceWorker.ready.then((reg) => {
+                reg.showNotification(title, options);
+              }).catch((err) => {
+                console.error('[AppContext] SW showNotification failed, falling back:', err);
+                new Notification(title, options);
+              });
+            } else {
+              // No active SW (non-PWA context) — fall back to direct API
+              new Notification(title, options);
+            }
           } catch (err) {
             console.error('[AppContext] Failed to display sale notification:', err);
           }
