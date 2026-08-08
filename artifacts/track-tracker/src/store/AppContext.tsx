@@ -26,6 +26,13 @@ import {
 import { useAuth } from '@/store/AuthContext';
 import type { CompanyProfile } from '@/types';
 import { baghdadToday } from '@/lib/dateUtils';
+import { messaging, isFcmAvailable } from '@/lib/firebase';
+import { onMessage } from 'firebase/messaging';
+import {
+  requestFcmToken,
+  removeFcmToken,
+  notifySaleViaEdgeFunction,
+} from '@/services/fcmService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -289,6 +296,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     driversRef.current = drivers;
   }, [drivers]);
 
+  // ── FCM token ref ────────────────────────────────────────────────────────
+  // Stores the current FCM token so we can clean it up on disable/logout.
+  const fcmTokenRef = useRef<string | null>(null);
+
   // ── Dark mode ──────────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -545,6 +556,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Auth actions ──────────────────────────────────────────────────────────
 
   const logout = () => {
+    // ── FCM: clean up push token on company logout ───────────────────────
+    if (authCompanyId) {
+      void removeFcmToken(authCompanyId);
+      fcmTokenRef.current = null;
+    }
     void signOut().then(() => setLocation('/'));
   };
 
@@ -580,35 +596,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
 
     setLoads((prev) => {
-      // ── Bug 1 fix: When editing (input.id provided), find by ID, not name ──
-      // Editing should update the existing record including productName changes.
-      // Only use name-based matching when adding a NEW item (no input.id) to
-      // merge quantities for the same product.
-      let existingIdx = -1;
-
-      if (input.id) {
-        // Editing: find the item by its unique ID
-        existingIdx = prev.findIndex(
-          (l) => l.id === input.id && l.driverId === currentDriverId
-        );
-      } else {
-        // Adding new: merge by product name (same product → add qty)
-        existingIdx = prev.findIndex(
-          (l) =>
-            l.driverId === currentDriverId &&
-            l.productName.trim().toLowerCase() === productName.toLowerCase()
-        );
-      }
+      const existingIdx = prev.findIndex(
+        (l) =>
+          l.driverId === currentDriverId &&
+          l.productName.trim().toLowerCase() === productName.toLowerCase()
+      );
 
       if (existingIdx !== -1) {
         const updated = [...prev];
-        // When editing (found by ID), also update productName in case it changed
-        const existing = {
-          ...updated[existingIdx],
-          productName: input.id ? productName : updated[existingIdx].productName,
-          quantity: input.quantity,
-          unitPrice: input.unitPrice,
-        };
+        const existing = { ...updated[existingIdx], quantity: input.quantity, unitPrice: input.unitPrice };
         updated[existingIdx] = existing;
 
         void dbUpsertLoad({
@@ -779,6 +775,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSales((prev) => [newSale, ...prev]);
     void createSale(newSale.id, currentDriverId, date, items, totalPrice, receiptImageUrl ?? null);
 
+    // ── FCM: notify company owner via Edge Function ───────────────────────
+    // Fire-and-forget. The sale is already persisted locally and to Supabase.
+    // The push notification is a best-effort add-on that ensures the company
+    // owner gets notified even if their browser tab is closed.
+    // Only drivers create sales, so we use authDriverProfile.companyId.
+    if (authDriverProfile?.companyId) {
+      const driverName = authDriverProfile.name || 'سائق';
+      void notifySaleViaEdgeFunction(
+        currentDriverId,
+        driverName,
+        totalPrice,
+        authDriverProfile.companyId
+      );
+    }
+
     // Per the revised midnight-logic spec, a sale IS a cargo mutation —
     // it decrements live quantities. Latch the "cargo edited today" flag
     // so the Day-2 carry-over title flips from "الحمولة المتبقية من اليوم
@@ -803,6 +814,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (permission === 'granted') {
       setNotificationsEnabled(true);
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '1');
+
+      // ── FCM: register push token ───────────────────────────────────────
+      // After permission is granted, also request an FCM token for push
+      // notifications when the app is in the background. Fire-and-forget —
+      // the existing Realtime subscription handles foreground notifications.
+      if (authCompanyId) {
+        void requestFcmToken(authCompanyId).then((token) => {
+          if (token) {
+            fcmTokenRef.current = token;
+          }
+        });
+      }
     } else {
       // Denied or dismissed — keep the toggle off.
       setNotificationsEnabled(false);
@@ -813,125 +836,99 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const disableNotifications = () => {
     setNotificationsEnabled(false);
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+
+    // ── FCM: remove push token ─────────────────────────────────────────
+    // Remove the FCM token from the DB so the Edge Function stops
+    // sending push to this device. Fire-and-forget.
+    if (authCompanyId) {
+      void removeFcmToken(authCompanyId);
+      fcmTokenRef.current = null;
+    }
   };
 
-  // ── Sale notifications — Supabase Realtime + polling fallback ───────────────
+  // ── Sale notifications — Supabase Realtime subscription ───────────────────
   // Fires a Web Notification the instant any driver in this company records a
   // new sale. Active only while: signed in as the company owner, the toggle is
   // on, and the browser permission is actually granted.
-  //
-  // PRIMARY: Supabase Realtime postgres_changes on INSERT to sales table.
-  // FALLBACK: Polling every 8s to catch sales that Realtime missed (e.g. if
-  //           the sales table hasn't been added to the supabase_realtime
-  //           publication, or RLS blocks the event channel).
-  //
-  // Deduplication: a Set of notified sale IDs prevents duplicate notifications
-  // from both Realtime and polling delivering the same sale.
-  const notifiedSaleIdsRef = useRef<Set<string>>(new Set());
-
-  // ── Seed dedup set from sales state (stable, no channel recreation) ──
-  // Previously, `sales.length` was in the notification useEffect deps, which
-  // caused the entire Realtime channel to be torn down and rebuilt every time
-  // a sale was added. This created a race condition: events arriving during
-  // the teardown/rebuild gap were silently lost, and the company dashboard
-  // never received cross-device notifications.
-  //
-  // Now the dedup set is updated in a separate lightweight effect that just
-  // adds IDs to the ref — the Realtime channel stays connected and stable.
-  useEffect(() => {
-    for (const s of sales) {
-      notifiedSaleIdsRef.current.add(s.id);
-    }
-  }, [sales]);
-
-  const showSaleNotification = (saleId: string, driverId: string, totalPrice: number) => {
-    // Deduplicate — don't notify for the same sale twice.
-    if (notifiedSaleIdsRef.current.has(saleId)) return;
-    notifiedSaleIdsRef.current.add(saleId);
-
-    const driver = driversRef.current.find((d) => d.id === driverId);
-    if (!driver) {
-      console.warn('[AppContext] Sale notification dropped: driver not found for id', driverId);
-      return;
-    }
-
-    try {
-      new Notification('عملية بيع جديدة', {
-        body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(totalPrice)}`,
-        icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
-        tag: `sale-${saleId}`,
-      });
-    } catch (err) {
-      console.error('[AppContext] Failed to display sale notification:', err);
-    }
-  };
-
-  // ── Notification Realtime channel + polling ──
-  // This effect only depends on role / company / toggle — NOT on sales.length.
-  // The channel is created once and stays connected until auth or toggle
-  // changes. Dedup seeding is handled by the separate effect above.
   useEffect(() => {
     if (role !== 'company' || !authCompanyId) return;
     if (!isSupabaseConfigured || !notificationsEnabled) return;
     if (getNotificationPermission() !== 'granted') return;
 
-    // ── PRIMARY: Supabase Realtime ──
     const channel = supabase
       .channel(`company-sales-notify-${authCompanyId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'sales' },
         (payload) => {
-          const row = payload.new as { id: string; driver_id: string; total_price: number };
-          console.log('[AppContext] Realtime sale INSERT received:', row.id);
-          showSaleNotification(row.id, row.driver_id, row.total_price);
+          const row = payload.new as { driver_id: string; total_price: number };
+          // sales has no company_id column — filter client-side against this
+          // company's known driver ids (kept fresh via driversRef).
+          const driver = driversRef.current.find((d) => d.id === row.driver_id);
+          if (!driver) return;
+
+          try {
+            new Notification('عملية بيع جديدة', {
+              body: `${driver.name} سجّل عملية بيع بقيمة ${formatIQD(row.total_price)}`,
+              icon: `${import.meta.env.BASE_URL}icons/icon-192.png`,
+              tag: `sale-${row.driver_id}-${Date.now()}`,
+            });
+          } catch (err) {
+            console.error('[AppContext] Failed to display sale notification:', err);
+          }
         },
       )
-      .subscribe((status) => {
-        console.log('[AppContext] Realtime channel status:', status);
-      });
-
-    // ── FALLBACK: Polling every 8 seconds ──
-    // Compares the latest sales in the DB against our in-memory list.
-    // Any new sale not yet in `sales` state (or not yet notified) triggers
-    // a notification. This catches sales that Realtime missed.
-    const POLL_INTERVAL = 8_000;
-    const poll = async () => {
-      try {
-        const driverIds = driversRef.current.map((d) => d.id);
-        if (driverIds.length === 0) return;
-
-        // Fetch sales created in the last 30 seconds (generous window
-        // to account for clock skew and slow networks).
-        const cutoff = new Date(Date.now() - 30_000).toISOString();
-        const { data: recentRows, error } = await supabase
-          .from('sales')
-          .select('id, driver_id, total_price, created_at')
-          .in('driver_id', driverIds)
-          .gte('created_at', cutoff);
-
-        if (error) {
-          console.warn('[AppContext] Notification poll error:', error.message);
-          return;
-        }
-
-        for (const row of (recentRows ?? []) as { id: string; driver_id: string; total_price: number }[]) {
-          showSaleNotification(row.id, row.driver_id, row.total_price);
-        }
-      } catch (err) {
-        console.warn('[AppContext] Notification poll failed:', err);
-      }
-    };
-
-    const intervalId = setInterval(poll, POLL_INTERVAL);
+      .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
-      clearInterval(intervalId);
     };
-  // drivers not needed in deps (uses ref); sales not needed (dedup seeded separately)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, authCompanyId, notificationsEnabled]);
+
+  // ── FCM foreground message listener ────────────────────────────────────────
+  // When a push message arrives while the app is in the foreground, FCM
+  // does NOT auto-show a notification (unlike background push, which the
+  // service worker handles). We listen via `onMessage` and show a
+  // Notification manually — consistent with the existing Realtime handler.
+  useEffect(() => {
+    if (role !== 'company' || !notificationsEnabled) return;
+    if (getNotificationPermission() !== 'granted') return;
+
+    // Check if FCM is available before attaching the listener.
+    // isFcmAvailable() is async, so we use an IIFE pattern.
+    let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
+
+    void (async () => {
+      const available = await isFcmAvailable();
+      if (cancelled || !available || !messaging) return;
+
+      try {
+        unsubscribe = onMessage(messaging, (payload) => {
+          const title = payload.data?.title || 'عملية بيع جديدة';
+          const body = payload.data?.body || '';
+          const icon = payload.data?.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
+
+          try {
+            new Notification(title, {
+              body,
+              icon,
+              tag: `fcm-sale-${Date.now()}`,
+            });
+          } catch (err) {
+            console.error('[AppContext] Failed to display FCM foreground notification:', err);
+          }
+        });
+      } catch (err) {
+        console.warn('[AppContext] Failed to attach FCM onMessage listener:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [role, notificationsEnabled]);
 
   // ── Derive currentDriver ────────────────────────────────────────────────────
   // PRIMARY: from drivers[] state (populated by bootstrap useEffect).
@@ -956,7 +953,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // authDriverProfile contains the same data that the useEffect will put in
     // drivers[] — use it directly so the driver page never sees a null driver.
     if (role === 'driver' && authDriverProfile) {
-      console.log('[AppContext] currentDriver FALLBACK — using authDriverProfile (drivers[] not populated yet)');
       return authDriverProfile;
     }
     if (role === 'driver' && !authDriverProfile) {
