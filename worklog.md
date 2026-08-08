@@ -236,3 +236,25 @@ Stage Summary:
 - Production verified: POST /api/zaincash/create returns transactionId + redirectUrl
 - Production verified: GET /api/zaincash/verify returns transaction status + details
 - Preview URL: https://track-tracker-app.vercel.app
+
+---
+Task ID: 1
+Agent: main
+Task: Fix duplicate sale notifications — one sale should produce exactly one notification for company owner
+
+Work Log:
+- Read AppContext.tsx, fcmService.ts, firebase-messaging-sw.js, notify-sale Edge Function
+- Identified root cause: Edge Function sent FCM messages with `notification` key, causing browser auto-show + onMessage/onBackgroundMessage handler both creating notifications
+- Secondary cause: notification tags used `Date.now()` instead of saleId, so browser couldn't dedup
+- Fixed Edge Function: removed `notification` key (data-only message), added `saleId` to data payload
+- Fixed fcmService: added `saleId` parameter to `notifySaleViaEdgeFunction()`
+- Fixed AppContext: pass `newSale.id` to `notifySaleViaEdgeFunction`, added dedup Map with TTL, use saleId in notification tag
+- Fixed service worker: use `saleId` from payload.data in notification tag
+- Build verified successfully
+- Code pushed to GitHub (commit f33e894)
+
+Stage Summary:
+- Root cause: FCM `notification` key in Edge Function + `Date.now()` tags
+- 4 files changed: AppContext.tsx, fcmService.ts, notify-sale/index.ts, firebase-messaging-sw.js
+- Edge Function needs manual deployment (no Supabase CLI access token)
+- Vercel deployment triggered by GitHub push (if auto-deploy is configured)
