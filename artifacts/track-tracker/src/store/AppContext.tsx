@@ -16,7 +16,11 @@ import {
   unregisterFcmToken,
   refreshFcmTokenIfNeeded,
   notifySaleViaEdgeFunction,
+  getFcmDiagnostics,
   getFcmRegStatus,
+  refreshFcmDiagnostics,
+  sendTestNotification,
+  type FcmDiagnostics,
 } from '@/services/fcmService';
 import { isFirebaseConfigured, getFirebaseMessaging } from '@/lib/firebaseConfig';
 import {
@@ -111,6 +115,10 @@ interface AppContextType {
   fcmRegStatus: 'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered';
   /** Human-readable error if fcmRegStatus === 'failed' */
   fcmRegError: string;
+  /** Full FCM diagnostics for visible diagnostic panel */
+  fcmDiagnostics: FcmDiagnostics;
+  /** Send a test FCM notification through the production backend */
+  sendTestFcmNotification: () => Promise<{ success: boolean; message: string }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -292,13 +300,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // FCM registration status (visible diagnostic — no DevTools needed)
   const [fcmRegStatus, setFcmRegStatus] = useState<'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered'>('idle');
   const [fcmRegError, setFcmRegError] = useState('');
+  const [fcmDiagnosticsState, setFcmDiagnosticsState] = useState<FcmDiagnostics>(getFcmDiagnostics());
 
   // Sync FCM status from fcmService into React state
   useEffect(() => {
+    // Initial refresh
+    void refreshFcmDiagnostics();
+
     const interval = setInterval(() => {
-      const { status, error } = getFcmRegStatus();
-      setFcmRegStatus(status);
-      setFcmRegError(error);
+      const d = getFcmDiagnostics();
+      setFcmRegStatus(d.regStatus);
+      setFcmRegError(d.lastError);
+      setFcmDiagnosticsState(d);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -990,6 +1003,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         disableNotifications,
         fcmRegStatus,
         fcmRegError,
+        fcmDiagnostics: fcmDiagnosticsState,
+        sendTestFcmNotification: async () => {
+          if (!authCompanyId) return { success: false, message: 'Not logged in' };
+          return sendTestNotification(authCompanyId);
+        },
       }}
     >
       {children}

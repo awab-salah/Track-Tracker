@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, RefreshCw, LogOut, Moon, Sun, Bell, BellOff, Camera, Copy, Check, Edit3, X, ChevronLeft, Loader2, AlertCircle, Send, ChevronDown, ChevronUp } from 'lucide-react';
 import { AppInput } from '@/components/AppInput';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -180,6 +180,17 @@ function JoinCodeSheet({
   );
 }
 
+// ── FCM Diagnostics Row helper ────────────────────────────────────────────────
+
+function FcmDiagRow({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={ok ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>{value}</span>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -198,6 +209,8 @@ export default function ProfilePage() {
     disableNotifications,
     fcmRegStatus,
     fcmRegError,
+    fcmDiagnostics,
+    sendTestFcmNotification,
   } = useApp();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +222,9 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [showFcmDiagnostics, setShowFcmDiagnostics] = useState(false);
+  const [testNotifLoading, setTestNotifLoading] = useState(false);
+  const [testNotifResult, setTestNotifResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const startEdit = () => {
     setEditName(company.name);
@@ -566,10 +582,117 @@ export default function ProfilePage() {
                 </p>
               )}
               {notificationsEnabled && fcmRegStatus === 'failed' && (
-                <p className="px-4 pb-4 -mt-2 text-xs text-red-500 leading-relaxed">
-                  فشل تسجيل الإشعارات{fcmRegError ? `: ${fcmRegError}` : ''}. يرجى إيقافها ثم إعادة تفعيلها.
-                </p>
+                <div className="px-4 pb-3 -mt-2">
+                  <p className="text-xs text-red-500 leading-relaxed">
+                    فشل تسجيل الإشعارات:
+                  </p>
+                  <p className="text-xs text-red-400 leading-relaxed mt-1 font-mono bg-red-50 dark:bg-red-950/20 p-2 rounded-lg break-words" dir="ltr">
+                    {fcmRegError || 'خطأ غير معروف'}
+                  </p>
+                </div>
               )}
+
+              {/* ── FCM Diagnostics Panel (visible, no DevTools needed) ── */}
+              <div className="border-t border-border">
+                <button
+                  onClick={() => setShowFcmDiagnostics(!showFcmDiagnostics)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span className="font-semibold">تشخيص الإشعارات</span>
+                  {showFcmDiagnostics ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+
+                {showFcmDiagnostics && (
+                  <div className="px-4 pb-4 space-y-2">
+                    {/* Status rows */}
+                    <FcmDiagRow label="إذن المتصفح" value={
+                      fcmDiagnostics.browserPermission === 'granted' ? 'ممنوح ✓' :
+                      fcmDiagnostics.browserPermission === 'denied' ? 'مرفوض ✗' :
+                      fcmDiagnostics.browserPermission === 'default' ? 'لم يُطلب' : 'غير مدعوم'
+                    } ok={fcmDiagnostics.browserPermission === 'granted'} />
+
+                    <FcmDiagRow label="Service Worker" value={
+                      fcmDiagnostics.swStatus === 'activated' ? 'مفعّل ✓' :
+                      fcmDiagnostics.swStatus === 'registered' ? 'مسجّل (غير مفعّل)' :
+                      fcmDiagnostics.swStatus === 'missing' ? 'غير موجود ✗' : 'غير مدعوم'
+                    } ok={fcmDiagnostics.swStatus === 'activated'} />
+
+                    <FcmDiagRow label="اشتراك Push" value={
+                      fcmDiagnostics.pushSubscription === 'created' ? 'موجود ✓' :
+                      fcmDiagnostics.pushSubscription === 'missing' ? 'غير موجود ✗' : 'غير مدعوم'
+                    } ok={fcmDiagnostics.pushSubscription === 'created'} />
+
+                    <FcmDiagRow label="رمز FCM" value={
+                      fcmDiagnostics.fcmToken === 'registered' ? 'مسجّل ✓' : 'غير موجود ✗'
+                    } ok={fcmDiagnostics.fcmToken === 'registered'} />
+
+                    <FcmDiagRow label="رمز في قاعدة البيانات" value={
+                      fcmDiagnostics.dbToken === 'saved' ? 'محفوظ ✓' :
+                      fcmDiagnostics.dbToken === 'error' ? 'خطأ ✗' : 'غير موجود ✗'
+                    } ok={fcmDiagnostics.dbToken === 'saved'} />
+
+                    {/* Token preview */}
+                    {fcmDiagnostics.tokenPreview && (
+                      <div className="text-[10px] font-mono text-muted-foreground bg-muted/50 p-2 rounded-lg" dir="ltr">
+                        Token: {fcmDiagnostics.tokenPreview}
+                      </div>
+                    )}
+
+                    {/* Last success time */}
+                    {fcmDiagnostics.lastSuccessTime && (
+                      <div className="text-[10px] text-green-600" dir="ltr">
+                        Last OK: {new Date(fcmDiagnostics.lastSuccessTime).toLocaleString('ar-IQ')}
+                      </div>
+                    )}
+
+                    {/* Last error */}
+                    {fcmDiagnostics.lastError && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-red-500 font-semibold">آخر خطأ:</p>
+                        <p className="text-[10px] text-red-400 font-mono bg-red-50 dark:bg-red-950/20 p-2 rounded-lg break-words" dir="ltr">
+                          {fcmDiagnostics.lastError}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Test Notification Button */}
+                    <div className="pt-2">
+                      <button
+                        onClick={async () => {
+                          setTestNotifLoading(true);
+                          setTestNotifResult(null);
+                          try {
+                            const result = await sendTestFcmNotification();
+                            setTestNotifResult(result);
+                          } catch (err) {
+                            setTestNotifResult({ success: false, message: err instanceof Error ? err.message : String(err) });
+                          } finally {
+                            setTestNotifLoading(false);
+                          }
+                        }}
+                        disabled={testNotifLoading || fcmDiagnostics.fcmToken !== 'registered'}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all
+                                   disabled:opacity-50 disabled:cursor-not-allowed
+                                   bg-primary/10 text-primary hover:bg-primary/20 active:scale-[0.98]"
+                        data-testid="btn-test-notification"
+                      >
+                        {testNotifLoading ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Send size={14} />
+                        )}
+                        إرسال إشعار تجريبي
+                      </button>
+
+                      {testNotifResult && (
+                        <div className={`mt-2 text-xs p-2 rounded-lg ${testNotifResult.success ? 'bg-green-50 dark:bg-green-950/20 text-green-600' : 'bg-red-50 dark:bg-red-950/20 text-red-500'}`}>
+                          {testNotifResult.message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* ── Logout ── */}

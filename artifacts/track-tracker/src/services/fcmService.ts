@@ -7,73 +7,96 @@
  * - Save token to Supabase `fcm_tokens` table (linked to company)
  * - Remove token when notifications are disabled
  * - Handle token refresh
- * - Expose registration status for UI diagnostics
+ * - Expose FULL diagnostics state for visible UI panel (no DevTools needed)
+ * - Send test notifications for end-to-end verification
  */
 import { getFirebaseMessaging, isFirebaseConfigured, VAPID_KEY } from '@/lib/firebaseConfig';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getToken, deleteToken } from 'firebase/messaging';
 
-// ── Registration Status (for UI diagnostics) ──────────────────────────────────
-export type FcmRegStatus =
-  | 'idle'           // not attempted yet
-  | 'requesting'     // token registration in progress
-  | 'registered'     // token obtained and saved to DB
-  | 'failed'         // all attempts failed
-  | 'unregistered';   // token removed (notifications off)
+// ── Diagnostics State ─────────────────────────────────────────────────────────
+// Every step of the FCM registration pipeline is tracked so the UI can show
+// exactly what's working and what's broken — no DevTools needed.
 
-let regStatus: FcmRegStatus = 'idle';
-let regError: string = '';
-type StatusListener = (status: FcmRegStatus, error: string) => void;
-let statusListener: StatusListener | null = null;
-
-/**
- * Subscribe to FCM registration status changes.
- * Used by UI to show diagnostic info without DevTools.
- */
-export function onFcmStatusChange(listener: StatusListener) {
-  statusListener = listener;
-  // Immediately emit current state
-  listener(regStatus, regError);
+export interface FcmDiagnostics {
+  /** Browser Notification.permission */
+  browserPermission: NotificationPermission | 'unsupported';
+  /** Service Worker: 'registered' | 'activated' | 'missing' | 'unsupported' */
+  swStatus: 'registered' | 'activated' | 'missing' | 'unsupported';
+  /** PushSubscription: 'created' | 'missing' | 'unsupported' */
+  pushSubscription: 'created' | 'missing' | 'unsupported';
+  /** FCM token from getToken(): 'registered' | 'missing' */
+  fcmToken: 'registered' | 'missing';
+  /** Token in fcm_tokens DB: 'saved' | 'missing' | 'error' */
+  dbToken: 'saved' | 'missing' | 'error';
+  /** Human-readable last error */
+  lastError: string;
+  /** ISO timestamp of last successful registration */
+  lastSuccessTime: string;
+  /** High-level registration status */
+  regStatus: 'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered';
+  /** The actual FCM token string (for diagnostics, truncated) */
+  tokenPreview: string;
 }
 
-function setStatus(status: FcmRegStatus, error = '') {
-  regStatus = status;
-  regError = error;
-  statusListener?.(status, error);
+const EMPTY_DIAGNOSTICS: FcmDiagnostics = {
+  browserPermission: 'unsupported',
+  swStatus: 'unsupported',
+  pushSubscription: 'unsupported',
+  fcmToken: 'missing',
+  dbToken: 'missing',
+  lastError: '',
+  lastSuccessTime: '',
+  regStatus: 'idle',
+  tokenPreview: '',
+};
+
+let diagnostics: FcmDiagnostics = { ...EMPTY_DIAGNOSTICS };
+type DiagnosticsListener = (d: FcmDiagnostics) => void;
+let diagnosticsListener: DiagnosticsListener | null = null;
+
+/** Subscribe to diagnostics changes (called by UI on mount). */
+export function onFcmDiagnosticsChange(listener: DiagnosticsListener) {
+  diagnosticsListener = listener;
+  listener(diagnostics);
 }
 
-/** Get current registration status (synchronous, for polling). */
+/** Get current diagnostics (synchronous, for polling). */
+export function getFcmDiagnostics(): FcmDiagnostics {
+  return { ...diagnostics };
+}
+
+function updateDiagnostics(patch: Partial<FcmDiagnostics>) {
+  diagnostics = { ...diagnostics, ...patch };
+  diagnosticsListener?.(diagnostics);
+}
+
+// Keep backward compat with old getFcmRegStatus
+export type FcmRegStatus = FcmDiagnostics['regStatus'];
 export function getFcmRegStatus(): { status: FcmRegStatus; error: string } {
-  return { status: regStatus, error: regError };
+  return { status: diagnostics.regStatus, error: diagnostics.lastError };
 }
 
 // ── Service Worker Registration ────────────────────────────────────────────────
-// CRITICAL: Firebase getToken() MUST receive the explicit serviceWorkerRegistration
-// for the SW that handles FCM background messages. Without it, Firebase tries to
-// register its own default SW at /firebase-messaging-sw.js, which doesn't exist
-// in this project (we use a single combined SW via injectManifest). This was the
-// root cause of "no notification when PWA completely closed" — the FCM token was
-// never bound to the actual SW, so the push subscription didn't persist.
 let swRegistration: ServiceWorkerRegistration | null = null;
 
 /**
  * Get the active service worker registration with timeout and retry.
- *
- * navigator.serviceWorker.ready resolves when a SW is activated, but:
- * - If the SW registration hasn't started yet, it will wait indefinitely
- * - If the SW fails to install, it will never resolve
- *
- * We add a 10-second timeout and up to 3 retries with increasing delays
- * to handle the race condition where registerFcmToken() is called before
- * the PWA's SW registration completes.
+ * Updates diagnostics.swStatus at each step.
  */
 async function getSwRegistration(): Promise<ServiceWorkerRegistration | null> {
-  if (swRegistration) {
-    if (swRegistration.active) return swRegistration;
-    swRegistration = null;
+  if (!('serviceWorker' in navigator)) {
+    updateDiagnostics({ swStatus: 'unsupported' });
+    return null;
   }
 
-  if (!('serviceWorker' in navigator)) return null;
+  if (swRegistration) {
+    if (swRegistration.active) {
+      updateDiagnostics({ swStatus: 'activated' });
+      return swRegistration;
+    }
+    swRegistration = null;
+  }
 
   const MAX_RETRIES = 3;
   const TIMEOUT_MS = 10_000;
@@ -89,10 +112,19 @@ async function getSwRegistration(): Promise<ServiceWorkerRegistration | null> {
 
       if (registration && registration.active) {
         swRegistration = registration;
+        updateDiagnostics({ swStatus: 'activated' });
         return swRegistration;
       }
+
+      // SW registered but not yet active
+      if (registration) {
+        updateDiagnostics({ swStatus: 'registered' });
+      }
     } catch (err) {
-      console.warn(`[fcmService] SW registration attempt ${attempt} failed:`, err);
+      updateDiagnostics({
+        swStatus: 'missing',
+        lastError: `SW registration attempt ${attempt} failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
     }
 
     if (attempt < MAX_RETRIES) {
@@ -100,6 +132,7 @@ async function getSwRegistration(): Promise<ServiceWorkerRegistration | null> {
     }
   }
 
+  updateDiagnostics({ swStatus: 'missing' });
   return null;
 }
 
@@ -114,12 +147,9 @@ export interface FcmTokenRecord {
 
 // ── Permission ────────────────────────────────────────────────────────────────
 
-/**
- * Request browser notification permission.
- * Returns the new permission state.
- */
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
   if (typeof window === 'undefined' || !('Notification' in window)) {
+    updateDiagnostics({ browserPermission: 'unsupported' });
     return 'unsupported';
   }
 
@@ -127,17 +157,83 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   if (permission === 'default') {
     permission = await Notification.requestPermission();
   }
+  updateDiagnostics({ browserPermission: permission });
   return permission;
 }
 
-/**
- * Get current notification permission without prompting.
- */
 export function getNotificationPermission(): NotificationPermission | 'unsupported' {
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return 'unsupported';
   }
-  return Notification.permission;
+  const p = Notification.permission;
+  updateDiagnostics({ browserPermission: p });
+  return p;
+}
+
+// ── Refresh Diagnostics ──────────────────────────────────────────────────────
+/**
+ * Probe the browser's current state and update diagnostics.
+ * Call this on mount and periodically.
+ */
+export async function refreshFcmDiagnostics(): Promise<FcmDiagnostics> {
+  // Browser permission
+  const perm = typeof window !== 'undefined' && 'Notification' in window
+    ? Notification.permission
+    : 'unsupported' as const;
+  const patch: Partial<FcmDiagnostics> = { browserPermission: perm };
+
+  // Service Worker status
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg?.active) {
+        patch.swStatus = 'activated';
+      } else if (reg) {
+        patch.swStatus = 'registered';
+      } else {
+        patch.swStatus = 'missing';
+      }
+
+      // Push subscription
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        patch.pushSubscription = sub ? 'created' : 'missing';
+      } else {
+        patch.pushSubscription = 'missing';
+      }
+    } catch {
+      patch.swStatus = 'missing';
+      patch.pushSubscription = 'unsupported';
+    }
+  } else {
+    patch.swStatus = 'unsupported';
+    patch.pushSubscription = 'unsupported';
+  }
+
+  // FCM token status — check if getToken returns a token
+  if (isFirebaseConfigured && perm === 'granted') {
+    try {
+      const messaging = await getFirebaseMessaging();
+      if (messaging && swRegistration) {
+        const token = await getToken(messaging, {
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: swRegistration,
+        });
+        if (token) {
+          patch.fcmToken = 'registered';
+          patch.tokenPreview = token.substring(0, 20) + '...';
+        } else {
+          patch.fcmToken = 'missing';
+          patch.tokenPreview = '';
+        }
+      }
+    } catch {
+      patch.fcmToken = 'missing';
+    }
+  }
+
+  updateDiagnostics(patch);
+  return diagnostics;
 }
 
 // ── Token Management ──────────────────────────────────────────────────────────
@@ -145,60 +241,78 @@ export function getNotificationPermission(): NotificationPermission | 'unsupport
 /**
  * Get an FCM registration token and save it to Supabase for the given company.
  *
- * ARCHITECTURE (per Firebase official docs):
- * 1. Wait for the actual PWA Service Worker registration
- * 2. Pass that registration to getToken(messaging, { vapidKey, serviceWorkerRegistration })
- * 3. This binds the FCM push subscription to our combined SW (sw.js)
- * 4. Without serviceWorkerRegistration, Firebase tries /firebase-messaging-sw.js
- *    which does NOT exist in this project → token never works when PWA is closed
+ * Each step updates diagnostics so the UI shows exactly what's happening.
+ * If ANY step fails, the function returns null and diagnostics.lastError
+ * contains the exact failure reason.
  *
  * @param companyId - The UUID of the company from the companies table
  * @returns The FCM token string, or null if unavailable
  */
 export async function registerFcmToken(companyId: string): Promise<string | null> {
+  updateDiagnostics({ regStatus: 'requesting', lastError: '' });
+
+  // STEP 0: Check Firebase config
   if (!isFirebaseConfigured) {
-    setStatus('failed', 'Firebase not configured');
+    updateDiagnostics({ regStatus: 'failed', lastError: 'Firebase not configured — check env vars' });
     return null;
   }
 
+  // STEP 1: Check Supabase config
   if (!isSupabaseConfigured) {
-    setStatus('failed', 'Supabase not configured');
+    updateDiagnostics({ regStatus: 'failed', lastError: 'Supabase not configured — check env vars' });
     return null;
   }
 
+  // STEP 2: Check notification permission
   const permission = getNotificationPermission();
   if (permission !== 'granted') {
-    setStatus('failed', `Notification permission: ${permission}`);
+    updateDiagnostics({
+      regStatus: 'failed',
+      lastError: `Browser notification permission: ${permission}. Grant permission and try again.`,
+      browserPermission: permission,
+    });
     return null;
   }
 
+  // STEP 3: Get Firebase Messaging instance
   const messaging = await getFirebaseMessaging();
   if (!messaging) {
-    setStatus('failed', 'Firebase Messaging not supported');
+    updateDiagnostics({ regStatus: 'failed', lastError: 'Firebase Messaging not supported in this browser' });
     return null;
   }
 
-  setStatus('requesting');
-
-  // Retry getToken() up to 3 times — the SW might not be ready on first call
+  // Retry getToken() up to 3 times
   const MAX_ATTEMPTS = 3;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      // STEP 1: Get the active PWA Service Worker registration
+      // STEP 4: Get the active PWA Service Worker registration
       const registration = await getSwRegistration();
       if (!registration) {
         if (attempt < MAX_ATTEMPTS) {
           await new Promise((r) => setTimeout(r, attempt * 2000));
           continue;
         }
-        setStatus('failed', 'Service Worker not ready after retries');
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: 'Service Worker not ready after retries. Try refreshing the page.',
+        });
         return null;
       }
 
-      // STEP 2: Clean any stale push subscription from a previous SW config
+      // STEP 4b: Verify pushManager exists
+      if (!registration.pushManager) {
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: 'PushManager not available on this Service Worker registration.',
+          pushSubscription: 'unsupported',
+        });
+        return null;
+      }
+
+      // STEP 5: Clean any stale push subscription
       await cleanStalePushSubscription(registration);
 
-      // STEP 3: Get FCM token bound to our actual SW
+      // STEP 6: Get FCM token bound to our actual SW
       const token = await getToken(messaging, {
         vapidKey: VAPID_KEY,
         serviceWorkerRegistration: registration,
@@ -209,21 +323,54 @@ export async function registerFcmToken(companyId: string): Promise<string | null
           await new Promise((r) => setTimeout(r, attempt * 2000));
           continue;
         }
-        setStatus('failed', 'getToken() returned empty');
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: 'getToken() returned empty. Push subscription may be invalid.',
+          fcmToken: 'missing',
+        });
         return null;
       }
 
-      // STEP 4: Upsert token to Supabase
-      await saveTokenToSupabase(companyId, token);
+      // Token obtained!
+      updateDiagnostics({
+        fcmToken: 'registered',
+        tokenPreview: token.substring(0, 20) + '...',
+      });
 
-      // STEP 5: Verify the token is actually in the database
+      // STEP 7: Check push subscription exists
+      const sub = await registration.pushManager.getSubscription();
+      updateDiagnostics({ pushSubscription: sub ? 'created' : 'missing' });
+
+      // STEP 8: Save token to Supabase
+      const saveResult = await saveTokenToSupabase(companyId, token);
+      if (!saveResult) {
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: `Failed to save FCM token to database. This is likely an RLS (Row Level Security) issue — the fcm_tokens table may not allow INSERT for the anon key. Error: ${diagnostics.lastError}`,
+          dbToken: 'error',
+        });
+        return null;
+      }
+
+      // STEP 9: Verify the token is actually in the database
       const verified = await verifyTokenInDb(companyId, token);
       if (!verified) {
-        setStatus('failed', 'Token saved but not found in DB');
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: 'Token was saved but could not be verified in database. RLS may be blocking SELECT.',
+          dbToken: 'error',
+        });
         return null;
       }
 
-      setStatus('registered');
+      // SUCCESS!
+      updateDiagnostics({
+        regStatus: 'registered',
+        dbToken: 'saved',
+        lastError: '',
+        lastSuccessTime: new Date().toISOString(),
+      });
+
       return token;
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -231,14 +378,21 @@ export async function registerFcmToken(companyId: string): Promise<string | null
 
       // Permission errors are not retryable
       if (errCode === 'messaging/permission-blocked' || errMsg.includes('permission')) {
-        setStatus('failed', `Permission error: ${errMsg}`);
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: `Permission error: ${errMsg}`,
+        });
         return null;
       }
 
       if (attempt < MAX_ATTEMPTS) {
+        updateDiagnostics({ lastError: `Attempt ${attempt} failed (${errCode}): ${errMsg}. Retrying...` });
         await new Promise((r) => setTimeout(r, attempt * 3000));
       } else {
-        setStatus('failed', `${errCode || 'Error'}: ${errMsg}`);
+        updateDiagnostics({
+          regStatus: 'failed',
+          lastError: `${errCode || 'Error'}: ${errMsg}`,
+        });
       }
     }
   }
@@ -251,9 +405,9 @@ export async function registerFcmToken(companyId: string): Promise<string | null
  * Called when the company owner disables notifications.
  */
 export async function unregisterFcmToken(companyId: string): Promise<void> {
-  if (!isFirebaseConfigured) return;
+  updateDiagnostics({ regStatus: 'unregistered' });
 
-  setStatus('unregistered');
+  if (!isFirebaseConfigured) return;
 
   const messaging = await getFirebaseMessaging();
   if (!messaging) return;
@@ -261,18 +415,22 @@ export async function unregisterFcmToken(companyId: string): Promise<void> {
   try {
     await deleteToken(messaging);
   } catch {
-    // Token may already be deleted — that's fine
+    // Token may already be deleted
   }
 
-  // Remove from Supabase
   await removeTokenFromSupabase(companyId);
-  // Clear cached SW registration so re-enable gets fresh state
   swRegistration = null;
+
+  updateDiagnostics({
+    fcmToken: 'missing',
+    dbToken: 'missing',
+    tokenPreview: '',
+    pushSubscription: 'missing',
+  });
 }
 
 /**
  * Re-register FCM token if needed (called on visibility change).
- * In the modular Firebase SDK (v9+), there's no onTokenRefresh callback.
  */
 export async function refreshFcmTokenIfNeeded(companyId: string): Promise<void> {
   if (!isFirebaseConfigured || !isSupabaseConfigured) return;
@@ -290,8 +448,16 @@ export async function refreshFcmTokenIfNeeded(companyId: string): Promise<void> 
       serviceWorkerRegistration: registration,
     });
     if (token) {
-      await saveTokenToSupabase(companyId, token);
-      setStatus('registered');
+      const saved = await saveTokenToSupabase(companyId, token);
+      if (saved) {
+        updateDiagnostics({
+          regStatus: 'registered',
+          fcmToken: 'registered',
+          dbToken: 'saved',
+          tokenPreview: token.substring(0, 20) + '...',
+          lastSuccessTime: new Date().toISOString(),
+        });
+      }
     }
   } catch {
     // Non-critical — will retry on next visibility change
@@ -300,20 +466,6 @@ export async function refreshFcmTokenIfNeeded(companyId: string): Promise<void> 
 
 // ── Push Subscription Cleanup ─────────────────────────────────────────────────
 
-/**
- * Clear any stale push subscription from the service worker registration.
- *
- * When the code previously called getToken() WITHOUT serviceWorkerRegistration,
- * Firebase may have created a push subscription using its own default SW path
- * (/firebase-messaging-sw.js). That subscription is now stale because:
- *   1. The default SW file was removed
- *   2. We now pass the combined SW (sw.js) explicitly
- *
- * A stale subscription with a different applicationServerKey causes
- * getToken() to fail with errors like "MismatchSenderId" or
- * "Invalid registration". By unsubscribing it first, getToken() can
- * create a fresh subscription bound to the correct VAPID key and SW.
- */
 async function cleanStalePushSubscription(
   registration: ServiceWorkerRegistration,
 ): Promise<void> {
@@ -332,14 +484,14 @@ async function cleanStalePushSubscription(
 
       if (subKeyB64 !== vapidB64) {
         await subscription.unsubscribe();
+        updateDiagnostics({ lastError: 'Cleaned stale push subscription with mismatched VAPID key' });
       }
     }
-  } catch {
-    // Best effort
+  } catch (err) {
+    updateDiagnostics({ lastError: `Stale push cleanup error: ${err instanceof Error ? err.message : String(err)}` });
   }
 }
 
-/** Convert ArrayBuffer to base64 string for comparison. */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -349,7 +501,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-/** Convert base64url string to ArrayBuffer. */
 function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
   let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) base64 += '=';
@@ -365,10 +516,10 @@ function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
 
 /**
  * Save or update the FCM token in the `fcm_tokens` table.
- * Uses upsert to handle token refresh (same company, new token).
- * Also removes any old tokens for this company that differ (stale tokens).
+ * Returns true on success, false on failure.
+ * CRITICAL: Errors are NOT swallowed — they're surfaced in diagnostics.
  */
-async function saveTokenToSupabase(companyId: string, token: string): Promise<void> {
+async function saveTokenToSupabase(companyId: string, token: string): Promise<boolean> {
   // Delete any existing tokens for this company that differ
   const { error: deleteError } = await supabase
     .from('fcm_tokens')
@@ -377,7 +528,11 @@ async function saveTokenToSupabase(companyId: string, token: string): Promise<vo
     .neq('token', token);
 
   if (deleteError) {
-    console.error('[fcmService] Error cleaning old tokens:', deleteError.message);
+    updateDiagnostics({
+      dbToken: 'error',
+      lastError: `DB delete error (old tokens): ${deleteError.message} (code: ${deleteError.code}, hint: ${deleteError.hint || 'none'})`,
+    });
+    // Don't return false here — the delete of old tokens is best-effort
   }
 
   // Insert the new token
@@ -389,8 +544,14 @@ async function saveTokenToSupabase(companyId: string, token: string): Promise<vo
     );
 
   if (error) {
-    console.error('[fcmService] Error saving FCM token:', error.message);
+    updateDiagnostics({
+      dbToken: 'error',
+      lastError: `DB upsert error: ${error.message} (code: ${error.code}, details: ${error.details || 'none'}, hint: ${error.hint || 'none'})`,
+    });
+    return false;
   }
+
+  return true;
 }
 
 /**
@@ -405,10 +566,22 @@ async function verifyTokenInDb(companyId: string, token: string): Promise<boolea
     .eq('token', token)
     .limit(1);
 
-  if (error || !data || data.length === 0) {
-    console.error('[fcmService] Token verification failed:', error?.message || 'token not found');
+  if (error) {
+    updateDiagnostics({
+      dbToken: 'error',
+      lastError: `DB verify SELECT error: ${error.message} (code: ${error.code}, hint: ${error.hint || 'none'})`,
+    });
     return false;
   }
+
+  if (!data || data.length === 0) {
+    updateDiagnostics({
+      dbToken: 'missing',
+      lastError: 'Token upsert succeeded but SELECT found no rows — RLS may block SELECT or INSERT silently failed',
+    });
+    return false;
+  }
+
   return true;
 }
 
@@ -422,20 +595,45 @@ async function removeTokenFromSupabase(companyId: string): Promise<void> {
     .eq('company_id', companyId);
 
   if (error) {
-    console.error('[fcmService] Error removing FCM tokens:', error.message);
+    updateDiagnostics({
+      dbToken: 'error',
+      lastError: `DB delete error: ${error.message} (code: ${error.code})`,
+    });
   }
+}
+
+// ── Check DB Token Status ─────────────────────────────────────────────────────
+
+/**
+ * Check if a token exists in the database for a given company.
+ * Updates diagnostics.dbToken accordingly.
+ */
+export async function checkDbTokenStatus(companyId: string): Promise<'saved' | 'missing' | 'error'> {
+  if (!isSupabaseConfigured) {
+    updateDiagnostics({ dbToken: 'error' });
+    return 'error';
+  }
+
+  const { data, error } = await supabase
+    .from('fcm_tokens')
+    .select('token')
+    .eq('company_id', companyId)
+    .limit(1);
+
+  if (error) {
+    updateDiagnostics({ dbToken: 'error', lastError: `DB check error: ${error.message} (code: ${error.code})` });
+    return 'error';
+  }
+
+  const status = data && data.length > 0 ? 'saved' : 'missing';
+  updateDiagnostics({ dbToken: status });
+  return status;
 }
 
 // ── Edge Function Call ────────────────────────────────────────────────────────
 
 /**
  * Notify the company owner about a new sale via the Supabase Edge Function.
- * Called from the driver's app after creating a sale.
- *
- * The Edge Function:
- * 1. Looks up the company owner's FCM token from `fcm_tokens`
- * 2. Sends an FCM Web Push with sale data (data-only, no notification key)
- * 3. The service worker on the company device displays the notification
  */
 export async function notifySaleViaEdgeFunction(
   saleId: string,
@@ -475,5 +673,88 @@ export async function notifySaleViaEdgeFunction(
     }
   } catch (err) {
     console.error('[fcmService] Failed to call notify-sale:', err);
+  }
+}
+
+// ── Test Notification ─────────────────────────────────────────────────────────
+
+/**
+ * Send a test FCM notification to THIS device through the production backend.
+ * This calls the same Edge Function used for real sale notifications,
+ * but with a synthetic "test" sale ID.
+ *
+ * Returns { success, message } for UI display.
+ */
+export async function sendTestNotification(companyId: string): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, message: 'Supabase not configured' };
+  }
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      return { success: false, message: 'Not authenticated — please log in again' };
+    }
+
+    // Check if there's a token in the DB first
+    const dbStatus = await checkDbTokenStatus(companyId);
+    if (dbStatus === 'missing') {
+      return { success: false, message: 'No FCM token in database. Enable notifications first, then try again.' };
+    }
+    if (dbStatus === 'error') {
+      return { success: false, message: `Database error: ${diagnostics.lastError}` };
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ||
+      'https://qexafenusvjkyzfhtpda.supabase.co';
+
+    const testSaleId = `test-${Date.now()}`;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/notify-sale`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        saleId: testSaleId,
+        driverId: 'test-driver',
+        driverName: 'اختبار',
+        totalPrice: 1000,
+        companyId,
+      }),
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      return { success: false, message: `Edge Function error (${response.status}): ${responseText}` };
+    }
+
+    // Parse response
+    let result: { sent?: number; total?: number; message?: string; error?: string };
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = {};
+    }
+
+    if (result.message?.includes('No FCM tokens')) {
+      return { success: false, message: 'No FCM tokens registered for this company. Enable notifications first.' };
+    }
+
+    if (result.error) {
+      return { success: false, message: `Server error: ${result.error}` };
+    }
+
+    if (result.sent && result.sent > 0) {
+      return { success: true, message: `Test notification sent! (${result.sent}/${result.total} devices). Check your notification tray.` };
+    }
+
+    return { success: true, message: `Edge Function responded: ${responseText}` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Network error: ${msg}` };
   }
 }
