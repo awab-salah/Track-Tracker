@@ -891,6 +891,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Re-register FCM token on login/refresh ──────────────────────────────
   // When a company owner logs in or refreshes, ensure their FCM token is
   // still registered (handles token expiry, browser update, etc.).
+  // Also fires when notificationsEnabled flips to true (user enables toggle).
   useEffect(() => {
     if (role !== 'company' || !authCompanyId) return;
     if (!isFirebaseConfigured || !notificationsEnabled) return;
@@ -898,7 +899,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Re-register token on mount (handles refresh/login)
     void registerFcmToken(authCompanyId);
-  }, [role, authCompanyId]);
+  }, [role, authCompanyId, notificationsEnabled]);
 
   // ── Supabase Realtime for UI updates ONLY (no notifications) ─────────────
   // Realtime is still used to update the sales list in real-time, but
