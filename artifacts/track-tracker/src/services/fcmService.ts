@@ -12,6 +12,39 @@ import { getFirebaseMessaging, isFirebaseConfigured, VAPID_KEY } from '@/lib/fir
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getToken, deleteToken } from 'firebase/messaging';
 
+// ── Service Worker Registration ────────────────────────────────────────────────
+// CRITICAL: Firebase getToken() MUST receive the explicit serviceWorkerRegistration
+// for the SW that handles FCM background messages. Without it, Firebase tries to
+// register its own default SW at /firebase-messaging-sw.js, which doesn't exist
+// in this project (we use a single combined SW via injectManifest). This was the
+// root cause of "no notification when PWA completely closed" — the FCM token was
+// never bound to the actual SW, so the push subscription didn't persist.
+let swRegistration: ServiceWorkerRegistration | null = null;
+
+/**
+ * Get the active service worker registration.
+ * Caches it after first successful lookup so subsequent calls are synchronous.
+ */
+async function getSwRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (swRegistration) {
+    // Verify the registration is still active
+    if (swRegistration.active) return swRegistration;
+    swRegistration = null; // stale — re-acquire
+  }
+
+  if (!('serviceWorker' in navigator)) return null;
+
+  try {
+    // navigator.serviceWorker.ready resolves immediately if a SW is already
+    // controlling the page, or waits until one is activated.
+    swRegistration = await navigator.serviceWorker.ready;
+    return swRegistration;
+  } catch (err) {
+    console.warn('[fcmService] Could not get SW registration:', err);
+    return null;
+  }
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface FcmTokenRecord {
@@ -76,7 +109,19 @@ export async function registerFcmToken(companyId: string): Promise<string | null
   }
 
   try {
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    // CRITICAL: Pass the explicit serviceWorkerRegistration so that Firebase
+    // binds the FCM token to our combined SW (sw.js), not a default SW.
+    // Without this, the PushSubscription doesn't persist when the PWA closes.
+    const registration = await getSwRegistration();
+    if (!registration) {
+      console.warn('[fcmService] No SW registration available — cannot get FCM token');
+      return null;
+    }
+
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
     if (!token) {
       console.warn('[fcmService] FCM getToken returned empty token');
       return null;
@@ -131,7 +176,17 @@ export async function refreshFcmTokenIfNeeded(companyId: string): Promise<void> 
   if (!messaging) return;
 
   try {
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    // Must pass explicit SW registration (same reason as registerFcmToken)
+    const registration = await getSwRegistration();
+    if (!registration) {
+      console.warn('[fcmService] No SW registration — skipping token refresh');
+      return;
+    }
+
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
     if (token) {
       await saveTokenToSupabase(companyId, token);
     }

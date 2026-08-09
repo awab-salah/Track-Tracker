@@ -284,25 +284,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // from Realtime reconnects or FCM retries.
   const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
 
-  // Send Firebase config to the service worker so it can initialize FCM
-  // for background message handling.
-  useEffect(() => {
-    if (!isFirebaseConfigured) return;
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      const config = {
-        apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-        appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-      };
-      navigator.serviceWorker.controller.postMessage({
-        type: 'FIREBASE_CONFIG',
-        config,
-      });
-    }
-  }, []);
+  // NOTE: Firebase config is hardcoded in sw.ts (the service worker) because
+  // SWs cannot access import.meta.env. The previous FIREBASE_CONFIG postMessage
+  // was a no-op since sw.ts has no handler for it. Removed to avoid confusion.
   // ── Dark mode ──────────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
