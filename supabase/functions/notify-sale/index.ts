@@ -44,10 +44,26 @@ async function getFirebaseAccessToken(
   const payloadB64 = base64url(JSON.stringify(payload));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
-  const keyData = privateKey.replace(/\\n/g, '\n');
+  // Normalize the private key: handle both escaped \\n and literal \n
+  let keyData = privateKey.replace(/\\n/g, '\n');
+
+  // Extract the base64 content between PEM markers and decode to binary
+  // crypto.subtle.importKey needs the DER-encoded key, not the PEM text
+  const pemBody = keyData
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+
+  // Base64url decode → Uint8Array (DER-encoded PKCS8 key)
+  const binaryStr = atob(pemBody);
+  const keyBytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    keyBytes[i] = binaryStr.charCodeAt(i);
+  }
+
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    new TextEncoder().encode(keyData),
+    keyBytes,
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign']
@@ -256,9 +272,11 @@ serve(async (req) => {
     );
 
   } catch (err) {
-    console.error('[notify-sale] Error:', err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errStack = err instanceof Error ? err.stack : '';
+    console.error('[notify-sale] Error:', errMsg, errStack);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
