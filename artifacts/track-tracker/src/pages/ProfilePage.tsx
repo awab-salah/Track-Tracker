@@ -196,6 +196,8 @@ export default function ProfilePage() {
     notificationPermission,
     enableNotifications,
     disableNotifications,
+    fcmRegStatus,
+    fcmRegError,
   } = useApp();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -549,6 +551,23 @@ export default function ProfilePage() {
               {notificationPermission === 'unsupported' && (
                 <p className="px-4 pb-4 -mt-2 text-xs text-muted-foreground leading-relaxed">
                   متصفحك لا يدعم إشعارات الويب.
+                </p>
+              )}
+
+              {/* FCM registration status — visible diagnostic (no DevTools needed) */}
+              {notificationsEnabled && fcmRegStatus === 'requesting' && (
+                <p className="px-4 pb-4 -mt-2 text-xs text-amber-600 leading-relaxed">
+                  جارٍ تسجيل جهاز الإشعارات...
+                </p>
+              )}
+              {notificationsEnabled && fcmRegStatus === 'registered' && (
+                <p className="px-4 pb-4 -mt-2 text-xs text-green-600 leading-relaxed">
+                  ✓ الإشعارات مفعّلة وسيصل تنبيه لكل عملية بيع جديدة
+                </p>
+              )}
+              {notificationsEnabled && fcmRegStatus === 'failed' && (
+                <p className="px-4 pb-4 -mt-2 text-xs text-red-500 leading-relaxed">
+                  فشل تسجيل الإشعارات{fcmRegError ? `: ${fcmRegError}` : ''}. يرجى إيقافها ثم إعادة تفعيلها.
                 </p>
               )}
             </div>

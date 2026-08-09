@@ -16,6 +16,7 @@ import {
   unregisterFcmToken,
   refreshFcmTokenIfNeeded,
   notifySaleViaEdgeFunction,
+  getFcmRegStatus,
 } from '@/services/fcmService';
 import { isFirebaseConfigured, getFirebaseMessaging } from '@/lib/firebaseConfig';
 import {
@@ -106,6 +107,10 @@ interface AppContextType {
   notificationPermission: NotificationPermission | 'unsupported';
   enableNotifications: () => Promise<void>;
   disableNotifications: () => void;
+  /** FCM push registration status — visible diagnostic (no DevTools needed) */
+  fcmRegStatus: 'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered';
+  /** Human-readable error if fcmRegStatus === 'failed' */
+  fcmRegError: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -283,6 +288,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // In-memory dedup for sale notifications — prevents duplicate delivery
   // from Realtime reconnects or FCM retries.
   const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
+
+  // FCM registration status (visible diagnostic — no DevTools needed)
+  const [fcmRegStatus, setFcmRegStatus] = useState<'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered'>('idle');
+  const [fcmRegError, setFcmRegError] = useState('');
+
+  // Sync FCM status from fcmService into React state
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const { status, error } = getFcmRegStatus();
+      setFcmRegStatus(status);
+      setFcmRegError(error);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // NOTE: Firebase config is hardcoded in sw.ts (the service worker) because
   // SWs cannot access import.meta.env. The previous FIREBASE_CONFIG postMessage
@@ -774,9 +793,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     markCargoEditedToday();
   };
 
-  // Only asks for browser permission when the owner explicitly enables the
-  // toggle (never on load / never automatically).
   // When enabled: request permission + register FCM token + save to Supabase.
+  // If token registration FAILS, the toggle flips back OFF — deterministic.
   const enableNotifications = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setNotificationPermission('unsupported');
@@ -788,12 +806,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotificationPermission(permission);
 
     if (permission === 'granted') {
+      // Optimistically enable — will revert if token registration fails
       setNotificationsEnabled(true);
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '1');
 
-      // Register FCM token for this company (so push works when app is closed)
+      // Register FCM token — AWAIT the result (not fire-and-forget)
       if (isFirebaseConfigured && role === 'company' && authCompanyId) {
-        void registerFcmToken(authCompanyId);
+        const token = await registerFcmToken(authCompanyId);
+        if (!token) {
+          // Token registration failed — revert toggle to OFF
+          setNotificationsEnabled(false);
+          localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+        }
       }
     } else {
       // Denied or dismissed — keep the toggle off.
@@ -834,13 +858,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unsubscribe = onMessage(messaging, (payload) => {
         const data = payload.data || {};
         const saleId = data.saleId || '';
+        const type = data.type || '';
+
+        // Only handle sale notifications
+        if (type !== 'sale') return;
+
+        // Dedup guard — skip if we already notified for this sale
         const now = Date.now();
         const DEDUP_TTL = 5 * 60 * 1000;
         const dedupMap = notifiedSaleIdsRef.current;
-
-        // Dedup guard — skip if we already notified for this sale
         if (saleId && dedupMap.has(saleId)) {
-          console.log('[AppContext] Skipping duplicate FCM foreground notification for sale:', saleId);
           return;
         }
         // Expire old entries
@@ -852,14 +879,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const title = data.title || 'عملية بيع جديدة';
         const body = data.body || 'تم تسجيل عملية بيع جديدة';
         const icon = data.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
-        const tag = saleId ? `sale-${saleId}` : `sale-${Date.now()}`;
+        // ALWAYS use sale-based tag for dedup — never Date.now()
+        const tag = `sale-${saleId}`;
 
         // Use SW showNotification() — single "TrackTracker"-branded notification
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
           navigator.serviceWorker.ready.then((reg) => {
-            reg.showNotification(title, { body, icon, tag, data: { saleId } });
+            reg.showNotification(title, { body, icon, tag, data: { saleId, type, clickAction: '/' }, dir: 'rtl', lang: 'ar' });
           }).catch(() => {
-            // Fallback (should rarely happen)
             try { new Notification(title, { body, icon, tag }); } catch {}
           });
         } else {
@@ -961,6 +988,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notificationPermission,
         enableNotifications,
         disableNotifications,
+        fcmRegStatus,
+        fcmRegError,
       }}
     >
       {children}
