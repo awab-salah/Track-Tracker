@@ -25,12 +25,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: 'auto',
-      strategies: 'injectManifest',
       includeAssets: ['favicon.svg', 'icons/favicon-16.png', 'icons/favicon-32.png'],
-      // Use injectManifest so our custom SW (public/firebase-messaging-sw.js)
-      // can handle FCM background messages alongside Workbox precaching.
-      srcDir: 'public',
-      filename: 'firebase-messaging-sw.js',
       manifest: {
         id: basePath,
         name: 'TrackTracker',
@@ -68,16 +63,21 @@ export default defineConfig({
           },
         ],
       },
+      // ── injectManifest: custom SW with Workbox v7 + FCM ──────────────────────
+      // Use injectManifest so our custom src/sw.ts (which contains both
+      // Workbox precaching AND Firebase Cloud Messaging onBackgroundMessage)
+      // is compiled by esbuild with the precache manifest injected.
+      //
+      // This replaces the old generateSW approach which produced a SW that
+      // used Workbox v6 API naming (workbox.expiration.Plugin → v7: ExpirationPlugin,
+      // workbox.cacheableResponse.Plugin → v7: CacheableResponsePlugin) causing
+      // "ServiceWorker script evaluation failed" on production.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      swSrc: 'src/sw.ts',
+      swDest: 'sw.js',
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
-        navigateFallback: `${basePath}index.html`,
-        navigateFallbackDenylist: [/^\/api\//],
-        cleanupOutdatedCaches: true,
-        // injectManifest mode — Workbox injects __WB_MANIFEST into our custom SW
-        // instead of generating a full SW from scratch.
-        importScripts: [
-          // Firebase compat SDKs are loaded via importScripts in the SW itself
-        ],
         // DO NOT set skipWaiting or clientsClaim here.
         //
         // With registerType: 'prompt', the user explicitly chooses when to
@@ -93,59 +93,9 @@ export default defineConfig({
         //   4. The plugin calls postMessage({ type: 'SKIP_WAITING' }) to the
         //      waiting SW, which activates it on the next navigation
         //   5. No page reload, no state destruction
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) =>
-              url.origin === 'https://fonts.googleapis.com',
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-stylesheets' },
-          },
-          {
-            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Cache Supabase Storage images (avatars, receipts)
-            urlPattern: ({ url }) =>
-              url.origin === 'https://qexafenusvjkyzfhtpda.supabase.co' &&
-              url.pathname.startsWith('/storage/'),
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'supabase-storage',
-              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 7 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Cache Leaflet tile layers for offline map
-            urlPattern: ({ url }) =>
-              url.hostname.includes('tile.openstreetmap.org'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'leaflet-tiles',
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          // DO NOT cache Supabase API (rest/auth/realtime) responses — always fresh
-        ],
       },
       devOptions: {
         enabled: false,
-      },
-      // Pass Firebase config to the service worker via defineReplaceDictionary
-      // so the SW can initialize Firebase for background message handling.
-      injectManifest: {
-        // The Firebase config is hardcoded directly in the SW source file
-        // (public/firebase-messaging-sw.js). These are public values that
-        // are already exposed in the client-side JS bundle. Firebase web
-        // config is designed to be public — security is handled by
-        // Firebase Security Rules, not by hiding the config.
       },
     }),
     ...(process.env.NODE_ENV !== 'production' &&
