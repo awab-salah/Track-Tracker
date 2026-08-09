@@ -70,12 +70,38 @@ if (workbox) {
 }
 
 // ── Firebase Cloud Messaging ──────────────────────────────────────────────────
-// Firebase config values are passed as global variables from the app
-// via postMessage after the SW installs. Stored in a module-level map.
+// Firebase config is hardcoded directly in this SW (see FIREBASE_CONFIG below).
+// This allows the SW to initialize Firebase on install/activate, which is
+// critical for showing notifications when the PWA is completely closed
+// (no page running to send FIREBASE_CONFIG via postMessage).
+//
+// The page also sends FIREBASE_CONFIG via postMessage as a redundant path —
+// initFirebase() is idempotent so double-init is safe.
 let firebaseInitialized = false;
 
+// Firebase Web App config — hardcoded in the SW so it can initialize
+// on install/activate without needing a page to send FIREBASE_CONFIG.
+// These are PUBLIC values (same as in the client JS bundle).
+// Firebase security is handled by Security Rules, not by hiding config.
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyC-0D4K-Rzq3jdWjkduWCihlD1rSb_BqQI',
+  authDomain: 'track-tracker-ca74a.firebaseapp.com',
+  projectId: 'track-tracker-ca74a',
+  storageBucket: 'track-tracker-ca74a.firebasestorage.app',
+  messagingSenderId: '659715394517',
+  appId: '1:659715394517:web:5e02f9a2e7541f92a68b5c',
+};
+
 function initFirebase(config) {
-  if (firebaseInitialized || !config || !config.apiKey) return;
+  if (firebaseInitialized) return;
+  // If no config provided (e.g. called without args), use the hardcoded config
+  if (!config || !config.apiKey) {
+    config = FIREBASE_CONFIG;
+  }
+  if (!config || !config.apiKey) {
+    console.warn('[SW] No Firebase config available — background push will not work');
+    return;
+  }
 
   try {
     importScripts('https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js');
@@ -122,7 +148,24 @@ function initFirebase(config) {
   }
 }
 
-// Listen for Firebase config from the app via postMessage
+// ── Initialize Firebase on SW install/activate ────────────────────────────────
+// This is the CRITICAL fix for closed-PWA notifications.
+// When the PWA is completely closed, no page sends FIREBASE_CONFIG via
+// postMessage. By initializing here, the SW is ready to handle FCM push
+// events immediately, even with zero pages open.
+self.addEventListener('install', () => {
+  // Try to init Firebase with build-time config immediately on install.
+  // This ensures onBackgroundMessage is registered before any push arrives.
+  initFirebase(FIREBASE_CONFIG);
+});
+
+self.addEventListener('activate', () => {
+  // Re-confirm Firebase init on activate (covers SW restart after browser
+  // restart where install doesn't re-fire but activate does).
+  initFirebase(FIREBASE_CONFIG);
+});
+
+// Listen for Firebase config from the app via postMessage (redundant path)
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'FIREBASE_CONFIG') {
     initFirebase(event.data.config);
