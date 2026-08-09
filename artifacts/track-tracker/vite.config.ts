@@ -141,8 +141,11 @@ export default defineConfig({
       // Pass Firebase config to the service worker via defineReplaceDictionary
       // so the SW can initialize Firebase for background message handling.
       injectManifest: {
-        // vite-plugin-pwa will replace these placeholders in the SW file
-        // at build time with the actual env var values.
+        // The Firebase config is hardcoded directly in the SW source file
+        // (public/firebase-messaging-sw.js). These are public values that
+        // are already exposed in the client-side JS bundle. Firebase web
+        // config is designed to be public — security is handled by
+        // Firebase Security Rules, not by hiding the config.
       },
     }),
     ...(process.env.NODE_ENV !== 'production' &&
