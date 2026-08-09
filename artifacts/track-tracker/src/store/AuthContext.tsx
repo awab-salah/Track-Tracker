@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (userRole === 'company') {
       const profile = await fetchCompanyByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) return;
+      if (loadVersionRef.current !== myVersion) return; // stale — newer call won
 
       setRole('company');
       setCompanyId(profile?.id ?? null);
@@ -118,28 +118,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } else if (userRole === 'driver') {
       const drv = await fetchDriverByAuthUserId(authUser.id);
-      if (loadVersionRef.current !== myVersion) return;
+      if (loadVersionRef.current !== myVersion) return; // stale
 
-      // If the driver's DB row couldn't be loaded (e.g. RLS, network),
-      // do NOT set role='driver' with a null profile — that creates
-      // inconsistent state where ProtectedRoute allows the driver page
-      // to render but currentDriver is null, causing an infinite redirect
-      // loop. Instead, treat this as a failed auth and clear the role.
-      // The user will be redirected to the auth page where they can retry.
-      if (!drv) {
-        console.error('[AuthContext] fetchDriverByAuthUserId returned null — driver DB row not found. Clearing role.');
-        setRole(null);
-        setDriverId(null);
-        setDriverProfile(null);
-        setCompanyId(null);
-        setCompanyProfile(null);
-      } else {
-        setRole('driver');
-        setDriverId(drv.id);
-        setDriverProfile(drv);
-        setCompanyId(null);
-        setCompanyProfile(null);
-      }
+      setRole('driver');
+      setDriverId(drv?.id ?? null);
+      setDriverProfile(drv ?? null);
+      setCompanyId(null);
+      setCompanyProfile(null);
 
     } else {
       if (loadVersionRef.current !== myVersion) return;
@@ -171,24 +156,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null);
 
       // Determine whether this is a background refresh that should NOT
-      // reset the loading state.
+      // reset the loading state. TOKEN_REFRESHED is a routine background
+      // event that happens every ~60 minutes — the user is already signed
+      // in and their session is healthy. Setting isLoading=true here would
+      // unmount the protected route and destroy local component state.
       //
-      // INITIAL_SESSION: fired by onAuthStateChange when a session already
-      // exists (e.g. on page refresh). This is NOT a new sign-in — the user
-      // is already authenticated. Setting isLoading=true here would unmount
-      // the protected route and destroy local component state for no reason.
+      // SIGNED_IN is also treated as a background refresh when we already
+      // have a session (role is set). This happens when the PWA resumes
+      // from the camera/file picker — the app goes to background and
+      // Supabase fires SIGNED_IN on resume. Without this guard, the
+      // ProtectedRoute unmounts and ALL local component state (e.g.
+      // SalesTab draft items) is lost.
       //
-      // TOKEN_REFRESHED: routine background event every ~60 min.
-      //
-      // PASSWORD_RECOVERY: user clicked a password reset link.
-      //
-      // Only SIGNED_IN (explicit sign-in action) should show the loading
-      // spinner. The initial getSession() call on mount already handles
-      // the very first page load.
+      // Only the initial getSession() call should show the loading spinner.
       const isBackgroundRefresh =
-        event === 'INITIAL_SESSION' ||
         event === 'TOKEN_REFRESHED' ||
-        event === 'PASSWORD_RECOVERY';
+        event === 'PASSWORD_RECOVERY' ||
+        (event === 'SIGNED_IN' && role !== null);
 
       void loadProfile(s?.user ?? null, isBackgroundRefresh);
 

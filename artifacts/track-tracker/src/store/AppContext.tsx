@@ -10,6 +10,15 @@ import {
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { signOut } from '@/lib/auth';
 import {
+  requestNotificationPermission as fcmRequestPermission,
+  getNotificationPermission as fcmGetPermission,
+  registerFcmToken,
+  unregisterFcmToken,
+  refreshFcmTokenIfNeeded,
+  notifySaleViaEdgeFunction,
+} from '@/services/fcmService';
+import { isFirebaseConfigured, getFirebaseMessaging } from '@/lib/firebaseConfig';
+import {
   updateCompany,
   fetchDrivers,
   updateDriver,
@@ -26,13 +35,6 @@ import {
 import { useAuth } from '@/store/AuthContext';
 import type { CompanyProfile } from '@/types';
 import { baghdadToday } from '@/lib/dateUtils';
-import { messaging, isFcmAvailable } from '@/lib/firebase';
-import { onMessage } from 'firebase/messaging';
-import {
-  requestFcmToken,
-  removeFcmToken,
-  notifySaleViaEdgeFunction,
-} from '@/services/fcmService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -104,18 +106,6 @@ interface AppContextType {
   notificationPermission: NotificationPermission | 'unsupported';
   enableNotifications: () => Promise<void>;
   disableNotifications: () => void;
-
-  /**
-   * Whether AppContext has finished its initial bootstrap fetch.
-   * - For company owners: true once drivers/loads/sales have been fetched.
-   * - For drivers: true once the driver profile and company subscription
-   *   have been fetched.
-   * - False during the gap between auth resolving (isLoading=false) and
-   *   AppContext's bootstrap useEffect completing its async fetch.
-   *   During this gap, `drivers` may be empty even for a company that has
-   *   drivers — so "driver not found" must NOT be shown until this is true.
-   */
-  isBootstrapped: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -239,12 +229,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // the fetch completes.
   const [driverCompanySubscriptionActive, setDriverCompanySubscriptionActive] = useState(false);
 
-  // ── Bootstrap completed flag ───────────────────────────────────────────────
-  // True once the initial bootstrap fetch (company or driver) has finished.
-  // Used by DriverDetails to avoid flashing "driver not found" while the
-  // drivers[] array is still being populated.
-  const [isBootstrapped, setIsBootstrapped] = useState(false);
-
   // ── Cargo-edited-today latch ───────────────────────────────────────────────
   //
   // Latched flag: true iff the current driver has performed ANY cargo mutation
@@ -280,13 +264,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCargoEditedToday(true);
   };
 
-  // ── Sale notifications ────────────────────────────────────────────────────
+  // ── Sale notifications (FCM-based) ──────────────────────────────────────
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     () => localStorage.getItem(NOTIFICATIONS_STORAGE_KEY) === '1'
   );
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | 'unsupported'
-  >(getNotificationPermission);
+  >(() => fcmGetPermission());
 
   // Kept in a ref (not a dependency of the subscription effect below) so that
   // routine driver-list refreshes don't tear down and re-create the realtime
@@ -296,10 +280,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     driversRef.current = drivers;
   }, [drivers]);
 
-  // ── FCM token ref ────────────────────────────────────────────────────────
-  // Stores the current FCM token so we can clean it up on disable/logout.
-  const fcmTokenRef = useRef<string | null>(null);
+  // In-memory dedup for sale notifications — prevents duplicate delivery
+  // from Realtime reconnects or FCM retries.
+  const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
 
+  // Send Firebase config to the service worker so it can initialize FCM
+  // for background message handling.
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const config = {
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+      };
+      navigator.serviceWorker.controller.postMessage({
+        type: 'FIREBASE_CONFIG',
+        config,
+      });
+    }
+  }, []);
   // ── Dark mode ──────────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -314,7 +317,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (role !== 'company' || !authCompanyId || !authCompany) return;
     if (!isSupabaseConfigured) {
       setCompany(authCompany);
-      setIsBootstrapped(true);
       return;
     }
 
@@ -336,7 +338,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
       setCurrentDriverId(null);
-      setIsBootstrapped(true);
 
       // Finalize yesterday's snapshot for each driver. Fire-and-forget —
       // each call is idempotent (unique constraint + ON CONFLICT DO NOTHING).
@@ -361,7 +362,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDrivers([authDriverProfile]);
       // Without Supabase, assume active so the app works in mock mode
       setDriverCompanySubscriptionActive(true);
-      setIsBootstrapped(true);
       return;
     }
 
@@ -402,7 +402,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setLoads(dedupeLoads(remoteLoads));
       setSales(remoteSales);
-      setIsBootstrapped(true);
 
       // Finalize yesterday's snapshot for this driver. Fire-and-forget —
       // idempotent. Reads current DB loads (no mutation today yet).
@@ -422,7 +421,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSales([]);
       setCurrentDriverId(null);
       setDriverCompanySubscriptionActive(false);
-      setIsBootstrapped(false);
     }
   }, [role, authLoading]);
 
@@ -556,11 +554,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Auth actions ──────────────────────────────────────────────────────────
 
   const logout = () => {
-    // ── FCM: clean up push token on company logout ───────────────────────
-    if (authCompanyId) {
-      void removeFcmToken(authCompanyId);
-      fcmTokenRef.current = null;
-    }
     void signOut().then(() => setLocation('/'));
   };
 
@@ -775,23 +768,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSales((prev) => [newSale, ...prev]);
     void createSale(newSale.id, currentDriverId, date, items, totalPrice, receiptImageUrl ?? null);
 
-    // ── FCM: notify company owner via Edge Function ───────────────────────
-    // Fire-and-forget. The sale is already persisted locally and to Supabase.
-    // The push notification is a best-effort add-on that ensures the company
-    // owner gets notified even if their browser tab is closed.
-    // Only drivers create sales, so we use authDriverProfile.companyId.
-    if (authDriverProfile?.companyId) {
-      const driverName = authDriverProfile.name || 'سائق';
-      console.log('[AppContext] Sale created, invoking notify-sale for company', authDriverProfile.companyId);
+    // ── Notify company owner via FCM Edge Function ────────────────────────
+    // The driver's app (which is open) calls the Edge Function, which sends
+    // an FCM Web Push to the company owner's device. This works even when
+    // the company app/PWA is completely closed.
+    if (isFirebaseConfigured && role === 'driver' && authCompanyId) {
+      const driverName = driversRef.current.find((d) => d.id === currentDriverId)?.name || '';
       void notifySaleViaEdgeFunction(
         newSale.id,
         currentDriverId,
         driverName,
         totalPrice,
-        authDriverProfile.companyId
+        authCompanyId,
       );
-    } else {
-      console.warn('[AppContext] Cannot notify company: authDriverProfile.companyId is missing');
     }
 
     // Per the revised midnight-logic spec, a sale IS a cargo mutation —
@@ -803,81 +792,148 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Only asks for browser permission when the owner explicitly enables the
   // toggle (never on load / never automatically).
+  // When enabled: request permission + register FCM token + save to Supabase.
   const enableNotifications = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setNotificationPermission('unsupported');
       return;
     }
 
-    let permission = Notification.permission;
-    if (permission === 'default') {
-      permission = await Notification.requestPermission();
-    }
+    // Request browser notification permission
+    const permission = await fcmRequestPermission();
     setNotificationPermission(permission);
 
     if (permission === 'granted') {
       setNotificationsEnabled(true);
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '1');
 
-      // ── FCM: register push token ───────────────────────────────────────
-      // After permission is granted, also request an FCM token for push
-      // notifications when the app is in the background.
-      if (authCompanyId) {
-        console.log('[AppContext] Notification permission granted, registering FCM token for company', authCompanyId);
-        const token = await requestFcmToken(authCompanyId);
-        if (token) {
-          fcmTokenRef.current = token;
-          console.log('[AppContext] FCM token registered successfully');
-        } else {
-          console.warn('[AppContext] FCM token registration failed — background push will not work. Foreground (Realtime) notifications will still work.');
-        }
-      } else {
-        console.warn('[AppContext] Cannot register FCM token: authCompanyId is null');
+      // Register FCM token for this company (so push works when app is closed)
+      if (isFirebaseConfigured && role === 'company' && authCompanyId) {
+        void registerFcmToken(authCompanyId);
       }
     } else {
       // Denied or dismissed — keep the toggle off.
-      console.warn('[AppContext] Notification permission not granted:', permission);
       setNotificationsEnabled(false);
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
     }
   };
 
+  // When disabled: remove FCM token from Supabase (stop push delivery).
   const disableNotifications = () => {
     setNotificationsEnabled(false);
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
 
-    // ── FCM: remove push token ─────────────────────────────────────────
-    // Remove the FCM token from the DB so the Edge Function stops
-    // sending push to this device. Fire-and-forget.
-    if (authCompanyId) {
-      void removeFcmToken(authCompanyId);
-      fcmTokenRef.current = null;
+    // Remove FCM token so the Edge Function stops sending push to this device
+    if (isFirebaseConfigured && role === 'company' && authCompanyId) {
+      void unregisterFcmToken(authCompanyId);
     }
   };
 
-  // ── Sale notifications — Supabase Realtime subscription ───────────────────
-  // Keeps the channel open so that future features (e.g. auto-refreshing the
-  // sales list) can use it, but does NOT display a notification here.
-  // FCM (foreground onMessage + background service worker) now handles all
-  // sale notifications. Previously this Realtime handler also called
-  // new Notification(), which caused duplicate notifications when FCM was
-  // enabled — the same sale would trigger both this Realtime notification
-  // AND the FCM onMessage notification.
+  // ── FCM foreground message handler ──────────────────────────────────────
+  // When the page IS in the foreground, FCM delivers messages to the
+  // onMessage callback instead of the service worker's onBackgroundMessage.
+  // We show a notification via SW's showNotification() (not new Notification)
+  // to keep it branded as "TrackTracker" and avoid the Chrome/TrackTracker
+  // duplicate issue.
   useEffect(() => {
     if (role !== 'company' || !authCompanyId) return;
-    if (!isSupabaseConfigured || !notificationsEnabled) return;
-    if (getNotificationPermission() !== 'granted') return;
+    if (!isFirebaseConfigured || !notificationsEnabled) return;
+
+    let unsubscribe: (() => void) | null = null;
+
+    void (async () => {
+      const messaging = await getFirebaseMessaging();
+      if (!messaging) return;
+
+      const { onMessage } = await import('firebase/messaging');
+
+      unsubscribe = onMessage(messaging, (payload) => {
+        const data = payload.data || {};
+        const saleId = data.saleId || '';
+        const now = Date.now();
+        const DEDUP_TTL = 5 * 60 * 1000;
+        const dedupMap = notifiedSaleIdsRef.current;
+
+        // Dedup guard — skip if we already notified for this sale
+        if (saleId && dedupMap.has(saleId)) {
+          console.log('[AppContext] Skipping duplicate FCM foreground notification for sale:', saleId);
+          return;
+        }
+        // Expire old entries
+        for (const [id, ts] of dedupMap) {
+          if (now - ts > DEDUP_TTL) dedupMap.delete(id);
+        }
+        if (saleId) dedupMap.set(saleId, now);
+
+        const title = data.title || 'عملية بيع جديدة';
+        const body = data.body || 'تم تسجيل عملية بيع جديدة';
+        const icon = data.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
+        const tag = saleId ? `sale-${saleId}` : `sale-${Date.now()}`;
+
+        // Use SW showNotification() — single "TrackTracker"-branded notification
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(title, { body, icon, tag, data: { saleId } });
+          }).catch(() => {
+            // Fallback (should rarely happen)
+            try { new Notification(title, { body, icon, tag }); } catch {}
+          });
+        } else {
+          try { new Notification(title, { body, icon, tag }); } catch {}
+        }
+      });
+    })();
+
+    return () => { unsubscribe?.(); };
+  }, [role, authCompanyId, notificationsEnabled]);
+
+  // ── FCM token refresh on visibility change ────────────────────────────────
+  // When the app regains focus (e.g., user returns to the tab), re-register
+  // the FCM token to handle token rotation by the browser/Firebase.
+  useEffect(() => {
+    if (role !== 'company' || !authCompanyId) return;
+    if (!isFirebaseConfigured || !notificationsEnabled) return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshFcmTokenIfNeeded(authCompanyId);
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [role, authCompanyId, notificationsEnabled]);
+
+  // ── Re-register FCM token on login/refresh ──────────────────────────────
+  // When a company owner logs in or refreshes, ensure their FCM token is
+  // still registered (handles token expiry, browser update, etc.).
+  useEffect(() => {
+    if (role !== 'company' || !authCompanyId) return;
+    if (!isFirebaseConfigured || !notificationsEnabled) return;
+    if (fcmGetPermission() !== 'granted') return;
+
+    // Re-register token on mount (handles refresh/login)
+    void registerFcmToken(authCompanyId);
+  }, [role, authCompanyId]);
+
+  // ── Supabase Realtime for UI updates ONLY (no notifications) ─────────────
+  // Realtime is still used to update the sales list in real-time, but
+  // it does NOT display notifications — FCM handles all notifications.
+  useEffect(() => {
+    if (role !== 'company' || !authCompanyId) return;
+    if (!isSupabaseConfigured) return;
 
     const channel = supabase
-      .channel(`company-sales-notify-${authCompanyId}`)
+      .channel(`company-sales-realtime-${authCompanyId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'sales' },
-        () => {
-          // Intentionally not showing a notification here.
-          // FCM handles both foreground (onMessage) and background
-          // (service worker) sale notifications. This Realtime channel
-          // is kept open for potential future use (e.g. sales list refresh).
+        (payload) => {
+          // Intentionally NOT showing a notification here.
+          // FCM + Edge Function handles all sale notifications.
+          // Realtime is only for live UI updates (the sales list refreshes
+          // automatically when a new sale is inserted).
+          console.log('[AppContext] Realtime: new sale detected (UI update only, no notification)');
         },
       )
       .subscribe();
@@ -885,149 +941,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [role, authCompanyId, notificationsEnabled]);
+  }, [role, authCompanyId]);
 
-  // ── FCM: re-register push token on page load ────────────────────────────────
-  // When the company owner refreshes the page (or returns later), the
-  // notificationsEnabled flag is restored from localStorage, but the FCM
-  // push token is NOT re-registered because enableNotifications() is only
-  // called when the user clicks the toggle. Without this effect, background
-  // push notifications silently break on every page refresh because no
-  // token exists in the fcm_tokens table for the Edge Function to find.
-  useEffect(() => {
-    if (role !== 'company' || !authCompanyId) return;
-    if (!notificationsEnabled) return;
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
-
-    // Re-register the FCM token (idempotent — upsert with onConflict).
-    // This ensures the token is always in the DB even after a page refresh.
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await requestFcmToken(authCompanyId);
-        if (cancelled) return;
-        if (token) {
-          fcmTokenRef.current = token;
-          console.log('[AppContext] FCM token re-registered on page load');
-        } else {
-          console.warn('[AppContext] FCM token registration returned null — push notifications may not work in background');
-        }
-      } catch (err) {
-        console.error('[AppContext] FCM token re-registration failed:', err);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [role, authCompanyId, notificationsEnabled]);
-
-  // ── FCM foreground message listener ────────────────────────────────────────
-  // When a push message arrives while the app is in the foreground, FCM
-  // does NOT auto-show a notification (data-only messages never auto-show).
-  // We listen via `onMessage` and show a Notification manually, using the
-  // saleId from payload.data as the notification tag for browser-level dedup.
-  //
-  // Deduplication: a Map of sale ID → notify-timestamp prevents duplicate
-  // notifications even if FCM re-delivers the same message (e.g. on
-  // reconnect). Entries older than 5 minutes are pruned to bound memory.
-  const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
-
-  useEffect(() => {
-    if (role !== 'company' || !notificationsEnabled) return;
-    if (getNotificationPermission() !== 'granted') return;
-
-    // Check if FCM is available before attaching the listener.
-    // isFcmAvailable() is async, so we use an IIFE pattern.
-    let unsubscribe: (() => void) | null = null;
-    let cancelled = false;
-
-    void (async () => {
-      const available = await isFcmAvailable();
-      if (cancelled || !available || !messaging) return;
-
-      try {
-        unsubscribe = onMessage(messaging, (payload) => {
-          // Data-only messages: title/body/icon are in payload.data.
-          // (We no longer send a `notification` key from the Edge Function,
-          //  but handle it defensively in case of legacy messages.)
-          const saleId = (payload.data?.saleId as string) || '';
-          const title = payload.notification?.title || payload.data?.title || 'عملية بيع جديدة';
-          const body = payload.notification?.body || payload.data?.body || '';
-          const icon = payload.notification?.icon || payload.data?.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
-
-          // ── Dedup guard ──
-          // If we already notified for this sale, skip. Also prune stale
-          // entries (older than 5 minutes) to prevent unbounded growth.
-          const now = Date.now();
-          const DEDUP_TTL = 5 * 60 * 1000;
-          const dedupMap = notifiedSaleIdsRef.current;
-
-          if (saleId && dedupMap.has(saleId)) {
-            console.log('[AppContext] Skipping duplicate FCM notification for sale:', saleId);
-            return;
-          }
-
-          // Prune stale entries.
-          for (const [id, ts] of dedupMap) {
-            if (now - ts > DEDUP_TTL) dedupMap.delete(id);
-          }
-
-          if (saleId) dedupMap.set(saleId, now);
-
-          try {
-            new Notification(title, {
-              body,
-              icon,
-              // Use saleId in the tag for browser-level dedup: if a
-              // notification with the same tag is already visible, the
-              // browser replaces it instead of showing a second one.
-              tag: saleId ? `sale-${saleId}` : `sale-${Date.now()}`,
-            });
-          } catch (err) {
-            console.error('[AppContext] Failed to display FCM foreground notification:', err);
-          }
-        });
-      } catch (err) {
-        console.warn('[AppContext] Failed to attach FCM onMessage listener:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [role, notificationsEnabled]);
-
-  // ── Derive currentDriver ────────────────────────────────────────────────────
-  // PRIMARY: from drivers[] state (populated by bootstrap useEffect).
-  // FALLBACK: from authDriverProfile (available synchronously from AuthContext).
-  //
-  // Without the fallback, there is a timing gap between AuthProvider resolving
-  // auth (role='driver', isLoading=false) and AppContext's bootstrap useEffect
-  // populating drivers[]/currentDriverId (runs AFTER the first render). During
-  // that gap, currentDriver was null, which caused DriverDashboard to either:
-  //   - <Redirect> to /driver-auth → infinite loop → crash (original bug)
-  //   - Show a loading spinner (previous fix — still caused ErrorBoundary to
-  //     catch a render error during the transition)
-  //
-  // By falling back to authDriverProfile (which IS the driver profile — the
-  // bootstrap useEffect sets drivers=[authDriverProfile]), currentDriver is
-  // NEVER null for a logged-in driver. The timing gap is eliminated at the
-  // source, and DriverDashboard renders normally from the very first render.
-  const currentDriver = (() => {
-    const fromState = drivers.find((d) => d.id === currentDriverId);
-    if (fromState) return fromState;
-    // Fallback: auth driver is signed in but bootstrap useEffect hasn't run yet.
-    // authDriverProfile contains the same data that the useEffect will put in
-    // drivers[] — use it directly so the driver page never sees a null driver.
-    if (role === 'driver' && authDriverProfile) {
-      return authDriverProfile;
-    }
-    if (role === 'driver' && !authDriverProfile) {
-      console.error('[AppContext] currentDriver NULL — role=driver but authDriverProfile is null! This will cause a redirect loop.');
-    }
-    return null;
-  })();
+  const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
 
   return (
     <AppContext.Provider
@@ -1060,7 +976,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notificationPermission,
         enableNotifications,
         disableNotifications,
-        isBootstrapped,
       }}
     >
       {children}

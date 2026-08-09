@@ -29,7 +29,7 @@ const STEPS = [
 
 export function InstallationGuide() {
   return (
-    <section id="installation" className="section-padding bg-gray-50">
+    <section id="installation" className="section-padding bg-gray-50 overflow-x-clip">
       <div className="container-max">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left: Text content */}
@@ -63,11 +63,14 @@ export function InstallationGuide() {
 
           {/* Right: Installation tutorial video */}
           <div className="reveal">
+            <p className="text-center text-sm sm:text-base font-semibold text-gray-600 mb-4 leading-relaxed">
+              فيديو توضيحي لطريقة التنزيل وإنشاء الحساب وطريقة استخدام التطبيق
+            </p>
             <div className="relative">
-              {/* Video container — responsive, respects section bounds */}
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl mx-auto w-full max-w-[400px] lg:max-w-none">
+              {/* Video container — responsive portrait video, phone-like frame */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-900/10 mx-auto w-full max-w-[360px] sm:max-w-[400px] md:max-w-[440px] lg:max-w-[480px]">
                 <video
-                  className="w-full h-auto rounded-2xl object-contain bg-gray-900"
+                  className="w-full h-auto block"
                   controls
                   preload="metadata"
                   poster="/icons/logo.png"
@@ -79,8 +82,8 @@ export function InstallationGuide() {
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute -top-4 -left-4 w-24 h-24 bg-orange-100 rounded-2xl -z-10" />
-              <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-teal-100 rounded-2xl -z-10" />
+              <div className="absolute -top-3 -left-3 w-20 h-20 bg-orange-100 rounded-2xl -z-10" />
+              <div className="absolute -bottom-3 -right-3 w-24 h-24 bg-teal-100 rounded-2xl -z-10" />
             </div>
           </div>
         </div>

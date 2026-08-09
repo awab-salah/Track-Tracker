@@ -1,140 +1,202 @@
 /**
- * FCM Service — Client-side Firebase Cloud Messaging token management.
+ * FCM Service — Firebase Cloud Messaging token management for TrackTracker
  *
- * Provides functions to:
- *   - Request and persist FCM tokens to the `fcm_tokens` Supabase table
- *   - Remove FCM tokens from the database (on disable/logout)
- *   - Invoke the `notify-sale` Supabase Edge Function to trigger push
- *
- * All functions are guarded by `isFcmAvailable()` and `isSupabaseConfigured`
- * so they gracefully no-op when FCM or Supabase is not set up.
+ * Responsibilities:
+ * - Request notification permission
+ * - Get/register FCM token
+ * - Save token to Supabase `fcm_tokens` table (linked to company)
+ * - Remove token when notifications are disabled
+ * - Handle token refresh
  */
-
+import { getFirebaseMessaging, isFirebaseConfigured, VAPID_KEY } from '@/lib/firebaseConfig';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { messaging, VAPID_KEY, isFcmAvailable, getFcmToken } from '@/lib/firebase';
+import { getToken, deleteToken } from 'firebase/messaging';
 
-// ── In-memory cache of the current FCM token ─────────────────────────────────
-// Avoids redundant DB writes when the token hasn't changed.
-let currentFcmToken: string | null = null;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface FcmTokenRecord {
+  id: string;
+  company_id: string;
+  token: string;
+  created_at: string;
+}
+
+// ── Permission ────────────────────────────────────────────────────────────────
 
 /**
- * Request an FCM push token from the browser and persist it to the
- * `fcm_tokens` table for the given company.
- *
- * Called when the company owner enables notifications (after permission
- * is granted). The token uniquely identifies this browser device for
- * push delivery.
- *
- * @param companyId — the UUID of the company to associate the token with
- * @returns the FCM token string, or null if FCM is unavailable
+ * Request browser notification permission.
+ * Returns the new permission state.
  */
-export async function requestFcmToken(companyId: string): Promise<string | null> {
-  const fcmAvailable = await isFcmAvailable();
-  if (!fcmAvailable || !messaging || !isSupabaseConfigured || !companyId) {
-    console.warn('[fcmService] requestFcmToken skipped:', {
-      fcmAvailable,
-      hasMessaging: !!messaging,
-      isSupabaseConfigured,
-      hasCompanyId: !!companyId,
-    });
+export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return 'unsupported';
+  }
+
+  let permission = Notification.permission;
+  if (permission === 'default') {
+    permission = await Notification.requestPermission();
+  }
+  return permission;
+}
+
+/**
+ * Get current notification permission without prompting.
+ */
+export function getNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return 'unsupported';
+  }
+  return Notification.permission;
+}
+
+// ── Token Management ──────────────────────────────────────────────────────────
+
+/**
+ * Get an FCM registration token and save it to Supabase for the given company.
+ * Called when the company owner enables notifications.
+ *
+ * @param companyId - The UUID of the company from the companies table
+ * @returns The FCM token string, or null if unavailable
+ */
+export async function registerFcmToken(companyId: string): Promise<string | null> {
+  if (!isFirebaseConfigured) {
+    console.warn('[fcmService] Firebase not configured — skipping FCM token registration');
+    return null;
+  }
+
+  if (!isSupabaseConfigured) {
+    console.warn('[fcmService] Supabase not configured — cannot save FCM token');
+    return null;
+  }
+
+  const messaging = await getFirebaseMessaging();
+  if (!messaging) {
+    console.warn('[fcmService] Firebase Messaging not supported in this browser');
     return null;
   }
 
   try {
-    // Wait for the service worker to be ready before requesting a token.
-    // Without this, getToken() may fail because no SW is registered yet
-    // (especially on first page load before the PWA SW installs).
-    await navigator.serviceWorker.ready;
-
-    const token = await getFcmToken(messaging, { vapidKey: VAPID_KEY });
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
     if (!token) {
-      console.warn('[fcmService] getToken returned empty — push subscription failed.');
+      console.warn('[fcmService] FCM getToken returned empty token');
       return null;
     }
 
-    console.log('[fcmService] FCM token obtained, persisting to fcm_tokens for company', companyId);
-
-    // Persist to Supabase. Use upsert-like logic: insert if not exists,
-    // ignore on conflict (unique constraint on company_id + token).
-    const { error } = await supabase
-      .from('fcm_tokens')
-      .upsert(
-        { company_id: companyId, token },
-        { onConflict: 'company_id,token' }
-      );
-
-    if (error) {
-      console.error('[fcmService] Failed to persist FCM token:', error.message);
-      // Still return the token — it's valid for foreground messaging even
-      // if the DB write failed. The Edge Function just won't find it.
-    } else {
-      console.log('[fcmService] FCM token persisted to fcm_tokens successfully');
-    }
-
-    currentFcmToken = token;
-
-    // Note: `onTokenRefresh` was removed in newer Firebase SDK versions.
-    // Token rotation is handled by calling `getToken()` again when needed
-    // (e.g. on app focus) and comparing with the cached value. If the
-    // token changes, call requestFcmToken again to update the DB.
-    // This is handled transparently — the next call to requestFcmToken
-    // will upsert the new token.
-
+    // Save/upsert the token to Supabase
+    await saveTokenToSupabase(companyId, token);
+    console.log('[fcmService] FCM token registered and saved for company:', companyId);
     return token;
   } catch (err) {
-    console.error('[fcmService] requestFcmToken error:', err);
+    console.error('[fcmService] Failed to get FCM token:', err);
     return null;
   }
 }
 
 /**
- * Remove the FCM token for the given company from the database.
+ * Remove the FCM token from both Firebase and Supabase.
+ * Called when the company owner disables notifications.
  *
- * Called when the company owner disables notifications or on logout.
- * After this, the Edge Function will no longer find a token to push to
- * for this device.
- *
- * @param companyId — the UUID of the company
+ * @param companyId - The UUID of the company
  */
-export async function removeFcmToken(companyId: string): Promise<void> {
-  if (!isSupabaseConfigured || !companyId) return;
+export async function unregisterFcmToken(companyId: string): Promise<void> {
+  if (!isFirebaseConfigured) return;
 
-  // If we have a cached token, delete by exact match for efficiency.
-  // Otherwise, delete all tokens for this company (shouldn't happen
-  // in practice — there's only one token per browser device per company).
+  const messaging = await getFirebaseMessaging();
+  if (!messaging) return;
+
   try {
-    if (currentFcmToken) {
-      await supabase
-        .from('fcm_tokens')
-        .delete()
-        .eq('company_id', companyId)
-        .eq('token', currentFcmToken);
-    } else {
-      await supabase
-        .from('fcm_tokens')
-        .delete()
-        .eq('company_id', companyId);
-    }
+    // Delete the token from the browser/Firebase
+    await deleteToken(messaging);
+    console.log('[fcmService] FCM token deleted from browser');
   } catch (err) {
-    console.error('[fcmService] removeFcmToken error:', err);
+    // Token may already be deleted or invalid — that's fine
+    console.warn('[fcmService] deleteToken error (may already be removed):', err);
   }
 
-  currentFcmToken = null;
+  // Remove from Supabase
+  await removeTokenFromSupabase(companyId);
 }
 
 /**
- * Invoke the `notify-sale` Supabase Edge Function to trigger an FCM
- * push notification to the company owner.
+ * Listen for FCM token refresh and update Supabase.
+ * In the modular Firebase SDK (v9+), there's no onTokenRefresh callback.
+ * Instead, we periodically re-register the token (called on visibility change
+ * and on a timer). This also handles the case where the browser updates
+ * and the old token becomes invalid.
+ */
+export async function refreshFcmTokenIfNeeded(companyId: string): Promise<void> {
+  if (!isFirebaseConfigured || !isSupabaseConfigured) return;
+
+  const messaging = await getFirebaseMessaging();
+  if (!messaging) return;
+
+  try {
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    if (token) {
+      await saveTokenToSupabase(companyId, token);
+    }
+  } catch (err) {
+    console.warn('[fcmService] Token refresh error:', err);
+  }
+}
+
+// ── Supabase Token Persistence ────────────────────────────────────────────────
+
+/**
+ * Save or update the FCM token in the `fcm_tokens` table.
+ * Uses upsert to handle token refresh (same company, new token).
+ * Also removes any old tokens for this company that differ (stale tokens).
+ */
+async function saveTokenToSupabase(companyId: string, token: string): Promise<void> {
+  // First, delete any existing tokens for this company that differ
+  // (handles token refresh — old token becomes invalid)
+  const { error: deleteError } = await supabase
+    .from('fcm_tokens')
+    .delete()
+    .eq('company_id', companyId)
+    .neq('token', token);
+
+  if (deleteError) {
+    console.warn('[fcmService] Error cleaning old tokens:', deleteError.message);
+  }
+
+  // Insert the new token (or it already exists — that's fine)
+  const { error } = await supabase
+    .from('fcm_tokens')
+    .upsert(
+      { company_id: companyId, token },
+      { onConflict: 'company_id,token' }
+    );
+
+  if (error) {
+    console.error('[fcmService] Error saving FCM token:', error.message);
+  }
+}
+
+/**
+ * Remove all FCM tokens for a company from Supabase.
+ */
+async function removeTokenFromSupabase(companyId: string): Promise<void> {
+  const { error } = await supabase
+    .from('fcm_tokens')
+    .delete()
+    .eq('company_id', companyId);
+
+  if (error) {
+    console.error('[fcmService] Error removing FCM tokens:', error.message);
+  }
+}
+
+// ── Edge Function Call ────────────────────────────────────────────────────────
+
+/**
+ * Notify the company owner about a new sale via the Supabase Edge Function.
+ * Called from the driver's app after creating a sale.
  *
- * This is called by the driver's `addSale` handler after the sale is
- * persisted. It's fire-and-forget — the sale is already saved; the
- * push notification is a best-effort add-on.
- *
- * @param saleId    — the UUID of the sale (used for dedup via notification tag)
- * @param driverId  — the UUID of the driver who made the sale
- * @param driverName — the driver's display name (for the notification body)
- * @param totalPrice — the total sale price in IQD
- * @param companyId — the UUID of the company to notify
+ * The Edge Function:
+ * 1. Looks up the company owner's FCM token from `fcm_tokens`
+ * 2. Sends an FCM Web Push with sale data
+ * 3. The service worker on the company device displays the notification
  */
 export async function notifySaleViaEdgeFunction(
   saleId: string,
@@ -143,37 +205,41 @@ export async function notifySaleViaEdgeFunction(
   totalPrice: number,
   companyId: string
 ): Promise<void> {
-  // NOTE: We do NOT check isFcmAvailable() here.
-  // The driver's browser doesn't need FCM — only the company owner does.
-  // The Edge Function will look up the company's FCM tokens server-side.
-  // Checking isFcmAvailable() on the driver's browser would incorrectly
-  // block the notification when the driver hasn't granted notification
-  // permission (which they don't need to do).
-  if (!isSupabaseConfigured || !companyId) {
-    console.warn('[fcmService] notify-sale skipped: Supabase not configured or companyId missing');
-    return;
-  }
+  if (!isSupabaseConfigured) return;
 
   try {
-    console.log('[fcmService] Invoking notify-sale Edge Function for company', companyId);
-    const { error } = await supabase.functions.invoke('notify-sale', {
-      body: { saleId, driverId, driverName, totalPrice, companyId },
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      console.warn('[fcmService] No auth token — cannot call notify-sale Edge Function');
+      return;
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ||
+      'https://qexafenusvjkyzfhtpda.supabase.co';
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/notify-sale`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        saleId,
+        driverId,
+        driverName,
+        totalPrice,
+        companyId,
+      }),
     });
 
-    if (error) {
-      console.error('[fcmService] notify-sale Edge Function error:', error.message);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[fcmService] notify-sale Edge Function error:', response.status, errorText);
     } else {
-      console.log('[fcmService] notify-sale Edge Function invoked successfully');
+      console.log('[fcmService] Sale notification sent via Edge Function for sale:', saleId);
     }
   } catch (err) {
-    console.error('[fcmService] notifySaleViaEdgeFunction error:', err);
+    console.error('[fcmService] Failed to call notify-sale Edge Function:', err);
   }
-}
-
-/**
- * Get the cached FCM token (if any). Useful for checking whether
- * FCM is currently registered without making an async call.
- */
-export function getCachedFcmToken(): string | null {
-  return currentFcmToken;
 }
