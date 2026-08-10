@@ -632,17 +632,70 @@ export async function checkDbTokenStatus(companyId: string): Promise<'saved' | '
 
 // ── Edge Function Call ────────────────────────────────────────────────────────
 
+/** Supabase project URL used to construct Edge Function endpoint. */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ||
+  'https://qexafenusvjkyzfhtpda.supabase.co';
+
+/** Supabase anon key — publishable, required for Edge Function auth. */
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'sb_publishable_x7im7A-wpUvo7MX8jCRICA_IPaKydUs';
+
+/**
+ * Call the Supabase Edge Function `notify-sale` using an explicit fetch().
+ *
+ * We use raw `fetch()` (not `supabase.functions.invoke()`) because:
+ * - `supabase.functions.invoke()` wraps the response in a way that can
+ *   throw `FunctionsFetchError` / "Failed to send a request to the Edge Function"
+ *   even when the Edge Function is reachable and working.
+ * - Raw `fetch()` gives us direct control over the exact HTTP status code,
+ *   response body, and error semantics — no hidden wrapping.
+ *
+ * Three headers are required:
+ *   1. `apikey`          — Supabase anon key (publishable)
+ *   2. `Authorization`   — Bearer <user JWT> from the current session
+ *   3. `Content-Type`    — application/json
+ */
+async function callEdgeFunction(payload: Record<string, unknown>): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+  data: Record<string, unknown> | null;
+}> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('No authenticated session — please log in again');
+  }
+
+  const url = `${SUPABASE_URL}/functions/v1/notify-sale`;
+
+  console.log('[fcmService] Edge Function request:', url, payload);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const bodyText = await response.text();
+  console.log('[fcmService] Edge Function response:', response.status, bodyText);
+
+  let data: Record<string, unknown> | null = null;
+  try {
+    data = JSON.parse(bodyText);
+  } catch {
+    // Non-JSON response — that's OK, bodyText still has it
+  }
+
+  return { ok: response.ok, status: response.status, body: bodyText, data };
+}
+
 /**
  * Notify the company owner about a new sale via the Supabase Edge Function.
- *
- * Uses `supabase.functions.invoke()` which automatically handles:
- * - Authorization header (user's JWT)
- * - apikey header (Supabase anon key)
- * - CORS preflight
- * - Response parsing
- *
- * Previously used raw `fetch()` which lacked the `apikey` header,
- * causing "Failed to fetch" errors even when the Edge Function succeeded.
+ * Fire-and-forget: logs errors but does not throw.
  */
 export async function notifySaleViaEdgeFunction(
   saleId: string,
@@ -654,41 +707,22 @@ export async function notifySaleViaEdgeFunction(
   if (!isSupabaseConfigured) return;
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      console.warn('[fcmService] notify-sale: no session, skipping');
-      return;
-    }
-
-    const payload = {
+    const result = await callEdgeFunction({
       saleId,
       driverId,
       driverName,
       totalPrice,
       companyId,
-      type: 'sale' as const,
-    };
-
-    console.log('[fcmService] notify-sale: calling Edge Function with', {
-      saleId,
-      driverId,
-      driverName,
-      totalPrice,
-      companyId,
+      type: 'sale',
     });
 
-    const { data, error } = await supabase.functions.invoke('notify-sale', {
-      body: payload,
-    });
-
-    if (error) {
-      console.error('[fcmService] notify-sale Edge Function error:', error.message, error);
-      return;
+    if (!result.ok) {
+      console.error(
+        `[fcmService] notify-sale failed: HTTP ${result.status} — ${result.body}`
+      );
     }
-
-    console.log('[fcmService] notify-sale Edge Function response:', data);
   } catch (err) {
-    console.error('[fcmService] Failed to call notify-sale:', err);
+    console.error('[fcmService] notify-sale exception:', err);
   }
 }
 
@@ -700,8 +734,6 @@ export async function notifySaleViaEdgeFunction(
  * but with a synthetic "test" sale ID.
  *
  * Returns { success, message } for UI display.
- *
- * Uses `supabase.functions.invoke()` for proper auth, CORS, and response handling.
  */
 export async function sendTestNotification(companyId: string): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured) {
@@ -709,11 +741,6 @@ export async function sendTestNotification(companyId: string): Promise<{ success
   }
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      return { success: false, message: 'Not authenticated — please log in again' };
-    }
-
     // Check if there's a token in the DB first
     const dbStatus = await checkDbTokenStatus(companyId);
     if (dbStatus === 'missing') {
@@ -725,72 +752,45 @@ export async function sendTestNotification(companyId: string): Promise<{ success
 
     const testSaleId = `test-${Date.now()}`;
 
-    const payload = {
+    const result = await callEdgeFunction({
       saleId: testSaleId,
       driverId: 'test-driver',
       driverName: 'اختبار',
       totalPrice: 1000,
       companyId,
-      type: 'sale' as const,
-    };
-
-    console.log('[fcmService] test notification: calling Edge Function with', payload);
-
-    const { data, error } = await supabase.functions.invoke('notify-sale', {
-      body: payload,
+      type: 'sale',
     });
 
-    if (error) {
-      // FunctionsHttpError: Edge Function returned non-2xx
-      // FunctionsRelayError: Supabase relay failed to reach the function
-      // FunctionsFetchError: Network-level error (CORS, DNS, etc.)
-      const errName = error.constructor?.name || 'Error';
-      const errMsg = error.message || String(error);
-
-      // If it's a relay or fetch error, the notification may still have been sent.
-      // Tell the user to check their notification tray.
-      if (errName === 'FunctionsRelayError' || errName === 'FunctionsFetchError') {
-        return {
-          success: true,
-          message: `Notification likely sent but response was lost (${errName}). Check your notification tray in a few seconds.`,
-        };
-      }
-
-      return { success: false, message: `Edge Function error (${errName}): ${errMsg}` };
-    }
-
-    // Parse response data
-    const result = data as { sent?: number; total?: number; message?: string; error?: string } | null;
-
-    if (result?.message?.includes('No FCM tokens')) {
-      return { success: false, message: 'No FCM tokens registered for this company. Enable notifications first.' };
-    }
-
-    if (result?.error) {
-      return { success: false, message: `Server error: ${result.error}` };
-    }
-
-    if (result?.sent && result.sent > 0) {
-      return { success: true, message: `Test notification sent! (${result.sent}/${result.total} devices). Check your notification tray.` };
-    }
-
-    if (result?.sent === 0) {
-      return { success: false, message: 'Edge Function returned sent=0. No FCM tokens found for this company.' };
-    }
-
-    return { success: true, message: `Edge Function responded: ${JSON.stringify(data)}` };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-
-    // "Failed to fetch" typically means a network/CORS error, but the Edge Function
-    // may have already processed the request and sent FCM. Don't report as hard failure.
-    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('fetch')) {
+    // HTTP-level failure
+    if (!result.ok) {
       return {
-        success: true,
-        message: 'Notification likely sent (network error reading response). Check your notification tray in a few seconds.',
+        success: false,
+        message: `Edge Function HTTP ${result.status}: ${result.body.substring(0, 200)}`,
       };
     }
 
-    return { success: false, message: `Error: ${msg}` };
+    // Parse the response
+    const r = result.data;
+
+    if (r?.message && String(r.message).includes('No FCM tokens')) {
+      return { success: false, message: 'No FCM tokens registered for this company. Enable notifications first.' };
+    }
+
+    if (r?.error) {
+      return { success: false, message: `Server error: ${r.error}` };
+    }
+
+    if (r?.sent && (r.sent as number) > 0) {
+      return { success: true, message: `Test notification sent! (${r.sent}/${r.total} devices). Check your notification tray.` };
+    }
+
+    if (r?.sent === 0) {
+      return { success: false, message: 'Edge Function returned sent=0. No FCM tokens found for this company.' };
+    }
+
+    return { success: true, message: `Edge Function responded (HTTP ${result.status}): ${result.body.substring(0, 200)}` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Request failed: ${msg}` };
   }
 }
