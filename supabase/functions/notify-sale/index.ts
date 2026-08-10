@@ -160,17 +160,22 @@ async function sendFcmMessage(
   console.log('[notify-sale] FCM message sent successfully for sale:', saleId);
 }
 
+// ── CORS Headers ──────────────────────────────────────────────────────────────
+// Per Supabase official docs: https://supabase.com/docs/guides/functions/cors
+// Must include 'apikey' and 'x-client-info' so the browser's fetch() (which
+// sends these headers via the Supabase JS SDK or explicit headers) passes the
+// CORS preflight check.
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // ── Main Handler ──────────────────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, content-type',
-      },
-    });
+    return new Response('ok', { headers: CORS_HEADERS });
   }
 
   try {
@@ -180,7 +185,7 @@ serve(async (req) => {
     if (!saleId || !driverId || !companyId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: saleId, driverId, companyId' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
       );
     }
 
@@ -193,7 +198,7 @@ serve(async (req) => {
       console.error('[notify-sale] Firebase env vars not configured');
       return new Response(
         JSON.stringify({ error: 'Firebase not configured on server' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
       );
     }
 
@@ -213,7 +218,7 @@ serve(async (req) => {
       console.error('[notify-sale] Error fetching FCM tokens:', tokenError.message);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch FCM tokens' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
       );
     }
 
@@ -221,7 +226,7 @@ serve(async (req) => {
       console.log('[notify-sale] No FCM tokens found for company:', companyId);
       return new Response(
         JSON.stringify({ message: 'No FCM tokens registered for this company' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
       );
     }
 
@@ -268,7 +273,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ sent: sentCount, total: tokens.length }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+      { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
     );
 
   } catch (err) {
@@ -277,7 +282,7 @@ serve(async (req) => {
     console.error('[notify-sale] Error:', errMsg, errStack);
     return new Response(
       JSON.stringify({ error: errMsg }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
     );
   }
 });
