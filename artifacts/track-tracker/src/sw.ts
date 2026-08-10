@@ -15,6 +15,12 @@
  * FCM background messages are handled using the Firebase modular SDK
  * (`firebase/messaging/sw`) which is specifically designed for service worker
  * context and does NOT require importScripts or CDN loading.
+ *
+ * IMPORTANT: The Edge Function sends DATA-ONLY messages (no `notification`
+ * field) so that onBackgroundMessage is always called, giving us full control
+ * over the notification tag, icon, title, and body. This ensures each sale
+ * produces an independent notification (tag: sale-${saleId}) instead of
+ * replacing the previous one.
  */
 
 // ── Workbox imports ──────────────────────────────────────────────────────────
@@ -112,30 +118,35 @@ registerRoute(
 // ── 4. FCM background message handler ───────────────────────────────────────
 // This fires when a push message arrives AND no client (tab) is visible.
 // It is the ONLY way to show a notification when the PWA is completely closed.
+//
+// The Edge Function sends DATA-ONLY messages with these fields:
+//   type, title, body, companyId, saleId, tag, driverName, totalPrice
 onBackgroundMessage(messaging, (payload) => {
   const data = payload.data ?? {};
 
-  // Extract notification details from the data-only FCM message.
-  // The Edge Function sends: { saleId, driverName, totalPrice, type: 'sale' }
+  const type       = data.type       ?? 'sale';
   const saleId     = data.saleId     ?? '';
   const driverName = data.driverName ?? 'سائق';
   const totalPrice = data.totalPrice ?? '';
-  const type       = data.type       ?? 'sale';
 
-  // Only handle sale notifications
-  if (type !== 'sale') return;
+  // Title & body come from the Edge Function's data payload
+  const title = data.title ?? 'عملية بيع جديدة';
+  const body  = data.body
+    ?? (totalPrice
+      ? `${driverName} قام بعملية بيع بقيمة ${totalPrice} د.ع`
+      : `${driverName} قام بعملية بيع جديدة`);
 
-  const title = 'عملية بيع جديدة';
-  const body  = totalPrice
-    ? `${driverName} سجّل عملية بيع بقيمة ${totalPrice}`
-    : `${driverName} سجّل عملية بيع جديدة`;
+  // Unique tag per saleId → each sale shows a separate notification
+  // Without tag, new notifications replace old ones with the same tag.
+  // With sale-${saleId}, each sale gets its own independent notification.
+  const tag = data.tag ?? (saleId ? `sale-${saleId}` : undefined);
 
   self.registration.showNotification(title, {
     body,
     icon:  '/icons/icon-192.png',
     badge: '/icons/icon-72.png',
-    tag:   `sale-${saleId}`,     // dedup: replaces earlier notification for same sale
-    data:  { saleId, type, clickAction: '/' },
+    ...(tag && { tag }),
+    data:  { saleId, type, driverName, totalPrice, clickAction: '/' },
     dir:   'rtl',
     lang:  'ar',
   });

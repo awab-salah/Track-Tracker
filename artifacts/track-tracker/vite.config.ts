@@ -25,6 +25,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: 'auto',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['favicon.svg', 'icons/favicon-16.png', 'icons/favicon-32.png'],
       manifest: {
         id: basePath,
@@ -63,20 +66,7 @@ export default defineConfig({
           },
         ],
       },
-      // ── injectManifest: custom SW with Workbox v7 + FCM ──────────────────────
-      // Use injectManifest so our custom src/sw.ts (which contains both
-      // Workbox precaching AND Firebase Cloud Messaging onBackgroundMessage)
-      // is compiled by esbuild with the precache manifest injected.
-      //
-      // This replaces the old generateSW approach which produced a SW that
-      // used Workbox v6 API naming (workbox.expiration.Plugin → v7: ExpirationPlugin,
-      // workbox.cacheableResponse.Plugin → v7: CacheableResponsePlugin) causing
-      // "ServiceWorker script evaluation failed" on production.
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      swSrc: 'src/sw.ts',
-      swDest: 'sw.js',
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webp}'],
         // DO NOT set skipWaiting or clientsClaim here.
         //
