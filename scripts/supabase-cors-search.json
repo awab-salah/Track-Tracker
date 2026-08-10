@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://supabase.com/docs/guides/functions/cors",
+    "name": "CORS (Cross-Origin Resource Sharing) support for",
+    "snippet": "This approach ensures that when new headers are added to the Supabase SDK, your Edge Functions automatically include them, preventing CORS errors.",
+    "host_name": "supabase.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/orgs/supabase/discussions/38832",
+    "name": "Persistent CORS Preflight Error on Edge Functions",
+    "snippet": "Sep 18, 2025 — 1. Verify your C ORS headers are comprehensive: · 2. Check if you're using the new API keys: · 3. Try invoking directly with fetch instead of ... Read more",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "Sep 18, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://supabase.com/docs/guides/troubleshooting/unable-to-call-edge-function",
+    "name": "Troubleshooting | Unable to call Edge Function",
+    "snippet": "Jul 29, 2026 — If you're having trouble invoking an Edge Function or experiencing CORS issues, follow these steps to diagnose and resolve the problem. Read more",
+    "host_name": "supabase.com",
+    "rank": 2,
+    "date": "Jul 29, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/78588513/supabase-edge-functions-cors-issue",
+    "name": "Supabase edge functions CORS issue",
+    "snippet": "Response to preflight request doesn't pass access control check: No ' Access - Control - Allow -Origin' header is present on the requested resource.",
+    "host_name": "stackoverflow.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.weweb.io/t/supabase-invoking-edge-functions-causes-cors-issues/6561",
+    "name": "[Supabase] Invoking Edge Functions causes CORS issues",
+    "snippet": "Jan 23, 2024 — Hello, the issue is really a simple one, invoking an Edge Function causes the call to get a CORS error, while in postman, I can make the ...",
+    "host_name": "community.weweb.io",
+    "rank": 4,
+    "date": "Jan 23, 2024",
+    "favicon": ""
+  }
+]
