@@ -788,14 +788,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // The driver's app (which is open) calls the Edge Function, which sends
     // an FCM Web Push to the company owner's device. This works even when
     // the company app/PWA is completely closed.
-    if (isFirebaseConfigured && role === 'driver' && authCompanyId) {
+    //
+    // IMPORTANT: For drivers, authCompanyId is NULL (AuthContext only sets it
+    // for company-role users). The driver's companyId comes from their profile
+    // (authDriverProfile.companyId), which is populated from the drivers table's
+    // company_id foreign key during bootstrap.
+    const driverCompanyId = role === 'driver'
+      ? authDriverProfile?.companyId
+      : authCompanyId;
+    if (isFirebaseConfigured && role === 'driver' && driverCompanyId) {
       const driverName = driversRef.current.find((d) => d.id === currentDriverId)?.name || '';
       void notifySaleViaEdgeFunction(
         newSale.id,
         currentDriverId,
         driverName,
         totalPrice,
-        authCompanyId,
+        driverCompanyId,
       );
     }
 

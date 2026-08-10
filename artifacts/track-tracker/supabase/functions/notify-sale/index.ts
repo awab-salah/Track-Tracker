@@ -69,7 +69,16 @@ Deno.serve(async (req: Request) => {
     const body: NotifySaleRequest = await req.json();
     const { saleId, driverId, driverName, totalPrice, companyId } = body;
 
+    console.log('[notify-sale] Request received:', {
+      saleId,
+      driverId,
+      driverName,
+      totalPrice,
+      companyId,
+    });
+
     if (!saleId || !driverId || !driverName || totalPrice === undefined || !companyId) {
+      console.warn('[notify-sale] Missing required fields:', { saleId, driverId, driverName, totalPrice, companyId });
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -88,7 +97,7 @@ Deno.serve(async (req: Request) => {
       .eq('company_id', companyId);
 
     if (dbError) {
-      console.error('[notify-sale] Failed to query fcm_tokens:', dbError.message);
+      console.error('[notify-sale] Failed to query fcm_tokens:', dbError.message, 'companyId:', companyId);
       return new Response(JSON.stringify({ error: 'Database query failed' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -96,9 +105,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const tokens = (tokenRows as FcmTokenRow[]).map((r) => r.token);
+    console.log('[notify-sale] Token count for company', companyId, ':', tokens.length);
     if (tokens.length === 0) {
       // No devices registered — nothing to push to. Not an error.
-      return new Response(JSON.stringify({ sent: 0 }), {
+      console.log('[notify-sale] No FCM tokens found for company', companyId, '— nothing to send');
+      return new Response(JSON.stringify({ sent: 0, total: 0, message: 'No FCM tokens registered for this company' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
@@ -185,21 +196,22 @@ Deno.serve(async (req: Request) => {
 
         if (response.ok) {
           sentCount++;
-          console.log('[notify-sale] FCM push succeeded for token', token.substring(0, 10));
+          console.log('[notify-sale] FCM push succeeded for token', token.substring(0, 10), 'saleId:', saleId);
         } else {
           const errorBody = await response.text();
           const errSummary = `token ${token.substring(0, 10)}... status=${response.status} body=${errorBody.substring(0, 200)}`;
-          console.error(`[notify-sale] FCM push failed: ${errSummary}`);
+          console.error(`[notify-sale] FCM push FAILED: ${errSummary} saleId=${saleId} companyId=${companyId}`);
           sendErrors.push(errSummary);
 
           // If FCM says the token is invalid/unregistered, mark it for cleanup
           if (response.status === 404 || errorBody.includes('UNREGISTERED') || errorBody.includes('invalid-registration-token')) {
             failedTokens.push(token);
+            console.warn('[notify-sale] Marking token for cleanup:', token.substring(0, 10), 'reason:', errorBody.substring(0, 100));
           }
         }
       } catch (err) {
         const errSummary = `token ${token.substring(0, 10)}... exception=${String(err)}`;
-        console.error(`[notify-sale] FCM push error: ${errSummary}`);
+        console.error(`[notify-sale] FCM push EXCEPTION: ${errSummary} saleId=${saleId}`);
         sendErrors.push(errSummary);
       }
     });
@@ -208,6 +220,7 @@ Deno.serve(async (req: Request) => {
 
     // ── 4. Clean up invalid tokens ──────────────────────────────────────────
     if (failedTokens.length > 0) {
+      console.log('[notify-sale] Cleaning up', failedTokens.length, 'invalid/expired tokens');
       const { error: deleteError } = await supabaseClient
         .from('fcm_tokens')
         .delete()
@@ -215,6 +228,8 @@ Deno.serve(async (req: Request) => {
 
       if (deleteError) {
         console.error('[notify-sale] Failed to clean up invalid tokens:', deleteError.message);
+      } else {
+        console.log('[notify-sale] Successfully cleaned up', failedTokens.length, 'invalid tokens');
       }
     }
 
@@ -222,6 +237,7 @@ Deno.serve(async (req: Request) => {
     if (sendErrors.length > 0) {
       result.errors = sendErrors;
     }
+    console.log('[notify-sale] Final result:', { sent: sentCount, total: tokens.length, errors: sendErrors.length, cleaned: failedTokens.length, saleId, companyId });
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
