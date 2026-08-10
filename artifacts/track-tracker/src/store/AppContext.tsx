@@ -899,14 +899,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         const title = data.title || 'عملية بيع جديدة';
         const body = data.body || 'تم تسجيل عملية بيع جديدة';
-        const icon = data.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
+        const icon = data.icon || 'https://track-tracker-app.vercel.app/icons/icon-192.png';
+        const badge = 'https://track-tracker-app.vercel.app/icons/notification-bell.png';
         // ALWAYS use sale-based tag for dedup — never Date.now()
         const tag = `sale-${saleId}`;
 
         // Use SW showNotification() — single "TrackTracker"-branded notification
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
           navigator.serviceWorker.ready.then((reg) => {
-            reg.showNotification(title, { body, icon, tag, data: { saleId, type, clickAction: '/' }, dir: 'rtl', lang: 'ar' });
+            reg.showNotification(title, { body, icon, badge, tag, data: { saleId, type, clickAction: '/' }, dir: 'rtl', lang: 'ar' });
           }).catch(() => {
             try { new Notification(title, { body, icon, tag }); } catch {}
           });

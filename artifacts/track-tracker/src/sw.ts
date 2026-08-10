@@ -1,3 +1,6 @@
+/// <reference lib="webworker" />
+declare const self: ServiceWorkerGlobalScope;
+
 /**
  * Combined Service Worker: Workbox PWA + Firebase Cloud Messaging.
  *
@@ -143,8 +146,13 @@ onBackgroundMessage(messaging, (payload) => {
 
   self.registration.showNotification(title, {
     body,
-    icon:  '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
+    // icon: large image shown in the notification body (full-color OK).
+    // badge: small silhouette in the status bar on Android (must be alpha-only).
+    // Using absolute URLs ensures the icon is always reachable, even before
+    // the SW has cached it. Android shows a white square if the icon URL
+    // is unreachable or the badge is fully opaque.
+    icon:  'https://track-tracker-app.vercel.app/icons/icon-192.png',
+    badge: 'https://track-tracker-app.vercel.app/icons/notification-bell.png',
     ...(tag && { tag }),
     data:  { saleId, type, driverName, totalPrice, clickAction: '/' },
     dir:   'rtl',
