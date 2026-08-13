@@ -1,0 +1,308 @@
+[
+  {
+    "test": "JWT has amount field",
+    "status": "PASS",
+    "detail": "amount = 14000",
+    "category": ""
+  },
+  {
+    "test": "JWT has serviceType field",
+    "status": "PASS",
+    "detail": "serviceType = subscription",
+    "category": ""
+  },
+  {
+    "test": "JWT has msisdn field",
+    "status": "PASS",
+    "detail": "msisdn = 9647835077893",
+    "category": ""
+  },
+  {
+    "test": "JWT has orderId field",
+    "status": "PASS",
+    "detail": "orderId = tt-plan-10-test-co-1786659990-abc123...",
+    "category": ""
+  },
+  {
+    "test": "JWT has redirectUrl field",
+    "status": "PASS",
+    "detail": "redirectUrl = https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-te...",
+    "category": ""
+  },
+  {
+    "test": "redirectUrl points to callback endpoint",
+    "status": "PASS",
+    "detail": "Expected prefix: https://track-tracker-app.vercel.app/api/zaincash/callback",
+    "category": ""
+  },
+  {
+    "test": "redirectUrl contains orderId param",
+    "status": "PASS",
+    "detail": "Query params for callback fallback",
+    "category": ""
+  },
+  {
+    "test": "redirectUrl contains companyId param",
+    "status": "PASS",
+    "detail": "Query params for callback fallback",
+    "category": ""
+  },
+  {
+    "test": "No callbackUrl field in JWT (v1 doesn't support it)",
+    "status": "PASS",
+    "detail": "ZainCash v1 uses redirectUrl for both redirect and callback",
+    "category": ""
+  },
+  {
+    "test": "Vercel create endpoint reachable",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Create returns 200",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Response has transactionId",
+    "status": "PASS",
+    "detail": "transactionId: 6a7e449738b05b0a7af68bde",
+    "category": ""
+  },
+  {
+    "test": "Response has redirectUrl",
+    "status": "PASS",
+    "detail": "redirectUrl: https://test.zaincash.iq/transaction/pay?id=6a7e449738b05b0a7af68bde",
+    "category": ""
+  },
+  {
+    "test": "Response has orderId",
+    "status": "PASS",
+    "detail": "orderId: tt-plan-10-test-diagnostic-1786659990836-u6q1rq",
+    "category": ""
+  },
+  {
+    "test": "redirectUrl starts with https",
+    "status": "PASS",
+    "detail": "URL: https://test.zaincash.iq/transaction/pay?id=6a7e449738b05b0a",
+    "category": ""
+  },
+  {
+    "test": "Verify endpoint reachable",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Verify returns 200",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Verify has transactionId",
+    "status": "PASS",
+    "detail": "ID: 6a7e449738b05b0a7af68bde",
+    "category": ""
+  },
+  {
+    "test": "Verify has status field",
+    "status": "PASS",
+    "detail": "status: pending",
+    "category": ""
+  },
+  {
+    "test": "Verify has details object",
+    "status": "PASS",
+    "detail": "details keys: ['to', 'source', 'type', 'amount', 'serviceType', 'lang']",
+    "category": ""
+  },
+  {
+    "test": "Details contain amount",
+    "status": "PASS",
+    "detail": "amount: 14000",
+    "category": ""
+  },
+  {
+    "test": "Details contain orderId",
+    "status": "PASS",
+    "detail": "orderId: tt-plan-10-test-diagnostic-1786659990836-u6q1rq",
+    "category": ""
+  },
+  {
+    "test": "GET callback (no token = cancel)",
+    "status": "FAIL",
+    "detail": "Returns 404 — GET handler not deployed yet",
+    "category": "DEPLOYMENT"
+  },
+  {
+    "test": "POST empty body → 400",
+    "status": "FAIL",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "POST invalid JWT → 400",
+    "status": "PASS",
+    "detail": "Status: 400",
+    "category": ""
+  },
+  {
+    "test": "POST missing transactionId → 400",
+    "status": "PASS",
+    "detail": "Status: 400",
+    "category": ""
+  },
+  {
+    "test": "POST null transactionId → 400",
+    "status": "PASS",
+    "detail": "Status: 400",
+    "category": ""
+  },
+  {
+    "test": "POST valid JSON callback → 200",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Callback response has received=true",
+    "status": "PASS",
+    "detail": "received: True",
+    "category": ""
+  },
+  {
+    "test": "Callback response has transactionId",
+    "status": "PASS",
+    "detail": "ID: 6a7e449738b05b0a7af68bde",
+    "category": ""
+  },
+  {
+    "test": "Callback response has status",
+    "status": "PASS",
+    "detail": "status: pending",
+    "category": ""
+  },
+  {
+    "test": "First callback → 200",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Second callback → 200 (not error)",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Both callbacks return same status",
+    "status": "PASS",
+    "detail": "Status 1: pending, Status 2: pending",
+    "category": ""
+  },
+  {
+    "test": "Callback JWT has id",
+    "status": "PASS",
+    "detail": "id: 6a7e449738b05b0a7af68bde",
+    "category": ""
+  },
+  {
+    "test": "Callback JWT has status",
+    "status": "PASS",
+    "detail": "status: success",
+    "category": ""
+  },
+  {
+    "test": "POST JWT callback → 200",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "JWT callback response has received=true",
+    "status": "PASS",
+    "detail": "received: True",
+    "category": ""
+  },
+  {
+    "test": "Polling via verify endpoint works",
+    "status": "PASS",
+    "detail": "Status: 200",
+    "category": ""
+  },
+  {
+    "test": "Polling returns consistent status",
+    "status": "PASS",
+    "detail": "status: pending",
+    "category": ""
+  },
+  {
+    "test": "Unpaid transaction shows pending/processing",
+    "status": "PASS",
+    "detail": "status: pending (expected pending or processing)",
+    "category": ""
+  },
+  {
+    "test": "E2E step 1: Payment created",
+    "status": "PASS",
+    "detail": "transactionId: 6a7e449e38b05b0a7af68bdf",
+    "category": ""
+  },
+  {
+    "test": "E2E step 2: Redirect URL returned",
+    "status": "PASS",
+    "detail": "URL: https://test.zaincash.iq/transaction/pay?id=6a7e449e38b05b0a7af68bdf",
+    "category": ""
+  },
+  {
+    "test": "E2E step 3: Transaction is pending",
+    "status": "PASS",
+    "detail": "status: pending",
+    "category": ""
+  },
+  {
+    "test": "E2E step 4: Complete payment on ZainCash page",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires manual wallet login (MSISDN + PIN + OTP) on ZainCash payment page",
+    "category": "ZAINCASH SANDBOX"
+  },
+  {
+    "test": "E2E step 5: Verify ZainCash sends callback",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires payment completion",
+    "category": "ZAINCASH SANDBOX"
+  },
+  {
+    "test": "E2E step 6: Verify callback receives it",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires payment completion",
+    "category": "ZAINCASH SANDBOX"
+  },
+  {
+    "test": "E2E step 7: Payment record becomes completed",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires payment completion",
+    "category": "ZAINCASH SANDBOX"
+  },
+  {
+    "test": "E2E step 8: Subscription becomes active",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires payment completion",
+    "category": "ZAINCASH SANDBOX"
+  },
+  {
+    "test": "E2E step 9: Failed payment does NOT activate",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires payment cancellation",
+    "category": "ZAINCASH SANDBOX"
+  },
+  {
+    "test": "E2E step 10: Duplicate callback harmless",
+    "status": "FAIL",
+    "detail": "CANNOT AUTOMATE: Requires payment completion + replay",
+    "category": "ZAINCASH SANDBOX"
+  }
+]

@@ -60,7 +60,13 @@ function getConfig() {
     msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
     merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
     secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
-    redirectUrl: process.env.ZAINCASH_REDIRECT_URL  ?? '',
+    // redirectUrl: In ZainCash v1 API, this serves DUAL purpose:
+    //   1. Browser redirect after payment (user returns to this URL)
+    //   2. Payment notification (ZainCash appends ?token=XXXXX with JWT result)
+    // There is NO separate callbackUrl field in v1 — redirectUrl IS the callback.
+    // Production default: our callback endpoint that processes the token and redirects.
+    redirectUrl: process.env.ZAINCASH_REDIRECT_URL
+      ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
     lang:       process.env.ZAINCASH_LANG           ?? 'ar',
   };
 }
@@ -138,10 +144,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate unique order ID
     const orderId = `tt-${planId}-${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    // Build redirect URL for after payment
-    const redirectUrl = config.redirectUrl
-      ? `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`
-      : '';
+    // Build redirectUrl for the JWT payload.
+    // In ZainCash v1, redirectUrl serves as BOTH user redirect and callback:
+    //   - After payment, ZainCash redirects the user's browser to redirectUrl?token=XXXXX
+    //   - The token JWT contains the payment result (status, orderId, id)
+    // We append orderId/planId/companyId as query params so the callback endpoint
+    // can use them as fallback if the token doesn't contain enough info.
+    const redirectUrl = `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`;
 
     // ── Step 1: Create JWT token ────────────────────────────────────────────
     const now = Math.floor(Date.now() / 1000);
@@ -150,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       serviceType: 'subscription',
       msisdn: config.msisdn,
       orderId,
-      redirectUrl,
+      redirectUrl,  // ZainCash v1 callback: browser redirect to this URL + ?token=XXXXX
       iat: now,
       exp: now + 60 * 60 * 4, // 4 hours expiry
     };

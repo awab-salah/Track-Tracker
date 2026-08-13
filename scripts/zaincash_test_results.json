@@ -1,0 +1,67 @@
+[
+  {
+    "test": "JWT payload contains redirectUrl",
+    "status": "PASS",
+    "detail": "redirectUrl = https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=test-order-17..."
+  },
+  {
+    "test": "Decoded JWT contains redirectUrl",
+    "status": "PASS",
+    "detail": "Decoded keys: ['amount', 'serviceType', 'msisdn', 'orderId', 'redirectUrl', 'iat', 'exp']"
+  },
+  {
+    "test": "ZainCash init returns 200",
+    "status": "FAIL",
+    "detail": "HTTP 403: <!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-"
+  },
+  {
+    "test": "Inquiry test",
+    "status": "FAIL",
+    "detail": "No transaction ID from init test"
+  },
+  {
+    "test": "Vercel create endpoint reachable",
+    "status": "PASS",
+    "detail": "Status: 502"
+  },
+  {
+    "test": "Vercel create returns 200",
+    "status": "FAIL",
+    "detail": "HTTP 502: {'error': 'ZainCash transaction init failed', 'step': 'transaction_init', 'zaincashStatus': 503, 'zaincashResponse': '<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\\n<html><head>\\n<title>503 Servi"
+  },
+  {
+    "test": "Verify test",
+    "status": "FAIL",
+    "detail": "No transaction ID"
+  },
+  {
+    "test": "GET callback reachable (no token = cancel)",
+    "status": "FAIL",
+    "detail": "Status: 404 (should return HTML redirect page)"
+  },
+  {
+    "test": "POST callback with empty body returns 400",
+    "status": "PASS",
+    "detail": "Status: 400 (should be 400 for missing transaction ID)"
+  },
+  {
+    "test": "POST callback with invalid JWT returns 400",
+    "status": "PASS",
+    "detail": "Status: 400 (should be 400 for invalid JWT)"
+  },
+  {
+    "test": "POST callback with no transactionId returns 400",
+    "status": "PASS",
+    "detail": "Status: 400"
+  },
+  {
+    "test": "Valid token callback test",
+    "status": "FAIL",
+    "detail": "No transaction ID"
+  },
+  {
+    "test": "Idempotency test",
+    "status": "FAIL",
+    "detail": "No transaction ID"
+  }
+]
