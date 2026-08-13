@@ -53,7 +53,10 @@ function getConfig() {
     msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
     merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
     secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
-    redirectUrl: process.env.ZAINCASH_REDIRECT_URL  ?? '',
+    // redirectUrl: In ZainCash v1, this serves dual purpose — redirect + callback.
+    // Production default: our callback endpoint that processes the token and redirects.
+    redirectUrl: process.env.ZAINCASH_REDIRECT_URL
+      ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
     lang:       process.env.ZAINCASH_LANG           ?? 'ar',
   };
 }
@@ -130,13 +133,15 @@ async function inquireTransaction(transactionId: string): Promise<Record<string,
   const inquiryUrl = `${config.baseUrl}/transaction/get`;
   console.log('[ZainCash] Inquiry request to:', inquiryUrl, 'for transaction:', transactionId);
 
+  // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+  const inquiryParams = new URLSearchParams();
+  inquiryParams.append('merchantId', config.merchantId);
+  inquiryParams.append('token', token);
+
   const response = await fetch(inquiryUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      merchantId: config.merchantId,
-      token: encodeURIComponent(token),
-    }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: inquiryParams.toString(),
   });
 
   const responseText = await response.text();
@@ -198,10 +203,13 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
     // Generate unique order ID
     const orderId = `tt-${planId}-${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    // Build redirect URL for after payment
-    const redirectUrl = config.redirectUrl
-      ? `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`
-      : '';
+    // Build redirectUrl for the JWT payload.
+    // In ZainCash v1, redirectUrl serves as BOTH user redirect and callback:
+    //   - After payment, ZainCash redirects the user's browser to redirectUrl?token=XXXXX
+    //   - The token JWT contains the payment result (status, orderId, id)
+    // We append orderId/planId/companyId as query params so the callback endpoint
+    // can use them as fallback if the token doesn't contain enough info.
+    const redirectUrl = `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`;
 
     // ── Step 1: Create JWT token ──────────────────────────────────────────
     const now = Math.floor(Date.now() / 1000);
@@ -210,7 +218,7 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
       serviceType: 'subscription',
       msisdn: config.msisdn,
       orderId,
-      redirectUrl,
+      redirectUrl,  // ZainCash v1 callback: browser redirect to this URL + ?token=XXXXX
       iat: now,
       exp: now + 60 * 60 * 4, // 4 hours expiry
     };
@@ -219,20 +227,20 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
     console.log('[ZainCash] JWT token created for order:', orderId);
 
     // ── Step 2: Initiate transaction via v1 API ───────────────────────────
+    // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
     const initUrl = `${config.baseUrl}/transaction/init`;
-    const initBody = {
-      lang: config.lang,
-      merchantId: config.merchantId,
-      token: encodeURIComponent(token),
-    };
+    const initParams = new URLSearchParams();
+    initParams.append('token', token);
+    initParams.append('merchantId', config.merchantId);
+    initParams.append('lang', config.lang);
 
     console.log('[ZainCash] Initiating transaction at:', initUrl);
-    console.log('[ZainCash] Request body keys:', Object.keys(initBody));
+    console.log('[ZainCash] Content-Type: application/x-www-form-urlencoded');
 
     const initResponse = await fetch(initUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(initBody),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: initParams.toString(),
     });
 
     const initText = await initResponse.text();
@@ -337,9 +345,10 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
 
 /**
  * POST /api/zaincash/callback
- * Server-to-server callback from ZainCash after payment.
- * Handles both v1 (JWT) and v2 (JSON) callback formats.
+ * ZainCash v1 redirect callback or potential v2 server-to-server callback.
+ * Handles both v1 (JWT in body.token) and v2 (JSON body) callback formats.
  * Always verifies via v1 inquiry API — NEVER trusts the callback payload alone.
+ * Idempotent: if payment already completed, skips activation.
  */
 router.post('/zaincash/callback', async (req: Request, res: Response) => {
   try {
@@ -359,6 +368,7 @@ router.post('/zaincash/callback', async (req: Request, res: Response) => {
         orderId = (payload.orderId ?? '') as string;
       } catch (jwtErr) {
         console.error('[ZainCash] JWT decode failed:', jwtErr);
+        return res.status(400).json({ error: 'Invalid JWT token', received: false });
       }
     }
 
@@ -367,11 +377,36 @@ router.post('/zaincash/callback', async (req: Request, res: Response) => {
       console.log('[ZainCash] JSON callback received:', JSON.stringify(body).slice(0, 500));
       transactionId = (body.id ?? body.transactionId ?? '') as string;
       orderId = (body.orderId ?? '') as string;
+      companyId = (body.companyId ?? '') as string;
     }
 
     if (!transactionId) {
-      return res.status(400).json({ error: 'Missing transaction ID' });
+      return res.status(400).json({ error: 'Missing transaction ID', received: false });
     }
+
+    // ── Idempotency check: if payment already completed, skip ──────────────
+    try {
+      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+      if (supabaseUrl && supabaseKey) {
+        const recordRes = await fetch(
+          `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`,
+          { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+        );
+        if (recordRes.ok) {
+          const rows = await recordRes.json() as Array<{ status: string; company_id: string }>;
+          if (rows.length > 0) {
+            if (rows[0].status === 'completed') {
+              console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
+              return res.status(200).json({ received: true, transactionId, status: 'completed', message: 'Already processed' });
+            }
+            // Use company_id from payment_records (most reliable)
+            if (!companyId && rows[0].company_id) {
+              companyId = rows[0].company_id;
+            }
+          }
+        }
+      }
+    } catch { /* non-fatal — continue without idempotency check */ }
 
     // Always verify via inquiry — NEVER trust the callback payload alone
     console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
@@ -380,12 +415,22 @@ router.post('/zaincash/callback', async (req: Request, res: Response) => {
       orderId: string;
     };
 
-    const verifiedOrderId = details.orderId || orderId;
-
-    // Extract companyId from orderId (format: tt-{planId}-{companyId}-{timestamp}-{random})
-    const parts = verifiedOrderId.split('-');
-    if (parts.length >= 4 && parts[0] === 'tt') {
-      companyId = parts[2];
+    // Use companyId from payment_records (already set above) or from body
+    if (!companyId) {
+      // Fallback: try to get from payment_records again
+      try {
+        const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+        if (supabaseUrl && supabaseKey) {
+          const recordRes = await fetch(
+            `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=company_id`,
+            { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+          );
+          if (recordRes.ok) {
+            const rows = await recordRes.json() as Array<{ company_id: string }>;
+            if (rows.length > 0 && rows[0].company_id) companyId = rows[0].company_id;
+          }
+        }
+      } catch { /* non-fatal */ }
     }
 
     console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);

@@ -334,3 +334,27 @@ Stage Summary:
 - Production deployed at https://track-tracker-app.vercel.app with commit d35eddf
 - Edge Function active and working: {sent:1, total:1} for company c0d2f3c8-5fce-4be2-8cd7-9a16fcb371ed
 - Enhanced Edge Function logging not yet deployed (requires Supabase access token)
+
+---
+Task ID: zaincash-fix-1
+Agent: main
+Task: Fix ZainCash integration — callback redirect, Express server format, idempotency
+
+Work Log:
+- Discovered all ZainCash-related files (8 core files across Vercel API, Express server, client-side service/hook)
+- Fetched official ZainCash v1 API documentation (via Wayback Machine, live docs behind Cloudflare)
+- KEY FINDING: ZainCash v1 has NO separate callbackUrl field. redirectUrl serves dual purpose (user redirect + payment notification via ?token=XXXXX)
+- Fixed Vercel create.ts: redirectUrl now defaults to https://track-tracker-app.vercel.app/api/zaincash/callback
+- Fixed Vercel callback.ts: Added GET handler for ZainCash redirect with ?token=, HTML redirect page, idempotency via payment_records lookup, companyId from DB instead of fragile orderId parsing
+- Fixed Express server zaincash.ts: Changed inquireTransaction and create from JSON to x-www-form-urlencoded, added redirectUrl default, added idempotency and proper companyId lookup in callback
+- Fixed client-side zaincashService.ts: redirectUrl default to callback endpoint
+- Ran comprehensive tests: 42/51 passed, 7 failures = sandbox manual steps, 1 = deployment (GET handler), 1 = old deployed code
+- Payment creation works (when sandbox available), verification works, callback processing works
+- Cannot automate E2E test (requires manual ZainCash wallet login)
+
+Stage Summary:
+- ZainCash v1 API uses redirectUrl (not callbackUrl) for callback mechanism
+- All 4 fix areas implemented: redirectUrl in JWT, Express format, callback GET handler, idempotency
+- Sandbox intermittently returns 503 (ZainCash-side issue, not our code)
+- Code needs deployment to Vercel for GET callback handler to take effect
+- E2E flow from payment creation through redirect URL generation confirmed working

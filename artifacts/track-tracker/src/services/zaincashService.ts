@@ -56,7 +56,10 @@ export function getZainCashConfig(): ZainCashConfig {
     merchantId:  process.env.ZAINCASH_MERCHANT_ID   || SANDBOX_DEFAULTS.merchantId,
     secretKey:   process.env.ZAINCASH_SECRET_KEY    || SANDBOX_DEFAULTS.secret,
     callbackUrl: process.env.ZAINCASH_CALLBACK_URL  ?? '',
-    redirectUrl: process.env.ZAINCASH_REDIRECT_URL  ?? '',
+    // redirectUrl: In ZainCash v1, this serves dual purpose — redirect + callback.
+    // Production default: our callback endpoint that processes the token and redirects.
+    redirectUrl: process.env.ZAINCASH_REDIRECT_URL
+      ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
     lang:        (process.env.ZAINCASH_LANG as 'ar' | 'en') ?? 'ar',
   };
 }
