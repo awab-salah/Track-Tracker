@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Merchant Payment Gateway – Integration Guide",
+    "snippet": "Please use the following merchant credentials to test transaction ID creation and status checks. Ensure you copy the credentials exactly as shown, without ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq .",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Quick Start. First of all, you will need to create a ZainCash wallet and a merchant account . you can use the test ones for now.",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.paysafe.com/docs/embedded-wallets/sandbox-environment",
+    "name": "Sandbox Environment | Paysafe Developer Portal",
+    "snippet": "Open the Sandbox Dashboard login page and enter your credentials . Get your API Keys ​. To tests the Embedded Wallet APIs, you need to get the appropriate API ...",
+    "host_name": "docs.paysafe.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/masterpass-merchant-integration-v7/documentation/masterpass-sandbox-testing-guidelines",
+    "name": "Masterpass Sandbox Testing Guidelines",
+    "snippet": "To set up a Masterpass test wallet account and test the experience in the sandbox environment, complete the following instructions.",
+    "host_name": "developer.mastercard.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "ZainCash is a licensed mobile wallet regulated by the Central Bank of Iraq , designed to simplify your financial transactions securely and efficiently.",
+    "host_name": "play.google.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials",
+    "name": "Braintree Articles: Important Gateway Credentials",
+    "snippet": "Think of them as your username and password to payment processing. The four API credentials are: Environment · Public key · Private key · Merchant ID ...",
+    "host_name": "developer.paypal.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.koywe.com/getting-started/testing",
+    "name": "Testing in Sandbox",
+    "snippet": "Jun 12, 2026 — The Koywe sandbox environment allows you to test all payment flows with simulated transactions before going live. Secret Organization ID ...",
+    "host_name": "docs.koywe.com",
+    "rank": 7,
+    "date": "Jun 12, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://cartdna.com/en/shopify-payment-methods/zaincash",
+    "name": "Zaincash for Shopify: Payment Method Guide for Iraq",
+    "snippet": "Zaincash is a digital wallet payment method available for Shopify merchants targeting the Iraqi market. Who should offer Zaincash?",
+    "host_name": "cartdna.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  }
+]
