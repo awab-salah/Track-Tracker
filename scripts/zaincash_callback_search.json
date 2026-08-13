@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "ZainCash redirects the customer back to your successUrl or failureUrl with a JWT token . Your backend verifies the JWT and/or calls the Inquiry API to confirm ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . based on the official ZainCash API documentation . The secret used to decode and encode JWT ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Initialize the transaction , you will need to send the token along with the merchantId to ZainCash's initialize URL and the language. ZainCash ... Read more",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://emerchantpay.github.io/gateway-api-docs/gateway-api-docs.pdf",
+    "name": "gateway-api-docs.pdf",
+    "snippet": "May 15, 2020 — This transaction type supports Tokenization. This transaction type supports Level 3 travel data. callbacks and notifications. 462 pages",
+    "host_name": "emerchantpay.github.io",
+    "rank": 3,
+    "date": "May 15, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.",
+    "host_name": "fatora.io",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

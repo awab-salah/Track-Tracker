@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "ZainCash redirects the customer back to your successUrl or failureUrl with a JWT token . Your backend verifies the JWT. Call the transaction/init endpoint to ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . The secret used to decode and encode JWT during requests.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "Create the transaction data object , to initialize a ZC transaction you will need to create an object like the below one. 5. Create the JWT token ...",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.clearlypayments.com/blog/how-payment-gateway-apis-work-and-code-examples",
+    "name": "How Payment Gateway APIs Work and Code Examples",
+    "snippet": "Jun 7, 2024 — How payment gateway APIs work for credit card processing, integration functionality, transaction calls, and some code examples.",
+    "host_name": "www.clearlypayments.com",
+    "rank": 3,
+    "date": "Jun 7, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://na-gateway.mastercard.com/api/documentation/apiDocumentation/rest-json/version/latest/apiReference.html?locale=en_US",
+    "name": "Gateway API Reference Documentation",
+    "snippet": "Allows the merchant to store the payer's payment details and make payments under that agreement without the payer's involvement. View Documentation > ...",
+    "host_name": "na-gateway.mastercard.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Merchant secret - This is used to decode and encode JWT during requests. also must be requested from ZainCash .",
+    "host_name": "fatora.io",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.vtex.com/docs/api-reference/payments-gateway-api",
+    "name": "Payments Gateway API",
+    "snippet": "The Payments Gateway API allows you to get payment data and process your store's transactions . Payments Gateway API Index. Installments. GET Get installments ...",
+    "host_name": "developers.vtex.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://emerchantpay.github.io/gateway-api-docs",
+    "name": "API Reference",
+    "snippet": "The API allows you to trigger all supported transactions of the gateway and to retrieve information about transactions existing in the gateway .",
+    "host_name": "emerchantpay.github.io",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]
