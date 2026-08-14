@@ -184,11 +184,11 @@ async function getPaymentRecord(transactionId: string): Promise<{ status: string
   }
 }
 
-async function updatePaymentRecord(transactionId: string, status: string) {
+async function updatePaymentRecord(transactionId: string, status: string): Promise<boolean> {
   const { url, key } = getSupabaseCreds();
   if (!url || !key) {
     console.warn('[ZainCash] updatePaymentRecord: missing Supabase creds');
-    return;
+    return false;
   }
 
   // Use the security-definer RPC to update payment_records.
@@ -211,20 +211,27 @@ async function updatePaymentRecord(transactionId: string, status: string) {
     if (!rpcRes.ok) {
       throw new Error(`RPC returned ${rpcRes.status}: ${rpcBody}`);
     }
+    return true;
   } catch (err) {
     console.warn('[ZainCash] RPC update_payment_record failed, trying direct PATCH:', err);
     // Fallback to direct PATCH (works with service key which bypasses RLS)
-    const patchRes = await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
-    });
-    console.log('[ZainCash] updatePaymentRecord: fallback PATCH response', patchRes.status);
+    try {
+      const patchRes = await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
+      });
+      console.log('[ZainCash] updatePaymentRecord: fallback PATCH response', patchRes.status);
+      return patchRes.ok;
+    } catch (patchErr) {
+      console.error('[ZainCash] updatePaymentRecord: PATCH also failed:', patchErr);
+      return false;
+    }
   }
 }
 
@@ -349,7 +356,7 @@ async function processCallback(params: {
   console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
 
   // Update payment record
-  await updatePaymentRecord(transactionId, details.status);
+  const updateOk = await updatePaymentRecord(transactionId, details.status);
 
   // Only activate if payment is COMPLETED and we have a companyId
   if (details.status === 'completed' && companyId) {
@@ -366,6 +373,7 @@ async function processCallback(params: {
     transactionId,
     status: details.status,
     message: details.status === 'completed' ? 'Payment completed' : `Payment status: ${details.status}`,
+    _updateOk: updateOk, // debug: whether payment_records UPDATE succeeded
   };
 }
 
