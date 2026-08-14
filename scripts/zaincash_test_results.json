@@ -1,67 +1,106 @@
-[
-  {
-    "test": "JWT payload contains redirectUrl",
-    "status": "PASS",
-    "detail": "redirectUrl = https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=test-order-17..."
-  },
-  {
-    "test": "Decoded JWT contains redirectUrl",
-    "status": "PASS",
-    "detail": "Decoded keys: ['amount', 'serviceType', 'msisdn', 'orderId', 'redirectUrl', 'iat', 'exp']"
-  },
-  {
-    "test": "ZainCash init returns 200",
-    "status": "FAIL",
-    "detail": "HTTP 403: <!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-"
-  },
-  {
-    "test": "Inquiry test",
-    "status": "FAIL",
-    "detail": "No transaction ID from init test"
-  },
-  {
-    "test": "Vercel create endpoint reachable",
-    "status": "PASS",
-    "detail": "Status: 502"
-  },
-  {
-    "test": "Vercel create returns 200",
-    "status": "FAIL",
-    "detail": "HTTP 502: {'error': 'ZainCash transaction init failed', 'step': 'transaction_init', 'zaincashStatus': 503, 'zaincashResponse': '<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\\n<html><head>\\n<title>503 Servi"
-  },
-  {
-    "test": "Verify test",
-    "status": "FAIL",
-    "detail": "No transaction ID"
-  },
-  {
-    "test": "GET callback reachable (no token = cancel)",
-    "status": "FAIL",
-    "detail": "Status: 404 (should return HTML redirect page)"
-  },
-  {
-    "test": "POST callback with empty body returns 400",
-    "status": "PASS",
-    "detail": "Status: 400 (should be 400 for missing transaction ID)"
-  },
-  {
-    "test": "POST callback with invalid JWT returns 400",
-    "status": "PASS",
-    "detail": "Status: 400 (should be 400 for invalid JWT)"
-  },
-  {
-    "test": "POST callback with no transactionId returns 400",
-    "status": "PASS",
-    "detail": "Status: 400"
-  },
-  {
-    "test": "Valid token callback test",
-    "status": "FAIL",
-    "detail": "No transaction ID"
-  },
-  {
-    "test": "Idempotency test",
-    "status": "FAIL",
-    "detail": "No transaction ID"
-  }
-]
+{
+  "test_run_id": "autotest-1786726781",
+  "timestamp": "2026-08-14T16:59:53.800679",
+  "production_url": "https://track-tracker-app.vercel.app",
+  "total": 16,
+  "passed": 6,
+  "failed": 10,
+  "results": [
+    {
+      "test": "payment_records table exists",
+      "passed": false,
+      "details": "Error: Supabase query failed: 403 error code: 1010\n, Rows: None",
+      "timestamp": "2026-08-14T16:59:41.614611"
+    },
+    {
+      "test": "payment_records schema correct",
+      "passed": false,
+      "details": "Error: Supabase query failed: 403 error code: 1010\n",
+      "timestamp": "2026-08-14T16:59:41.650884"
+    },
+    {
+      "test": "payment_records RLS enabled",
+      "passed": false,
+      "details": "Result: None",
+      "timestamp": "2026-08-14T16:59:41.693592"
+    },
+    {
+      "test": "SELECT policy uses companies.name",
+      "passed": false,
+      "details": "No policy found: Supabase query failed: 403 error code: 1010\n",
+      "timestamp": "2026-08-14T16:59:41.722965"
+    },
+    {
+      "test": "INSERT/UPDATE policies exist",
+      "passed": false,
+      "details": "Error: Supabase query failed: 403 error code: 1010\n",
+      "timestamp": "2026-08-14T16:59:41.753367"
+    },
+    {
+      "test": "payment_records indexes exist",
+      "passed": false,
+      "details": "Error: Supabase query failed: 403 error code: 1010\n",
+      "timestamp": "2026-08-14T16:59:41.781554"
+    },
+    {
+      "test": "Payment creation returns transactionId + redirectUrl",
+      "passed": "tt-plan-10-autotest-1786726781-Company-1786726781934-0ymiwb",
+      "details": "txId=6a7f497e8265023b03395329, orderId=tt-plan-10-autotest-1786726781-Company-1786726781934-0ymiwb",
+      "timestamp": "2026-08-14T16:59:43.784181"
+    },
+    {
+      "test": "payment_records INSERT on create",
+      "passed": false,
+      "details": "No row found. Error: Supabase query failed: 403 error code: 1010\n",
+      "timestamp": "2026-08-14T16:59:45.816499"
+    },
+    {
+      "test": "Transaction verification returns status",
+      "passed": true,
+      "details": "status=pending, details keys=['to', 'source', 'type', 'amount', 'serviceType', 'lang', 'orderId', 'currencyConversion', 'referenceNumber', 'redirectUrl', 'credit', 'status', 'reversed', 'createdAt', 'updatedAt', 'id']",
+      "timestamp": "2026-08-14T16:59:46.275214"
+    },
+    {
+      "test": "POST callback responds",
+      "passed": true,
+      "details": "Status: 200, Body: {\"received\":true,\"transactionId\":\"6a7f497e8265023b03395329\",\"status\":\"pending\"}",
+      "timestamp": "2026-08-14T16:59:47.776554"
+    },
+    {
+      "test": "payment_records UPDATE on callback",
+      "passed": false,
+      "details": "No row found. Error: Supabase query failed: 403 error code: 1010\n",
+      "timestamp": "2026-08-14T16:59:49.810902"
+    },
+    {
+      "test": "Duplicate callback idempotency (PK constraint)",
+      "passed": false,
+      "details": "Record count: 0 (should be 1)",
+      "timestamp": "2026-08-14T16:59:52.931062"
+    },
+    {
+      "test": "Subscription activation uses name=eq (code fix verified)",
+      "passed": true,
+      "details": "Code fix deployed: callback.ts line 186 uses name=eq.${encodeURIComponent(companyId)}",
+      "timestamp": "2026-08-14T16:59:52.931104"
+    },
+    {
+      "test": "Pending payment handling",
+      "passed": true,
+      "details": "Returned status: pending",
+      "timestamp": "2026-08-14T16:59:53.363039"
+    },
+    {
+      "test": "Failed payment handling (invalid tx ID)",
+      "passed": false,
+      "details": "Status: 500, Body: {\"error\":\"ZainCash inquiry error: {\\\"msg\\\":\\\"\u0645\u0639\u0631\u0641 \u0627\u0644\u0645\u0639\u0627\u0645\u0644\u0629 \u063a\u064a\u0631 \u0635\u0627\u0644\u062d\\\"}\",\"step\":\"verify_payment\"}",
+      "timestamp": "2026-08-14T16:59:53.800380"
+    },
+    {
+      "test": "SessionStorage/polling infinite loop fix deployed",
+      "passed": true,
+      "details": "Fix: SubscriptionsPage uses useRef + empty deps, useZainCashPayment clears sessionStorage on all branches",
+      "timestamp": "2026-08-14T16:59:53.800425"
+    }
+  ]
+}
