@@ -147,33 +147,72 @@ async function getPaymentRecord(transactionId: string): Promise<{ status: string
   const { url, key } = getSupabaseCreds();
   if (!url || !key) return null;
 
-  const res = await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-  });
+  // Use the security-definer RPC to read payment_records.
+  // Direct PostgREST SELECT with anon key + RLS returns empty rows
+  // (SELECT policy requires auth.uid() which server-side doesn't have).
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/get_payment_record`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ p_id: transactionId }),
+    });
 
-  if (!res.ok) return null;
-  const rows = await res.json() as Array<{ status: string; company_id: string }>;
-  return rows.length > 0 ? rows[0] : null;
+    if (!res.ok) throw new Error(`RPC failed: ${res.status}`);
+    const rows = await res.json() as Array<{ status: string; company_id: string }>;
+    return rows.length > 0 ? rows[0] : null;
+  } catch (err) {
+    // Fallback: try direct PostgREST SELECT (works with service key)
+    console.warn('[ZainCash] RPC get_payment_record failed, trying direct SELECT:', err);
+    const res = await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    });
+
+    if (!res.ok) return null;
+    const rows = await res.json() as Array<{ status: string; company_id: string }>;
+    return rows.length > 0 ? rows[0] : null;
+  }
 }
 
 async function updatePaymentRecord(transactionId: string, status: string) {
   const { url, key } = getSupabaseCreds();
   if (!url || !key) return;
-  await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
-  });
+
+  // Use the security-definer RPC to update payment_records.
+  // Direct PostgREST PATCH with anon key + RLS silently fails to update rows
+  // (PostgREST 204 but 0 rows affected). The RPC bypasses RLS.
+  try {
+    await fetch(`${url}/rest/v1/rpc/update_payment_record`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ p_id: transactionId, p_status: status }),
+    });
+  } catch (err) {
+    console.warn('[ZainCash] RPC update_payment_record failed, trying direct PATCH:', err);
+    // Fallback to direct PATCH (works with service key which bypasses RLS)
+    await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
+    });
+  }
 }
 
 async function activateSubscription(companyId: string): Promise<boolean> {
