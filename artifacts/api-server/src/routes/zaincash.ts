@@ -343,6 +343,220 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
   }
 });
 
+// ── HTML redirect page (for GET callback) ─────────────────────────────────────
+// After processing the GET callback, redirect the user to the subscriptions page.
+
+function redirectPage(status: string, success: boolean): string {
+  const targetUrl = '/subscriptions';
+  const icon = success ? '✓' : '✗';
+  const color = success ? '#16a34a' : '#dc2626';
+  const title = success ? 'تم الدفع بنجاح' : 'فشلت عملية الدفع';
+  const subtitle = success
+    ? 'جارٍ التحويل إلى صفحة الاشتراكات...'
+    : 'لم يتم الدفع، جارٍ التحويل...';
+
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .card { text-align: center; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); max-width: 320px; }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; color: ${color}; }
+    p { font-size: 0.875rem; color: #666; margin: 0; }
+  </style>
+  <meta http-equiv="refresh" content="3;url=${targetUrl}">
+</head>
+<body>
+  <div class="card">
+    <div class="icon" style="color:${color}">${icon}</div>
+    <h1>${title}</h1>
+    <p>${subtitle}</p>
+  </div>
+  <script>setTimeout(function(){ window.location.href="${targetUrl}"; }, 3000);</script>
+</body>
+</html>`;
+}
+
+// ── Core callback processing (shared by GET and POST) ─────────────────────────
+
+async function processCallback(params: {
+  transactionId: string;
+  orderId?: string;
+  planId?: string;
+  companyId?: string;
+}): Promise<{ success: boolean; transactionId: string; status: string; message: string }> {
+  const { transactionId } = params;
+
+  if (!transactionId) {
+    return { success: false, transactionId: '', status: 'invalid', message: 'Missing transaction ID' };
+  }
+
+  let companyId = params.companyId ?? '';
+
+  // ── Idempotency check: if payment already completed, skip ──────────────
+  try {
+    const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+    if (supabaseUrl && supabaseKey) {
+      const recordRes = await fetch(
+        `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+      );
+      if (recordRes.ok) {
+        const rows = await recordRes.json() as Array<{ status: string; company_id: string }>;
+        if (rows.length > 0) {
+          if (rows[0].status === 'completed') {
+            console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
+            return { success: true, transactionId, status: 'completed', message: 'Already processed' };
+          }
+          // Use company_id from payment_records (most reliable)
+          if (!companyId && rows[0].company_id) {
+            companyId = rows[0].company_id;
+          }
+        }
+      }
+    }
+  } catch { /* non-fatal — continue without idempotency check */ }
+
+  // Always verify via inquiry — NEVER trust the callback payload alone
+  console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
+  const details = await inquireTransaction(transactionId) as {
+    status: string;
+    orderId: string;
+  };
+
+  // Use companyId from payment_records (already set above) or fallback
+  if (!companyId) {
+    try {
+      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+      if (supabaseUrl && supabaseKey) {
+        const recordRes = await fetch(
+          `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=company_id`,
+          { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+        );
+        if (recordRes.ok) {
+          const rows = await recordRes.json() as Array<{ company_id: string }>;
+          if (rows.length > 0 && rows[0].company_id) companyId = rows[0].company_id;
+        }
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
+
+  // Update payment record
+  try {
+    const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+    if (supabaseUrl && supabaseKey) {
+      await fetch(`${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ status: details.status, updated_at: new Date().toISOString() }),
+      });
+    }
+  } catch { /* non-fatal */ }
+
+  // Only activate if payment is COMPLETED
+  if (details.status === 'completed' && companyId) {
+    try {
+      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+      if (supabaseUrl && supabaseKey) {
+        const activateRes = await fetch(`${supabaseUrl}/rest/v1/companies?id=eq.${companyId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({ subscription_active: true }),
+        });
+        if (activateRes.ok) {
+          console.log('[ZainCash] Subscription activated for company:', companyId);
+        } else {
+          const text = await activateRes.text();
+          console.error('[ZainCash] Failed to activate subscription:', activateRes.status, text);
+        }
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  return {
+    success: details.status === 'completed',
+    transactionId,
+    status: details.status,
+    message: details.status === 'completed' ? 'Payment completed' : `Payment status: ${details.status}`,
+  };
+}
+
+/**
+ * GET /api/zaincash/callback
+ *
+ * ZainCash v1 redirect callback. After payment, ZainCash redirects the
+ * user's browser to redirectUrl?token=XXXXX. The token is a JWT containing
+ * { status, orderid, id, iat, exp }.
+ *
+ * This is the PRIMARY callback mechanism in ZainCash v1.
+ * Also handles the case where user cancels (no token in URL).
+ */
+router.get('/zaincash/callback', async (req: Request, res: Response) => {
+  try {
+    const token = (req.query.token as string) ?? '';
+    const orderId = (req.query.orderId as string) ?? '';
+    const planId = (req.query.planId as string) ?? '';
+    const companyId = (req.query.companyId as string) ?? '';
+
+    // No token = user cancelled payment (ZainCash redirects without token on cancel)
+    if (!token) {
+      console.log('[ZainCash] GET callback without token — payment cancelled by user');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(redirectPage('cancelled', false));
+    }
+
+    const config = getConfig();
+
+    // Decode the JWT token from ZainCash
+    let transactionId = '';
+    let tokenStatus = '';
+    try {
+      const payload = decodeJwt(token, config.secret);
+      transactionId = String(payload.id ?? '');
+      tokenStatus = String(payload.status ?? '');
+      console.log('[ZainCash] GET callback: decoded token — id:', transactionId, 'status:', tokenStatus);
+    } catch (jwtErr) {
+      console.error('[ZainCash] GET callback: JWT decode failed:', jwtErr);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(400).send(redirectPage('invalid', false));
+    }
+
+    if (!transactionId) {
+      console.error('[ZainCash] GET callback: no transactionId in token');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(400).send(redirectPage('invalid', false));
+    }
+
+    // Process the callback
+    const result = await processCallback({ transactionId, orderId, planId, companyId });
+
+    // Return an HTML page that auto-redirects to /subscriptions
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(redirectPage(result.status, result.success));
+
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[ZainCash] GET callback error:', message);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(redirectPage('error', false));
+  }
+});
+
 /**
  * POST /api/zaincash/callback
  * ZainCash v1 redirect callback or potential v2 server-to-server callback.
@@ -384,104 +598,13 @@ router.post('/zaincash/callback', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing transaction ID', received: false });
     }
 
-    // ── Idempotency check: if payment already completed, skip ──────────────
-    try {
-      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
-      if (supabaseUrl && supabaseKey) {
-        const recordRes = await fetch(
-          `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`,
-          { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
-        );
-        if (recordRes.ok) {
-          const rows = await recordRes.json() as Array<{ status: string; company_id: string }>;
-          if (rows.length > 0) {
-            if (rows[0].status === 'completed') {
-              console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
-              return res.status(200).json({ received: true, transactionId, status: 'completed', message: 'Already processed' });
-            }
-            // Use company_id from payment_records (most reliable)
-            if (!companyId && rows[0].company_id) {
-              companyId = rows[0].company_id;
-            }
-          }
-        }
-      }
-    } catch { /* non-fatal — continue without idempotency check */ }
+    // Process using shared callback logic
+    const result = await processCallback({ transactionId, orderId, companyId });
 
-    // Always verify via inquiry — NEVER trust the callback payload alone
-    console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
-    const details = await inquireTransaction(transactionId) as {
-      status: string;
-      orderId: string;
-    };
-
-    // Use companyId from payment_records (already set above) or from body
-    if (!companyId) {
-      // Fallback: try to get from payment_records again
-      try {
-        const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
-        if (supabaseUrl && supabaseKey) {
-          const recordRes = await fetch(
-            `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=company_id`,
-            { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
-          );
-          if (recordRes.ok) {
-            const rows = await recordRes.json() as Array<{ company_id: string }>;
-            if (rows.length > 0 && rows[0].company_id) companyId = rows[0].company_id;
-          }
-        }
-      } catch { /* non-fatal */ }
-    }
-
-    console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
-
-    // Update payment record
-    try {
-      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
-      if (supabaseUrl && supabaseKey) {
-        await fetch(`${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            Prefer: 'return=minimal',
-          },
-          body: JSON.stringify({ status: details.status, updated_at: new Date().toISOString() }),
-        });
-      }
-    } catch { /* non-fatal */ }
-
-    // Only activate if payment is COMPLETED
-    if (details.status === 'completed' && companyId) {
-      try {
-        const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
-        if (supabaseUrl && supabaseKey) {
-          const activateRes = await fetch(`${supabaseUrl}/rest/v1/companies?id=eq.${companyId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              apikey: supabaseKey,
-              Authorization: `Bearer ${supabaseKey}`,
-              Prefer: 'return=minimal',
-            },
-            body: JSON.stringify({ subscription_active: true }),
-          });
-          if (activateRes.ok) {
-            console.log('[ZainCash] Subscription activated for company:', companyId);
-          } else {
-            const text = await activateRes.text();
-            console.error('[ZainCash] Failed to activate subscription:', activateRes.status, text);
-          }
-        }
-      } catch { /* non-fatal */ }
-    }
-
-    // Always return 200 to acknowledge the callback
     return res.status(200).json({
       received: true,
-      transactionId,
-      status: details.status,
+      transactionId: result.transactionId,
+      status: result.status,
     });
 
   } catch (err) {
