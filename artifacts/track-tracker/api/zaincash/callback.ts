@@ -309,10 +309,25 @@ async function processCallback(params: {
 
   // ── Always verify via inquiry — NEVER trust the callback payload alone ────
   console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
-  const details = await inquireTransaction(transactionId) as {
-    status: string;
-    orderId: string;
-  };
+  let details: { status: string; orderId: string };
+  try {
+    details = await inquireTransaction(transactionId) as {
+      status: string;
+      orderId: string;
+    };
+  } catch (inquiryErr) {
+    // ZainCash inquiry failed (e.g. 503 Service Unavailable).
+    // Still update the payment record so we know the callback was received.
+    const inquiryMessage = inquiryErr instanceof Error ? inquiryErr.message : String(inquiryErr);
+    console.error('[ZainCash] Inquiry failed for', transactionId, ':', inquiryMessage);
+    await updatePaymentRecord(transactionId, 'pending'); // Keep as pending — will retry later
+    return {
+      success: false,
+      transactionId,
+      status: 'pending',
+      message: `Inquiry failed (will retry): ${inquiryMessage}`,
+    };
+  }
 
   // Determine companyId: prefer payment_records, then query params, then parse orderId
   let companyId = params.companyId ?? '';
