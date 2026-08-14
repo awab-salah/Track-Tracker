@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowRight, Loader2, CreditCard, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -78,8 +78,24 @@ export default function SubscriptionsPage() {
   const [activationSuccess, setActivationSuccess] = useState('');
 
   // ── Verify pending ZainCash payment on mount ──
+  //
+  // BUG FIX: The previous useEffect depended on [verifyPendingPayment],
+  // which changes reference on every render because activateSubscription
+  // in AppContext is not memoized. This caused the effect to fire on every
+  // render, creating an infinite loop:
+  //   verify → state change → re-render → new function ref → effect fires → verify → ...
+  //
+  // Fix: Use a ref to store the function and only run the effect ONCE on mount.
+  // The retry counter in verifyPendingPayment handles re-polling internally.
   const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const verifyFnRef = useRef(verifyPendingPayment);
+  verifyFnRef.current = verifyPendingPayment;
+
+  const [hasCheckedOnMount, setHasCheckedOnMount] = useState(false);
+
   useEffect(() => {
+    if (hasCheckedOnMount) return; // Only run once on mount
+
     const check = async () => {
       try {
         const raw = sessionStorage.getItem('tt_zaincash_pending');
@@ -89,13 +105,54 @@ export default function SubscriptionsPage() {
         // Only check if recently redirected (< 5 minutes ago)
         if (pending.timestamp && Date.now() - pending.timestamp < 5 * 60 * 1000) {
           setVerifyingPayment(true);
-          await verifyPendingPayment();
+          await verifyFnRef.current();
           setVerifyingPayment(false);
         }
       } catch { /* ignore */ }
     };
+    setHasCheckedOnMount(true);
     check();
-  }, [verifyPendingPayment]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally runs only on mount
+
+  // ── Polling for pending payments ──
+  // If the payment is still pending after the first check, poll every 5 seconds
+  // until it resolves or max retries are exceeded.
+  useEffect(() => {
+    if (!verifyingPayment) return;
+
+    const interval = setInterval(async () => {
+      const raw = sessionStorage.getItem('tt_zaincash_pending');
+      if (!raw) {
+        // Payment resolved (completed/failed/timeout) — stop polling
+        setVerifyingPayment(false);
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const pending = JSON.parse(raw);
+        if (!pending?.transactionId || (pending.verifyAttempts ?? 0) >= 6) {
+          // Max retries or no transaction — stop polling
+          setVerifyingPayment(false);
+          clearInterval(interval);
+          return;
+        }
+      } catch {
+        setVerifyingPayment(false);
+        clearInterval(interval);
+        return;
+      }
+
+      // Try verification again
+      const result = await verifyFnRef.current();
+      if (result || !sessionStorage.getItem('tt_zaincash_pending')) {
+        // Payment completed or sessionStorage cleared — stop polling
+        setVerifyingPayment(false);
+        clearInterval(interval);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [verifyingPayment]);
 
   const handleActivate = async () => {
     const code = activationCode.trim();

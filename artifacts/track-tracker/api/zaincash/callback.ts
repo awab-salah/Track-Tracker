@@ -156,7 +156,11 @@ async function getPaymentRecord(transactionId: string): Promise<{ status: string
     },
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error('[ZainCash] getPaymentRecord failed:', res.status, errText);
+    return null;
+  }
   const rows = await res.json() as Array<{ status: string; company_id: string }>;
   return rows.length > 0 ? rows[0] : null;
 }
@@ -164,7 +168,7 @@ async function getPaymentRecord(transactionId: string): Promise<{ status: string
 async function updatePaymentRecord(transactionId: string, status: string) {
   const { url, key } = getSupabaseCreds();
   if (!url || !key) return;
-  await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
+  const res = await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -174,13 +178,41 @@ async function updatePaymentRecord(transactionId: string, status: string) {
     },
     body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
   });
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error('[ZainCash] updatePaymentRecord failed:', res.status, errText);
+  }
 }
 
 async function activateSubscription(companyId: string): Promise<boolean> {
   const { url, key } = getSupabaseCreds();
   if (!url || !key) return false;
 
-  const res = await fetch(`${url}/rest/v1/companies?id=eq.${companyId}`, {
+  // companyId may be a company NAME (not UUID) because the frontend sends
+  // company.name as the companyId. Try UUID match first, then name match.
+  let res = await fetch(`${url}/rest/v1/companies?id=eq.${companyId}&select=id`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+  });
+
+  let matchField = 'id';
+  if (!res.ok) {
+    const text = await res.text();
+    console.warn('[ZainCash] UUID lookup failed, trying name lookup:', res.status, text);
+    matchField = 'name';
+  } else {
+    const rows = await res.json() as Array<{ id: string }>;
+    if (rows.length === 0) {
+      // Not a UUID match — try by name
+      matchField = 'name';
+    }
+  }
+
+  res = await fetch(`${url}/rest/v1/companies?${matchField}=eq.${encodeURIComponent(companyId)}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -193,9 +225,11 @@ async function activateSubscription(companyId: string): Promise<boolean> {
 
   if (!res.ok) {
     const text = await res.text();
-    console.error('[ZainCash] Failed to activate subscription:', res.status, text);
+    console.error('[ZainCash] Failed to activate subscription (matched by', matchField + '):', res.status, text);
     return false;
   }
+
+  console.log('[ZainCash] Subscription activated for company (matched by', matchField + '):', companyId);
   return true;
 }
 

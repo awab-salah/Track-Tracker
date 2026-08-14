@@ -6,8 +6,15 @@
  *   2. Redirect user to ZainCash payment page
  *   3. After redirect back, call /api/zaincash/verify to confirm
  *   4. On confirmed payment, activate subscription locally
+ *
+ * Bug fix: Verification loop protection.
+ *   - verifyPendingPayment() now clears sessionStorage on ANY terminal state
+ *     (completed, failed, or max retries exceeded).
+ *   - A retry counter is stored in sessionStorage to prevent infinite polling.
+ *   - The SubscriptionsPage useEffect must use a STABLE dependency (not the
+ *     function reference) to avoid re-triggering on every render.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useApp } from '@/store/AppContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -86,12 +93,26 @@ export function useZainCashPayment() {
     }
   }, [company.name, toast]);
 
+  // ── Retry counter for verification loop protection ──
+  // Stored in sessionStorage alongside the pending payment data.
+  // Prevents infinite polling when the payment is stuck in pending
+  // or the ZainCash API returns errors.
+  const MAX_VERIFY_RETRIES = 6; // 6 attempts × ~5s delay = 30s max wait
+  const verifyAttemptRef = useRef(0);
+
   /**
    * Verify a pending payment after redirect back from ZainCash.
    * Call this on the subscriptions page mount if there's a pending transaction.
+   *
+   * IMPORTANT: This function clears sessionStorage on ANY terminal state:
+   *   - Payment completed → clear + activate subscription
+   *   - Payment failed → clear + show error
+   *   - Max retries exceeded → clear + show timeout message
+   *   - Verification API error after retries → clear + show error
+   * This prevents the infinite useEffect loop that caused the flashing.
    */
   const verifyPendingPayment = useCallback(async (): Promise<boolean> => {
-    let pending: { transactionId: string; orderId: string; planId: string } | null = null;
+    let pending: { transactionId: string; orderId: string; planId: string; verifyAttempts?: number } | null = null;
 
     try {
       const raw = sessionStorage.getItem('tt_zaincash_pending');
@@ -105,6 +126,22 @@ export function useZainCashPayment() {
         sessionStorage.removeItem('tt_zaincash_pending');
         return false;
       }
+
+      // Check retry count to prevent infinite polling
+      const attempts = (pending.verifyAttempts ?? 0) + 1;
+      if (attempts > MAX_VERIFY_RETRIES) {
+        // Max retries exceeded — stop polling, clear sessionStorage
+        console.warn('[ZainCash] Max verification retries exceeded, stopping poll');
+        try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+        toast({ title: 'انتهت مهلة التحقق من الدفع. تحقق من حالة الاشتراك لاحقاً.', variant: 'destructive' });
+        setState({ loadingPlanId: null, error: 'Verification timed out', transactionId: pending.transactionId, redirectUrl: null });
+        return false;
+      }
+
+      // Update retry counter in sessionStorage
+      try {
+        sessionStorage.setItem('tt_zaincash_pending', JSON.stringify({ ...pending, verifyAttempts: attempts }));
+      } catch { /* best effort */ }
     } catch {
       return false;
     }
@@ -115,6 +152,14 @@ export function useZainCashPayment() {
       const response = await fetch(`/api/zaincash/verify?transactionId=${pending!.transactionId}`);
 
       if (!response.ok) {
+        // API error — could be temporary (502 from ZainCash). Don't clear sessionStorage yet,
+        // let the retry counter handle it. But if we've exhausted retries, clear it.
+        if (verifyAttemptRef.current + 1 >= MAX_VERIFY_RETRIES) {
+          try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+          toast({ title: 'فشل التحقق من حالة الدفع. حاول مرة أخرى لاحقاً.', variant: 'destructive' });
+          setState({ loadingPlanId: null, error: 'Verification failed after retries', transactionId: null, redirectUrl: null });
+          return false;
+        }
         throw new Error('فشل التحقق من حالة الدفع');
       }
 
@@ -125,7 +170,7 @@ export function useZainCashPayment() {
         // Use a special activation code for ZainCash payments
         const success = await activateSubscription('track1');
 
-        // Clean up pending payment
+        // Clean up pending payment — ALWAYS clear on terminal state
         try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
 
         if (success) {
@@ -138,17 +183,34 @@ export function useZainCashPayment() {
           return false;
         }
       } else if (data.status === 'failed') {
+        // Payment failed — clear sessionStorage (terminal state)
         try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
         toast({ title: 'فشلت عملية الدفع', variant: 'destructive' });
         setState({ loadingPlanId: null, error: 'Payment failed', transactionId: null, redirectUrl: null });
         return false;
       } else {
-        // Still pending/processing — user can check again
-        setState({ loadingPlanId: null, error: null, transactionId: pending!.transactionId, redirectUrl: null });
+        // Still pending/processing — do NOT clear sessionStorage, let retry handle it
+        // But update the attempt counter so we eventually stop
+        verifyAttemptRef.current = (pending?.verifyAttempts ?? 0) + 1;
+        if (verifyAttemptRef.current >= MAX_VERIFY_RETRIES) {
+          // Give up after max retries
+          try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+          toast({ title: 'لم يتم التحقق من الدفع بعد. تحقق من حالة الاشتراك لاحقاً.', variant: 'destructive' });
+          setState({ loadingPlanId: null, error: 'Still pending after retries', transactionId: pending?.transactionId ?? null, redirectUrl: null });
+          return false;
+        }
+        setState({ loadingPlanId: null, error: null, transactionId: pending?.transactionId ?? null, redirectUrl: null });
         return false;
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ أثناء التحقق';
+      // Increment attempt counter
+      verifyAttemptRef.current += 1;
+      if (verifyAttemptRef.current >= MAX_VERIFY_RETRIES) {
+        try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+        setState({ loadingPlanId: null, error: message, transactionId: null, redirectUrl: null });
+        return false;
+      }
       setState(prev => ({ ...prev, loadingPlanId: null, error: message }));
       return false;
     }
