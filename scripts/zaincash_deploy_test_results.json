@@ -1,0 +1,87 @@
+[
+  {
+    "test": "1. Create endpoint validation (missing fields, wrong method)",
+    "passed": false,
+    "details": {
+      "passed": false,
+      "message": "Validation failed: empty=400, GET=404"
+    }
+  },
+  {
+    "test": "2. CORS headers on all endpoints",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "All endpoints return correct CORS headers"
+    }
+  },
+  {
+    "test": "3. Payment creation (ZainCash sandbox)",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "Payment created: txn=6a7f1702c17649360d6eb7bc, redirect=https://test.zaincash.iq/transaction/pay?id=6a7f1702c17649360d6eb7bc...",
+      "transactionId": "6a7f1702c17649360d6eb7bc",
+      "redirectUrl": "https://test.zaincash.iq/transaction/pay?id=6a7f1702c17649360d6eb7bc",
+      "orderId": "tt-plan-10-test-company-deploy-verify-1786713857309-hrtfzh"
+    }
+  },
+  {
+    "test": "4. Real sandbox transaction creation",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "Sandbox payment created successfully! txnId=6a7f1703c17649360d6eb7bd",
+      "transactionId": "6a7f1703c17649360d6eb7bd",
+      "redirectUrl": "https://test.zaincash.iq/transaction/pay?id=6a7f1703c17649360d6eb7bd"
+    }
+  },
+  {
+    "test": "5. Verify endpoint (missing param returns 400)",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "Verify endpoint correctly returns 400 for missing transactionId"
+    }
+  },
+  {
+    "test": "6. Callback GET without token (cancelled)",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "Callback returns HTML redirect page when no token (cancelled)"
+    }
+  },
+  {
+    "test": "7. Callback GET with invalid JWT token",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "Callback returns 400 for invalid JWT token"
+    }
+  },
+  {
+    "test": "8. Callback POST with missing data (400)",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "POST callback returns 400 for missing transaction ID"
+    }
+  },
+  {
+    "test": "9. Callback with query params",
+    "passed": true,
+    "details": {
+      "passed": true,
+      "message": "Callback accepts orderId/planId/companyId query params and returns HTML without token"
+    }
+  },
+  {
+    "test": "10. Deployed version contains latest fixes",
+    "passed": false,
+    "details": {
+      "passed": false,
+      "message": "Cannot verify deployed version: 200"
+    }
+  }
+]

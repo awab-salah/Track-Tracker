@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://github.com/waadmawlood/zaincash/blob/main/readme.md",
+    "name": "zaincash/readme.md at main - waadmawlood",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . For local financial transactions in Iraqi dinars inside Iraq.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash/releases",
+    "name": "Releases · waadmawlood/zaincash",
+    "snippet": "Bump Laravel framework requirement to ^12.0 · Update README compatibility table for Laravel 12.x · Reduce minimum transaction amount from 1000 to 250 IQD in ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  }
+]

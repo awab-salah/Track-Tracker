@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "ZainCash redirects the customer back to your successUrl or failureUrl with a JWT token. ... post(\"/ api / zaincash / webhook \", (req, res) => { const token = req ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://libraries.io/packagist/ht3aa%2Fzain-cash",
+    "name": "ht3aa/zain-cash v0.0.1 on Packagist",
+    "snippet": "The package automatically registers a webhook route at / api / zain-cash / webhook to handle payment status updates from ZainCash . When a payment is completed, ...",
+    "host_name": "libraries.io",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://uk.wordpress.org/plugins/wayl-checkout",
+    "name": "Wayl Checkout",
+    "snippet": "Payment not processing: Check that your API key is correct and your account is active · Webhook not working: Ensure your server can receive POST requests and the ...",
+    "host_name": "uk.wordpress.org",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/foo.mobi/posts/zaincash-mobile-wallet-allows-customers-to-securely-send-and-receive-money-betwe/3611857472168339",
+    "name": "ZainCash Mobile Wallet allows customers to securely send",
+    "snippet": "How to integrate Zamtel mobile money API in Zambia for automated payments ... API with callback/ webhook support for private platforms. Does anyone ... Read more",
+    "host_name": "www.facebook.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://classic.yarnpkg.com/en/package/iraqpay",
+    "name": "iraqpay",
+    "snippet": "... callbackUrl : 'https://myapp.com/ payment /callback', }); // Each gateway ... webhook ', async (req, res) => { // FIB sends POST with { id, status } const ... Read more",
+    "host_name": "classic.yarnpkg.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://documentation.ixopay.com/manual/adapters/shopify",
+    "name": "Shopify | IXOPAY User Manual",
+    "snippet": "Setting up Shopify Webhooks​ · Event: Transaction creation · Type: JSON · Webhook API version: 2021-07.",
+    "host_name": "documentation.ixopay.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://serdardilshad.vercel.app/en/services/payment-integrations",
+    "name": "Payment & Bank Integrations",
+    "snippet": "You then either poll the status endpoint — which returns `PAID`, `UNPAID` or `DECLINED` — or receive a webhook callback. Unpaid payments can be cancelled ... Read more",
+    "host_name": "serdardilshad.vercel.app",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.y.uno/reference/payment-type-list",
+    "name": "Payment Type - Yuno API Documentation",
+    "snippet": "Create a Webhook · GET. List Webhooks · GET. Retrieve a Webhook · PATCH. Update a Webhook · DEL. Delete a Webhook · Support · Dashboard · Yuno API Documentation ... Read more",
+    "host_name": "docs.y.uno",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]
