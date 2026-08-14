@@ -899,133 +899,134 @@
    899→
    900→        const title = data.title || 'عملية بيع جديدة';
    901→        const body = data.body || 'تم تسجيل عملية بيع جديدة';
-   902→        const icon = data.icon || `${import.meta.env.BASE_URL}icons/icon-192.png`;
-   903→        // ALWAYS use sale-based tag for dedup — never Date.now()
-   904→        const tag = `sale-${saleId}`;
-   905→
-   906→        // Use SW showNotification() — single "TrackTracker"-branded notification
-   907→        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-   908→          navigator.serviceWorker.ready.then((reg) => {
-   909→            reg.showNotification(title, { body, icon, tag, data: { saleId, type, clickAction: '/' }, dir: 'rtl', lang: 'ar' });
-   910→          }).catch(() => {
-   911→            try { new Notification(title, { body, icon, tag }); } catch {}
-   912→          });
-   913→        } else {
-   914→          try { new Notification(title, { body, icon, tag }); } catch {}
-   915→        }
-   916→      });
-   917→    })();
-   918→
-   919→    return () => { unsubscribe?.(); };
-   920→  }, [role, authCompanyId, notificationsEnabled]);
-   921→
-   922→  // ── FCM token refresh on visibility change ────────────────────────────────
-   923→  // When the app regains focus (e.g., user returns to the tab), re-register
-   924→  // the FCM token to handle token rotation by the browser/Firebase.
-   925→  useEffect(() => {
-   926→    if (role !== 'company' || !authCompanyId) return;
-   927→    if (!isFirebaseConfigured || !notificationsEnabled) return;
-   928→
-   929→    const onVisibilityChange = () => {
-   930→      if (document.visibilityState === 'visible') {
-   931→        void refreshFcmTokenIfNeeded(authCompanyId);
-   932→      }
-   933→    };
-   934→
-   935→    document.addEventListener('visibilitychange', onVisibilityChange);
-   936→    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-   937→  }, [role, authCompanyId, notificationsEnabled]);
-   938→
-   939→  // ── Re-register FCM token on login/refresh ──────────────────────────────
-   940→  // When a company owner logs in or refreshes, ensure their FCM token is
-   941→  // still registered (handles token expiry, browser update, etc.).
-   942→  // Also fires when notificationsEnabled flips to true (user enables toggle).
-   943→  useEffect(() => {
-   944→    if (role !== 'company' || !authCompanyId) return;
-   945→    if (!isFirebaseConfigured || !notificationsEnabled) return;
-   946→    if (fcmGetPermission() !== 'granted') return;
-   947→
-   948→    // Re-register token on mount (handles refresh/login)
-   949→    void registerFcmToken(authCompanyId);
-   950→  }, [role, authCompanyId, notificationsEnabled]);
-   951→
-   952→  // ── Supabase Realtime for UI updates ONLY (no notifications) ─────────────
-   953→  // Realtime is still used to update the sales list in real-time, but
-   954→  // it does NOT display notifications — FCM handles all notifications.
-   955→  useEffect(() => {
-   956→    if (role !== 'company' || !authCompanyId) return;
-   957→    if (!isSupabaseConfigured) return;
-   958→
-   959→    const channel = supabase
-   960→      .channel(`company-sales-realtime-${authCompanyId}`)
-   961→      .on(
-   962→        'postgres_changes',
-   963→        { event: 'INSERT', schema: 'public', table: 'sales' },
-   964→        (payload) => {
-   965→          // Intentionally NOT showing a notification here.
-   966→          // FCM + Edge Function handles all sale notifications.
-   967→          // Realtime is only for live UI updates (the sales list refreshes
-   968→          // automatically when a new sale is inserted).
-   969→          console.log('[AppContext] Realtime: new sale detected (UI update only, no notification)');
-   970→        },
-   971→      )
-   972→      .subscribe();
-   973→
-   974→    return () => {
-   975→      void supabase.removeChannel(channel);
-   976→    };
-   977→  }, [role, authCompanyId]);
-   978→
-   979→  const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
-   980→
-   981→  return (
-   982→    <AppContext.Provider
-   983→      value={{
-   984→        company,
-   985→        darkMode,
-   986→        toggleDarkMode,
-   987→        updateLogo,
-   988→        setCompanyProfile,
-   989→        setJoinCode,
-   990→        regenerateJoinCode,
-   991→        logout,
-   992→        activateSubscription,
-   993→        companySubscriptionActive: role === 'driver'
-   994→          ? driverCompanySubscriptionActive
-   995→          : company.subscriptionActive,
-   996→        drivers,
-   997→        loads,
-   998→        sales,
-   999→        currentDriverId,
-  1000→        currentDriver,
-  1001→        logoutDriver,
-  1002→        updateDriverProfile,
-  1003→        upsertLoad,
-  1004→        removeLoad,
-  1005→        promoteSnapshotToLive,
-  1006→        addSale,
-  1007→        cargoEditedToday,
-  1008→        notificationsEnabled,
-  1009→        notificationPermission,
-  1010→        enableNotifications,
-  1011→        disableNotifications,
-  1012→        fcmRegStatus,
-  1013→        fcmRegError,
-  1014→        fcmDiagnostics: fcmDiagnosticsState,
-  1015→        sendTestFcmNotification: async () => {
-  1016→          if (!authCompanyId) return { success: false, message: 'Not logged in' };
-  1017→          return sendTestNotification(authCompanyId);
-  1018→        },
-  1019→      }}
-  1020→    >
-  1021→      {children}
-  1022→    </AppContext.Provider>
-  1023→  );
-  1024→}
-  1025→
-  1026→export function useApp(): AppContextType {
-  1027→  const ctx = useContext(AppContext);
-  1028→  if (!ctx) throw new Error('useApp must be used inside <AppProvider>');
-  1029→  return ctx;
-  1030→}
-  1031→
+   902→        const icon = data.icon || 'https://track-tracker-app.vercel.app/icons/icon-192.png';
+   903→        const badge = 'https://track-tracker-app.vercel.app/icons/notification-bell.png';
+   904→        // ALWAYS use sale-based tag for dedup — never Date.now()
+   905→        const tag = `sale-${saleId}`;
+   906→
+   907→        // Use SW showNotification() — single "TrackTracker"-branded notification
+   908→        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+   909→          navigator.serviceWorker.ready.then((reg) => {
+   910→            reg.showNotification(title, { body, icon, badge, tag, data: { saleId, type, clickAction: '/' }, dir: 'rtl', lang: 'ar' });
+   911→          }).catch(() => {
+   912→            try { new Notification(title, { body, icon, tag }); } catch {}
+   913→          });
+   914→        } else {
+   915→          try { new Notification(title, { body, icon, tag }); } catch {}
+   916→        }
+   917→      });
+   918→    })();
+   919→
+   920→    return () => { unsubscribe?.(); };
+   921→  }, [role, authCompanyId, notificationsEnabled]);
+   922→
+   923→  // ── FCM token refresh on visibility change ────────────────────────────────
+   924→  // When the app regains focus (e.g., user returns to the tab), re-register
+   925→  // the FCM token to handle token rotation by the browser/Firebase.
+   926→  useEffect(() => {
+   927→    if (role !== 'company' || !authCompanyId) return;
+   928→    if (!isFirebaseConfigured || !notificationsEnabled) return;
+   929→
+   930→    const onVisibilityChange = () => {
+   931→      if (document.visibilityState === 'visible') {
+   932→        void refreshFcmTokenIfNeeded(authCompanyId);
+   933→      }
+   934→    };
+   935→
+   936→    document.addEventListener('visibilitychange', onVisibilityChange);
+   937→    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+   938→  }, [role, authCompanyId, notificationsEnabled]);
+   939→
+   940→  // ── Re-register FCM token on login/refresh ──────────────────────────────
+   941→  // When a company owner logs in or refreshes, ensure their FCM token is
+   942→  // still registered (handles token expiry, browser update, etc.).
+   943→  // Also fires when notificationsEnabled flips to true (user enables toggle).
+   944→  useEffect(() => {
+   945→    if (role !== 'company' || !authCompanyId) return;
+   946→    if (!isFirebaseConfigured || !notificationsEnabled) return;
+   947→    if (fcmGetPermission() !== 'granted') return;
+   948→
+   949→    // Re-register token on mount (handles refresh/login)
+   950→    void registerFcmToken(authCompanyId);
+   951→  }, [role, authCompanyId, notificationsEnabled]);
+   952→
+   953→  // ── Supabase Realtime for UI updates ONLY (no notifications) ─────────────
+   954→  // Realtime is still used to update the sales list in real-time, but
+   955→  // it does NOT display notifications — FCM handles all notifications.
+   956→  useEffect(() => {
+   957→    if (role !== 'company' || !authCompanyId) return;
+   958→    if (!isSupabaseConfigured) return;
+   959→
+   960→    const channel = supabase
+   961→      .channel(`company-sales-realtime-${authCompanyId}`)
+   962→      .on(
+   963→        'postgres_changes',
+   964→        { event: 'INSERT', schema: 'public', table: 'sales' },
+   965→        (payload) => {
+   966→          // Intentionally NOT showing a notification here.
+   967→          // FCM + Edge Function handles all sale notifications.
+   968→          // Realtime is only for live UI updates (the sales list refreshes
+   969→          // automatically when a new sale is inserted).
+   970→          console.log('[AppContext] Realtime: new sale detected (UI update only, no notification)');
+   971→        },
+   972→      )
+   973→      .subscribe();
+   974→
+   975→    return () => {
+   976→      void supabase.removeChannel(channel);
+   977→    };
+   978→  }, [role, authCompanyId]);
+   979→
+   980→  const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
+   981→
+   982→  return (
+   983→    <AppContext.Provider
+   984→      value={{
+   985→        company,
+   986→        darkMode,
+   987→        toggleDarkMode,
+   988→        updateLogo,
+   989→        setCompanyProfile,
+   990→        setJoinCode,
+   991→        regenerateJoinCode,
+   992→        logout,
+   993→        activateSubscription,
+   994→        companySubscriptionActive: role === 'driver'
+   995→          ? driverCompanySubscriptionActive
+   996→          : company.subscriptionActive,
+   997→        drivers,
+   998→        loads,
+   999→        sales,
+  1000→        currentDriverId,
+  1001→        currentDriver,
+  1002→        logoutDriver,
+  1003→        updateDriverProfile,
+  1004→        upsertLoad,
+  1005→        removeLoad,
+  1006→        promoteSnapshotToLive,
+  1007→        addSale,
+  1008→        cargoEditedToday,
+  1009→        notificationsEnabled,
+  1010→        notificationPermission,
+  1011→        enableNotifications,
+  1012→        disableNotifications,
+  1013→        fcmRegStatus,
+  1014→        fcmRegError,
+  1015→        fcmDiagnostics: fcmDiagnosticsState,
+  1016→        sendTestFcmNotification: async () => {
+  1017→          if (!authCompanyId) return { success: false, message: 'Not logged in' };
+  1018→          return sendTestNotification(authCompanyId);
+  1019→        },
+  1020→      }}
+  1021→    >
+  1022→      {children}
+  1023→    </AppContext.Provider>
+  1024→  );
+  1025→}
+  1026→
+  1027→export function useApp(): AppContextType {
+  1028→  const ctx = useContext(AppContext);
+  1029→  if (!ctx) throw new Error('useApp must be used inside <AppProvider>');
+  1030→  return ctx;
+  1031→}
+  1032→

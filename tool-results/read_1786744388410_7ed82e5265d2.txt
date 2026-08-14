@@ -1,0 +1,1032 @@
+     1→     1→import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+     2→     2→import { useLocation } from 'wouter';
+     3→     3→import {
+     4→     4→  Driver,
+     5→     5→  CargoItem,
+     6→     6→  SaleRecord,
+     7→     7→  SaleLineItem,
+     8→     8→  formatIQD,
+     9→     9→} from '@/data/mockData';
+    10→    10→import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+    11→    11→import { signOut } from '@/lib/auth';
+    12→    12→import {
+    13→    13→  requestNotificationPermission as fcmRequestPermission,
+    14→    14→  getNotificationPermission as fcmGetPermission,
+    15→    15→  registerFcmToken,
+    16→    16→  unregisterFcmToken,
+    17→    17→  refreshFcmTokenIfNeeded,
+    18→    18→  notifySaleViaEdgeFunction,
+    19→    19→  getFcmDiagnostics,
+    20→    20→  getFcmRegStatus,
+    21→    21→  refreshFcmDiagnostics,
+    22→    22→  sendTestNotification,
+    23→    23→  type FcmDiagnostics,
+    24→    24→} from '@/services/fcmService';
+    25→    25→import { isFirebaseConfigured, getFirebaseMessaging } from '@/lib/firebaseConfig';
+    26→    26→import {
+    27→    27→  updateCompany,
+    28→    28→  fetchDrivers,
+    29→    29→  updateDriver,
+    30→    30→  fetchLoads,
+    31→    31→  upsertLoad as dbUpsertLoad,
+    32→    32→  decrementLoad,
+    33→    33→  removeLoad as dbRemoveLoad,
+    34→    34→  replaceDriverLoads,
+    35→    35→  fetchDailySnapshots,
+    36→    36→  fetchSales,
+    37→    37→  createSale,
+    38→    38→  finalizeYesterdayIfNeeded,
+    39→    39→} from '@/services';
+    40→    40→import { useAuth } from '@/store/AuthContext';
+    41→    41→import type { CompanyProfile } from '@/types';
+    42→    42→import { baghdadToday } from '@/lib/dateUtils';
+    43→    43→
+    44→    44→// ── Types ─────────────────────────────────────────────────────────────────────
+    45→    45→
+    46→    46→// Re-export CompanyProfile so existing imports from @/store/AppContext continue to work.
+    47→    47→export type { CompanyProfile } from '@/types';
+    48→    48→
+    49→    49→interface AppContextType {
+    50→    50→  company: CompanyProfile;
+    51→    51→  darkMode: boolean;
+    52→    52→  toggleDarkMode: () => void;
+    53→    53→  updateLogo: (url: string) => void;
+    54→    54→  setCompanyProfile: (data: Partial<Pick<CompanyProfile, 'name' | 'email'>>) => void;
+    55→    55→  setJoinCode: (code: string) => void;
+    56→    56→  regenerateJoinCode: () => void;
+    57→    57→  logout: () => void;
+    58→    58→  /** Activate the company subscription via an activation code. Persists to DB. */
+    59→    59→  activateSubscription: (code: string) => Promise<boolean>;
+    60→    60→  /**
+    61→    61→   * Whether the company subscription is active. For company owners, mirrors
+    62→    62→   * `company.subscriptionActive`. For drivers, fetched from the parent
+    63→    63→   * company's `subscription_active` column. Used by the SubscriptionGate
+    64→    64→   * to block business operations when inactive.
+    65→    65→   */
+    66→    66→  companySubscriptionActive: boolean;
+    67→    67→
+    68→    68→  drivers: Driver[];
+    69→    69→  loads: CargoItem[];
+    70→    70→  sales: SaleRecord[];
+    71→    71→  currentDriverId: string | null;
+    72→    72→  currentDriver: Driver | null;
+    73→    73→  logoutDriver: () => void;
+    74→    74→  updateDriverProfile: (data: Partial<Pick<Driver, 'name' | 'email' | 'vehicleNumber' | 'profilePictureUrl'>>) => void;
+    75→    75→  upsertLoad: (input: { id?: string; productName: string; quantity: number; unitPrice: number }) => void;
+    76→    76→  removeLoad: (id: string) => void;
+    77→    77→  /**
+    78→    78→   * Promote a historical day's snapshot to live cargo. Replaces all current
+    79→    79→   * live loads for the driver with the snapshot's items (filtered to qty > 0),
+    80→    80→   * assigning fresh UUIDs. Returns the new live CargoItem[] so the caller can
+    81→    81→   * open the Load tab with the matching item prefilled.
+    82→    82→   *
+    83→    83→   * Per spec: "If the driver edits any product from that remaining cargo...
+    84→    84→   * It immediately becomes Current Cargo."
+    85→    85→   */
+    86→    86→  promoteSnapshotToLive: (driverId: string, snapshotDate: string) => Promise<CargoItem[]>;
+    87→    87→  addSale: (items: SaleLineItem[], receiptImageUrl?: string | null) => void;
+    88→    88→
+    89→    89→  /**
+    90→    90→   * Latched "the current driver has edited cargo at least once today" flag.
+    91→    91→   *
+    92→    92→   * Per the revised midnight-logic spec: on Day 2, the cargo title starts as
+    93→    93→   * "الحمولة المتبقية من اليوم السابق" (carried over from yesterday). The
+    94→    94→   * moment the driver performs ANY mutation (add, remove, sell, change
+    95→    95→   * quantity, edit price, or promote a historical snapshot to live), the
+    96→    96→   * title MUST immediately flip to "الحمولة الحالية" and stay there for
+    97→    97→   * the rest of the day — even across page refresh.
+    98→    98→   *
+    99→    99→   * Implementation: this flag is persisted in localStorage, keyed by
+   100→   100→   * `(driverId, today)`, so it survives refresh and auto-resets at
+   101→   101→   * midnight (a new day = a new key = flag starts false again).
+   102→   102→   *
+   103→   103→   * The carry-over algorithm itself (`isCargoCarriedOverToday`) is NOT
+   104→   104→   * modified — this flag overrides its result at the title-resolution
+   105→   105→   * layer (see `useCargoHistory`).
+   106→   106→   */
+   107→   107→  cargoEditedToday: boolean;
+   108→   108→
+   109→   109→  // Sale notifications (company owner) — Web Notifications API + Supabase Realtime
+   110→   110→  notificationsEnabled: boolean;
+   111→   111→  notificationPermission: NotificationPermission | 'unsupported';
+   112→   112→  enableNotifications: () => Promise<void>;
+   113→   113→  disableNotifications: () => void;
+   114→   114→  /** FCM push registration status — visible diagnostic (no DevTools needed) */
+   115→   115→  fcmRegStatus: 'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered';
+   116→   116→  /** Human-readable error if fcmRegStatus === 'failed' */
+   117→   117→  fcmRegError: string;
+   118→   118→  /** Full FCM diagnostics for visible diagnostic panel */
+   119→   119→  fcmDiagnostics: FcmDiagnostics;
+   120→   120→  /** Send a test FCM notification through the production backend */
+   121→   121→  sendTestFcmNotification: () => Promise<{ success: boolean; message: string }>;
+   122→   122→}
+   123→   123→
+   124→   124→// ── Helpers ───────────────────────────────────────────────────────────────────
+   125→   125→
+   126→   126→function generateJoinCode(): string {
+   127→   127→  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+   128→   128→  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+   129→   129→}
+   130→   130→
+   131→   131→function generateId(): string {
+   132→   132→  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+   133→   133→    return crypto.randomUUID();
+   134→   134→  }
+   135→   135→  return `local-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}`;
+   136→   136→}
+   137→   137→
+   138→   138→const DEFAULT_COMPANY: CompanyProfile = {
+   139→   139→  name: '',
+   140→   140→  email: '',
+   141→   141→  joinCode: '',
+   142→   142→  logoUrl: null,
+   143→   143→  subscriptionActive: false,
+   144→   144→};
+   145→   145→
+   146→   146→// Local-only preference — Notification permission itself is a per-browser/device
+   147→   147→// concept (not a company-level setting), so it is intentionally not persisted
+   148→   148→// to Supabase. Kept in localStorage like the dark-mode toggle.
+   149→   149→const NOTIFICATIONS_STORAGE_KEY = 'tt_notifications_enabled';
+   150→   150→
+   151→   151→/**
+   152→   152→ * Build the localStorage key for the "cargo edited today" latch.
+   153→   153→ *
+   154→   154→ * Keyed by `(driverId, today)` so the flag:
+   155→   155→ *   - auto-resets at midnight (today changes → new key → flag starts false),
+   156→   156→ *   - is per-driver (multiple drivers on the same browser don't collide),
+   157→   157→ *   - survives page refresh (same key → same value).
+   158→   158→ *
+   159→   159→ * This latch is the mechanism that flips Day-2's cargo title from
+   160→   160→ * "الحمولة المتبقية من اليوم السابق" to "الحمولة الحالية" after the driver's
+   161→   161→ * FIRST cargo mutation of the day. The carry-over algorithm itself is NOT
+   162→   162→ * modified — only the title-resolution layer consumes this flag.
+   163→   163→ */
+   164→   164→function cargoEditedTodayStorageKey(driverId: string, today: string): string {
+   165→   165→  return `tt_cargo_edited_${driverId}_${today}`;
+   166→   166→}
+   167→   167→
+   168→   168→/** Read the latch from localStorage. Returns false if not set or unavailable. */
+   169→   169→function readCargoEditedToday(driverId: string, today: string): boolean {
+   170→   170→  if (typeof window === 'undefined') return false;
+   171→   171→  try {
+   172→   172→    return localStorage.getItem(cargoEditedTodayStorageKey(driverId, today)) === '1';
+   173→   173→  } catch {
+   174→   174→    return false;
+   175→   175→  }
+   176→   176→}
+   177→   177→
+   178→   178→/** Write the latch to localStorage. Silently no-op if storage is unavailable. */
+   179→   179→function writeCargoEditedToday(driverId: string, today: string, value: boolean): void {
+   180→   180→  if (typeof window === 'undefined') return;
+   181→   181→  try {
+   182→   182→    if (value) {
+   183→   183→      localStorage.setItem(cargoEditedTodayStorageKey(driverId, today), '1');
+   184→   184→    } else {
+   185→   185→      localStorage.removeItem(cargoEditedTodayStorageKey(driverId, today));
+   186→   186→    }
+   187→   187→  } catch {
+   188→   188→    /* ignore storage failures — flag is also kept in React state */
+   189→   189→  }
+   190→   190→}
+   191→   191→
+   192→   192→function getNotificationPermission(): NotificationPermission | 'unsupported' {
+   193→   193→  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+   194→   194→  return Notification.permission;
+   195→   195→}
+   196→   196→
+   197→   197→function dedupeLoads(loads: CargoItem[]): CargoItem[] {
+   198→   198→  const byKey = new Map<string, CargoItem>();
+   199→   199→  for (const load of loads) {
+   200→   200→    const key = `${load.driverId}::${load.productName.trim().toLowerCase()}`;
+   201→   201→    const existing = byKey.get(key);
+   202→   202→    if (existing) {
+   203→   203→      existing.quantity += load.quantity;
+   204→   204→      existing.unitPrice = load.unitPrice;
+   205→   205→    } else {
+   206→   206→      byKey.set(key, { ...load });
+   207→   207→    }
+   208→   208→  }
+   209→   209→  return Array.from(byKey.values());
+   210→   210→}
+   211→   211→
+   212→   212→// ── Context ───────────────────────────────────────────────────────────────────
+   213→   213→
+   214→   214→const AppContext = createContext<AppContextType | null>(null);
+   215→   215→
+   216→   216→export function AppProvider({ children }: { children: ReactNode }) {
+   217→   217→  const [, setLocation] = useLocation();
+   218→   218→  const {
+   219→   219→    role,
+   220→   220→    companyId: authCompanyId,
+   221→   221→    driverId: authDriverId,
+   222→   222→    companyProfile: authCompany,
+   223→   223→    driverProfile: authDriverProfile,
+   224→   224→    isLoading: authLoading,
+   225→   225→  } = useAuth();
+   226→   226→
+   227→   227→  const [company, setCompany] = useState<CompanyProfile>(DEFAULT_COMPANY);
+   228→   228→  const [darkMode, setDarkMode] = useState(
+   229→   229→    () => localStorage.getItem('tt_dark') === '1'
+   230→   230→  );
+   231→   231→
+   232→   232→  const [drivers, setDrivers] = useState<Driver[]>([]);
+   233→   233→  const [loads, setLoads] = useState<CargoItem[]>([]);
+   234→   234→  const [sales, setSales] = useState<SaleRecord[]>([]);
+   235→   235→  const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
+   236→   236→
+   237→   237→  // ── Company subscription active (driver context) ──────────────────────────
+   238→   238→  // For company owners: comes from `company.subscriptionActive` (set during
+   239→   239→  // bootstrap from AuthContext's companyProfile). For drivers: fetched from
+   240→   240→  // the parent company's `subscription_active` column via Supabase query
+   241→   241→  // during the driver bootstrap. Defaults to false so the gate blocks until
+   242→   242→  // the fetch completes.
+   243→   243→  const [driverCompanySubscriptionActive, setDriverCompanySubscriptionActive] = useState(false);
+   244→   244→
+   245→   245→  // ── Cargo-edited-today latch ───────────────────────────────────────────────
+   246→   246→  //
+   247→   247→  // Latched flag: true iff the current driver has performed ANY cargo mutation
+   248→   248→  // (add / remove / sell / change quantity / edit price / promote snapshot to
+   249→   249→  // live) since midnight. Used by `useCargoHistory` to flip the Day-2 carry-over
+   250→   250→  // title from "الحمولة المتبقية من اليوم السابق" to "الحمولة الحالية" on
+   251→   251→  // the first mutation of the day. See the type-doc on `cargoEditedToday`
+   252→   252→  // above for the full spec.
+   253→   253→  //
+   254→   254→  // `today` is recomputed on every render; if the calendar day rolls over
+   255→   255→  // while the dashboard is open, the latch re-reads from localStorage under
+   256→   256→  // the new key (which starts unset), effectively resetting the flag at
+   257→   257→  // midnight without an explicit timer.
+   258→   258→  const today = baghdadToday();
+   259→   259→  const [cargoEditedToday, setCargoEditedToday] = useState<boolean>(() =>
+   260→   260→    currentDriverId ? readCargoEditedToday(currentDriverId, today) : false,
+   261→   261→  );
+   262→   262→
+   263→   263→  // Re-read the latch whenever the driver or the calendar day changes.
+   264→   264→  useEffect(() => {
+   265→   265→    if (!currentDriverId) {
+   266→   266→      setCargoEditedToday(false);
+   267→   267→      return;
+   268→   268→    }
+   269→   269→    setCargoEditedToday(readCargoEditedToday(currentDriverId, today));
+   270→   270→  }, [currentDriverId, today]);
+   271→   271→
+   272→   272→  // Helper: latch the flag to true and persist. Called from every cargo
+   273→   273→  // mutation handler below. No-op if no driver is signed in.
+   274→   274→  const markCargoEditedToday = () => {
+   275→   275→    if (!currentDriverId) return;
+   276→   276→    writeCargoEditedToday(currentDriverId, today, true);
+   277→   277→    setCargoEditedToday(true);
+   278→   278→  };
+   279→   279→
+   280→   280→  // ── Sale notifications (FCM-based) ──────────────────────────────────────
+   281→   281→  const [notificationsEnabled, setNotificationsEnabled] = useState(
+   282→   282→    () => localStorage.getItem(NOTIFICATIONS_STORAGE_KEY) === '1'
+   283→   283→  );
+   284→   284→  const [notificationPermission, setNotificationPermission] = useState<
+   285→   285→    NotificationPermission | 'unsupported'
+   286→   286→  >(() => fcmGetPermission());
+   287→   287→
+   288→   288→  // Kept in a ref (not a dependency of the subscription effect below) so that
+   289→   289→  // routine driver-list refreshes don't tear down and re-create the realtime
+   290→   290→  // channel — only role/company/toggle changes should do that.
+   291→   291→  const driversRef = useRef<Driver[]>(drivers);
+   292→   292→  useEffect(() => {
+   293→   293→    driversRef.current = drivers;
+   294→   294→  }, [drivers]);
+   295→   295→
+   296→   296→  // In-memory dedup for sale notifications — prevents duplicate delivery
+   297→   297→  // from Realtime reconnects or FCM retries.
+   298→   298→  const notifiedSaleIdsRef = useRef<Map<string, number>>(new Map());
+   299→   299→
+   300→   300→  // FCM registration status (visible diagnostic — no DevTools needed)
+   301→   301→  const [fcmRegStatus, setFcmRegStatus] = useState<'idle' | 'requesting' | 'registered' | 'failed' | 'unregistered'>('idle');
+   302→   302→  const [fcmRegError, setFcmRegError] = useState('');
+   303→   303→  const [fcmDiagnosticsState, setFcmDiagnosticsState] = useState<FcmDiagnostics>(getFcmDiagnostics());
+   304→   304→
+   305→   305→  // Sync FCM status from fcmService into React state
+   306→   306→  useEffect(() => {
+   307→   307→    // Initial refresh
+   308→   308→    void refreshFcmDiagnostics();
+   309→   309→
+   310→   310→    const interval = setInterval(() => {
+   311→   311→      const d = getFcmDiagnostics();
+   312→   312→      setFcmRegStatus(d.regStatus);
+   313→   313→      setFcmRegError(d.lastError);
+   314→   314→      setFcmDiagnosticsState(d);
+   315→   315→    }, 1000);
+   316→   316→    return () => clearInterval(interval);
+   317→   317→  }, []);
+   318→   318→
+   319→   319→  // NOTE: Firebase config is hardcoded in sw.ts (the service worker) because
+   320→   320→  // SWs cannot access import.meta.env. The previous FIREBASE_CONFIG postMessage
+   321→   321→  // was a no-op since sw.ts has no handler for it. Removed to avoid confusion.
+   322→   322→  // ── Dark mode ──────────────────────────────────────────────────────────────
+   323→   323→  useEffect(() => {
+   324→   324→    document.documentElement.classList.toggle('dark', darkMode);
+   325→   325→    localStorage.setItem('tt_dark', darkMode ? '1' : '0');
+   326→   326→  }, [darkMode]);
+   327→   327→
+   328→   328→  // ── Bootstrap company data ─────────────────────────────────────────────────
+   329→   329→  // Runs when a company owner signs in. Uses a cancellation flag so that
+   330→   330→  // if auth changes before the fetch completes, stale results are discarded.
+   331→   331→  useEffect(() => {
+   332→   332→    if (authLoading) return;
+   333→   333→    if (role !== 'company' || !authCompanyId || !authCompany) return;
+   334→   334→    if (!isSupabaseConfigured) {
+   335→   335→      setCompany(authCompany);
+   336→   336→      return;
+   337→   337→    }
+   338→   338→
+   339→   339→    let cancelled = false;
+   340→   340→    setCompany(authCompany);
+   341→   341→
+   342→   342→    void (async () => {
+   343→   343→      const remoteDrivers = await fetchDrivers(authCompanyId, authCompany.name);
+   344→   344→      if (cancelled) return;
+   345→   345→
+   346→   346→      const driverIds = remoteDrivers.map((d) => d.id);
+   347→   347→      const [remoteLoads, remoteSales] = await Promise.all([
+   348→   348→        fetchLoads(driverIds),
+   349→   349→        fetchSales(driverIds),
+   350→   350→      ]);
+   351→   351→      if (cancelled) return;
+   352→   352→
+   353→   353→      setDrivers(remoteDrivers);
+   354→   354→      setLoads(dedupeLoads(remoteLoads));
+   355→   355→      setSales(remoteSales);
+   356→   356→      setCurrentDriverId(null);
+   357→   357→
+   358→   358→      // Finalize yesterday's snapshot for each driver. Fire-and-forget —
+   359→   359→      // each call is idempotent (unique constraint + ON CONFLICT DO NOTHING).
+   360→   360→      // Reads current DB loads (no mutation has happened today yet at bootstrap).
+   361→   361→      void Promise.all(
+   362→   362→        remoteDrivers.map((d) => finalizeYesterdayIfNeeded(d.id))
+   363→   363→      );
+   364→   364→    })();
+   365→   365→
+   366→   366→    return () => { cancelled = true; };
+   367→   367→  // authCompany?.name is a stable string proxy for the company object reference
+   368→   368→  // eslint-disable-next-line react-hooks/exhaustive-deps
+   369→   369→  }, [role, authCompanyId, authCompany?.name, authLoading]);
+   370→   370→
+   371→   371→  // ── Bootstrap driver data ──────────────────────────────────────────────────
+   372→   372→  // Runs when a driver signs in.
+   373→   373→  useEffect(() => {
+   374→   374→    if (authLoading) return;
+   375→   375→    if (role !== 'driver' || !authDriverId || !authDriverProfile) return;
+   376→   376→    if (!isSupabaseConfigured) {
+   377→   377→      setCurrentDriverId(authDriverId);
+   378→   378→      setDrivers([authDriverProfile]);
+   379→   379→      // Without Supabase, assume active so the app works in mock mode
+   380→   380→      setDriverCompanySubscriptionActive(true);
+   381→   381→      return;
+   382→   382→    }
+   383→   383→
+   384→   384→    let cancelled = false;
+   385→   385→    setCurrentDriverId(authDriverId);
+   386→   386→    setDrivers([authDriverProfile]);
+   387→   387→    // Reset subscription until we fetch it — gate will block during load
+   388→   388→    setDriverCompanySubscriptionActive(false);
+   389→   389→
+   390→   390→    void (async () => {
+   391→   391→      // Fetch the parent company's subscription status FIRST so the gate
+   392→   392→      // resolves quickly. If inactive, the driver sees the gate immediately.
+   393→   393→      // Uses select('*') so we don't fail if the subscription_active column
+   394→   394→      // doesn't exist yet (PostgREST omits unknown columns from select('*')
+   395→   395→      // instead of erroring). We then check for the field in the response.
+   396→   396→      const companyId = authDriverProfile.companyId;
+   397→   397→      const { data: companyRow, error: companyErr } = await supabase
+   398→   398→        .from('companies')
+   399→   399→        .select('*')
+   400→   400→        .eq('id', companyId)
+   401→   401→        .single();
+   402→   402→      if (!cancelled) {
+   403→   403→        if (companyErr) {
+   404→   404→          console.error('[AppContext] failed to fetch company subscription:', companyErr.message);
+   405→   405→          setDriverCompanySubscriptionActive(false);
+   406→   406→        } else {
+   407→   407→          // subscription_active may be absent if the migration hasn't run yet.
+   408→   408→          // In that case, default to false (gate blocks until migration runs).
+   409→   409→          const rawRow = companyRow as Record<string, unknown>;
+   410→   410→          setDriverCompanySubscriptionActive((rawRow.subscription_active as boolean) ?? false);
+   411→   411→        }
+   412→   412→      }
+   413→   413→
+   414→   414→      const [remoteLoads, remoteSales] = await Promise.all([
+   415→   415→        fetchLoads([authDriverId]),
+   416→   416→        fetchSales([authDriverId]),
+   417→   417→      ]);
+   418→   418→      if (cancelled) return;
+   419→   419→      setLoads(dedupeLoads(remoteLoads));
+   420→   420→      setSales(remoteSales);
+   421→   421→
+   422→   422→      // Finalize yesterday's snapshot for this driver. Fire-and-forget —
+   423→   423→      // idempotent. Reads current DB loads (no mutation today yet).
+   424→   424→      void finalizeYesterdayIfNeeded(authDriverId);
+   425→   425→    })();
+   426→   426→
+   427→   427→    return () => { cancelled = true; };
+   428→   428→  // eslint-disable-next-line react-hooks/exhaustive-deps
+   429→   429→  }, [role, authDriverId, authLoading]);
+   430→   430→
+   431→   431→  // ── Clear state on sign-out ────────────────────────────────────────────────
+   432→   432→  useEffect(() => {
+   433→   433→    if (!authLoading && !role) {
+   434→   434→      setCompany(DEFAULT_COMPANY);
+   435→   435→      setDrivers([]);
+   436→   436→      setLoads([]);
+   437→   437→      setSales([]);
+   438→   438→      setCurrentDriverId(null);
+   439→   439→      setDriverCompanySubscriptionActive(false);
+   440→   440→    }
+   441→   441→  }, [role, authLoading]);
+   442→   442→
+   443→   443→  // ── Dark mode toggle ──────────────────────────────────────────────────────
+   444→   444→  const toggleDarkMode = () => setDarkMode((prev) => !prev);
+   445→   445→
+   446→   446→  const updateLogo = (url: string) => {
+   447→   447→    // Persist the durable public URL (from Supabase Storage) to both local
+   448→   448→    // state AND the companies table. The previous implementation only set
+   449→   449→    // local state — so logoUrl was lost on refresh.
+   450→   450→    setCompany((prev) => ({ ...prev, logoUrl: url }));
+   451→   451→    if (authCompanyId) {
+   452→   452→      void updateCompany(authCompanyId, { logoUrl: url });
+   453→   453→    }
+   454→   454→  };
+   455→   455→
+   456→   456→  // ── Company profile mutations ─────────────────────────────────────────────
+   457→   457→
+   458→   458→  const setCompanyProfile = (data: Partial<Pick<CompanyProfile, 'name' | 'email'>>) => {
+   459→   459→    setCompany((prev) => ({ ...prev, ...data }));
+   460→   460→    if (authCompanyId) {
+   461→   461→      void updateCompany(authCompanyId, data);
+   462→   462→    }
+   463→   463→  };
+   464→   464→
+   465→   465→  const setJoinCode = (code: string) => {
+   466→   466→    setCompany((prev) => ({ ...prev, joinCode: code.toUpperCase() }));
+   467→   467→    if (authCompanyId) {
+   468→   468→      void updateCompany(authCompanyId, { joinCode: code });
+   469→   469→    }
+   470→   470→  };
+   471→   471→
+   472→   472→  const regenerateJoinCode = () => {
+   473→   473→    const newCode = generateJoinCode();
+   474→   474→    setCompany((prev) => ({ ...prev, joinCode: newCode }));
+   475→   475→    if (authCompanyId) {
+   476→   476→      void updateCompany(authCompanyId, { joinCode: newCode });
+   477→   477→    }
+   478→   478→  };
+   479→   479→
+   480→   480→  // ── Subscription activation ──────────────────────────────────────────────
+   481→   481→  //
+   482→   482→  // Uses the Supabase `activate_subscription` security-definer RPC to validate
+   483→   483→  // the activation code and set `subscription_active = true` on the company row.
+   484→   484→  // Activation persists ONLY in Supabase — no localStorage, no fallback.
+   485→   485→  //
+   486→   486→  // The only valid activation code for now is "track1".
+   487→   487→  // Later Stripe will replace this — the architecture is ready.
+   488→   488→  //
+   489→   489→  // Activation strategy (ordered by preference):
+   490→   490→  //   1. Call the `activate_subscription` security-definer RPC. This validates
+   491→   491→  //      the code server-side and persists to the DB in one atomic call.
+   492→   492→  //   2. If the RPC doesn't exist, validate the code locally and do a direct
+   493→   493→  //      PostgREST UPDATE on the company row.
+   494→   494→  //      This works because company owners have UPDATE RLS on their own row.
+   495→   495→  //   3. If both strategies fail, return false (activation not persisted).
+   496→   496→  //      The user sees an error and can retry later.
+   497→   497→
+   498→   498→  const activateSubscription = async (code: string): Promise<boolean> => {
+   499→   499→    // If the company is already active, return true immediately.
+   500→   500→    // The UI layer checks companySubscriptionActive before calling this
+   501→   501→    // function and shows an "already activated" message, but this guard
+   502→   502→    // ensures that even if the UI bypass is missed, no duplicate activation
+   503→   503→    // attempt reaches the database.
+   504→   504→    if (company.subscriptionActive) return true;
+   505→   505→
+   506→   506→    const normalizedCode = code.trim().toLowerCase();
+   507→   507→    const isValid = normalizedCode === 'track1';
+   508→   508→
+   509→   509→    if (!isValid) return false;
+   510→   510→
+   511→   511→    if (!isSupabaseConfigured) {
+   512→   512→      // Offline mode: accept "track1" and update local state only.
+   513→   513→      // No localStorage — state lives only in React (lost on refresh,
+   514→   514→      // which is correct since the DB is unreachable in offline mode).
+   515→   515→      setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+   516→   516→      return true;
+   517→   517→    }
+   518→   518→
+   519→   519→    // ── Strategy 1: try the RPC ──
+   520→   520→    try {
+   521→   521→      const { data, error } = await supabase.rpc('activate_subscription', {
+   522→   522→        p_activation_code: code.trim(),
+   523→   523→      });
+   524→   524→
+   525→   525→      if (!error) {
+   526→   526→        const success = data as boolean;
+   527→   527→        if (success) {
+   528→   528→          setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+   529→   529→        }
+   530→   530→        return success;
+   531→   531→      }
+   532→   532→
+   533→   533→      // RPC doesn't exist or failed — proceed to fallback strategy.
+   534→   534→      if (error.message.includes('Could not find the function') || error.code === 'PGRST202') {
+   535→   535→        console.warn('[AppContext] activate_subscription RPC not found — falling back to direct UPDATE.');
+   536→   536→      } else {
+   537→   537→        console.warn('[AppContext] activate_subscription RPC error:', error.message, '— falling back to direct UPDATE.');
+   538→   538→      }
+   539→   539→    } catch (err) {
+   540→   540→      console.warn('[AppContext] activate_subscription RPC error:', err, '— falling back to direct UPDATE.');
+   541→   541→    }
+   542→   542→
+   543→   543→    // ── Strategy 2: direct PostgREST UPDATE ──
+   544→   544→    // Company owners have `companies_owner` RLS policy which allows
+   545→   545→    // UPDATE on their own row. This persists activation to the DB.
+   546→   546→    const companyId = authCompanyId;
+   547→   547→    if (companyId) {
+   548→   548→      try {
+   549→   549→        const { error: updateError } = await supabase
+   550→   550→          .from('companies')
+   551→   551→          .update({ subscription_active: true })
+   552→   552→          .eq('id', companyId);
+   553→   553→
+   554→   554→        if (!updateError) {
+   555→   555→          setCompany((prev) => ({ ...prev, subscriptionActive: true }));
+   556→   556→          return true;
+   557→   557→        }
+   558→   558→
+   559→   559→        console.warn('[AppContext] direct UPDATE failed:', updateError.message);
+   560→   560→      } catch (err) {
+   561→   561→        console.warn('[AppContext] direct UPDATE error:', err);
+   562→   562→      }
+   563→   563→    }
+   564→   564→
+   565→   565→    // ── Strategy 3: both strategies failed — activation not persisted ──
+   566→   566→    // Return false so the user sees an error and can retry.
+   567→   567→    return false;
+   568→   568→  };
+   569→   569→
+   570→   570→  // ── Auth actions ──────────────────────────────────────────────────────────
+   571→   571→
+   572→   572→  const logout = () => {
+   573→   573→    void signOut().then(() => setLocation('/'));
+   574→   574→  };
+   575→   575→
+   576→   576→  const logoutDriver = () => {
+   577→   577→    void signOut().then(() => setLocation('/'));
+   578→   578→  };
+   579→   579→
+   580→   580→  // ── Driver profile ────────────────────────────────────────────────────────
+   581→   581→
+   582→   582→  const updateDriverProfile = (
+   583→   583→    data: Partial<Pick<Driver, 'name' | 'email' | 'vehicleNumber' | 'profilePictureUrl'>>
+   584→   584→  ) => {
+   585→   585→    if (!currentDriverId) return;
+   586→   586→    setDrivers((prev) =>
+   587→   587→      prev.map((d) => (d.id === currentDriverId ? { ...d, ...data } : d))
+   588→   588→    );
+   589→   589→    void updateDriver(currentDriverId, data);
+   590→   590→  };
+   591→   591→
+   592→   592→  // ── Load management ───────────────────────────────────────────────────────
+   593→   593→
+   594→   594→  const upsertLoad = (input: {
+   595→   595→    id?: string;
+   596→   596→    productName: string;
+   597→   597→    quantity: number;
+   598→   598→    unitPrice: number;
+   599→   599→  }) => {
+   600→   600→    if (!currentDriverId) return;
+   601→   601→    const productName = input.productName.trim();
+   602→   602→
+   603→   603→    // Capture pre-mutation cargo so the finalize call below freezes yesterday's
+   604→   604→    // EOD state, not the post-edit state. UI updates synchronously via setLoads.
+   605→   605→    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
+   606→   606→
+   607→   607→    setLoads((prev) => {
+   608→   608→      const existingIdx = prev.findIndex(
+   609→   609→        (l) =>
+   610→   610→          l.driverId === currentDriverId &&
+   611→   611→          l.productName.trim().toLowerCase() === productName.toLowerCase()
+   612→   612→      );
+   613→   613→
+   614→   614→      if (existingIdx !== -1) {
+   615→   615→        const updated = [...prev];
+   616→   616→        const existing = { ...updated[existingIdx], quantity: input.quantity, unitPrice: input.unitPrice };
+   617→   617→        updated[existingIdx] = existing;
+   618→   618→
+   619→   619→        void dbUpsertLoad({
+   620→   620→          id: existing.id,
+   621→   621→          driverId: currentDriverId,
+   622→   622→          productName: existing.productName,
+   623→   623→          quantity: existing.quantity,
+   624→   624→          unitPrice: existing.unitPrice,
+   625→   625→          isNew: false,
+   626→   626→        });
+   627→   627→
+   628→   628→        return updated;
+   629→   629→      }
+   630→   630→
+   631→   631→      const newId = input.id ?? generateId();
+   632→   632→      const newItem: CargoItem = {
+   633→   633→        id: newId,
+   634→   634→        driverId: currentDriverId,
+   635→   635→        productName,
+   636→   636→        quantity: input.quantity,
+   637→   637→        unitPrice: input.unitPrice,
+   638→   638→      };
+   639→   639→
+   640→   640→      void dbUpsertLoad({
+   641→   641→        id: newId,
+   642→   642→        driverId: currentDriverId,
+   643→   643→        productName,
+   644→   644→        quantity: input.quantity,
+   645→   645→        unitPrice: input.unitPrice,
+   646→   646→        isNew: true,
+   647→   647→      });
+   648→   648→
+   649→   649→      return [...prev, newItem];
+   650→   650→    });
+   651→   651→
+   652→   652→    // Finalize yesterday's snapshot AFTER local state update, using captured
+   653→   653→    // pre-mutation state. Fire-and-forget — idempotent.
+   654→   654→    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+   655→   655→
+   656→   656→    // Latch the "cargo edited today" flag so the Day-2 carry-over title
+   657→   657→    // immediately flips from "الحمولة المتبقية من اليوم السابق" to
+   658→   658→    // "الحمولة الحالية". See the type-doc on `cargoEditedToday`.
+   659→   659→    markCargoEditedToday();
+   660→   660→  };
+   661→   661→
+   662→   662→  const removeLoad = (id: string) => {
+   663→   663→    if (!currentDriverId) return;
+   664→   664→    // Capture pre-mutation cargo for the finalize call below.
+   665→   665→    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
+   666→   666→    setLoads((prev) => prev.filter((l) => l.id !== id));
+   667→   667→    void dbRemoveLoad(id);
+   668→   668→    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+   669→   669→    // Latch the "cargo edited today" flag — removing a product is an edit.
+   670→   670→    markCargoEditedToday();
+   671→   671→  };
+   672→   672→
+   673→   673→  // ── Historical snapshot → live cargo promotion ─────────────────────────────
+   674→   674→  //
+   675→   675→  // Per spec: when the driver edits any product from a past day's "Remaining
+   676→   676→  // Cargo From This Day", that snapshot immediately becomes the live Current
+   677→   677→  // Cargo. We:
+   678→   678→  //   1. Fetch the snapshot for the given date.
+   679→   679→  //   2. Filter out qty-0 items (already hidden in the UI, but defensive).
+   680→   680→  //   3. Assign fresh UUIDs to each item (new live rows, not snapshot rows).
+   681→   681→  //   4. Optimistically replace the driver's loads in local state.
+   682→   682→  //   5. Atomically replace the driver's loads in the DB.
+   683→   683→  //   6. Return the new live CargoItem[] so the caller can find the matching
+   684→   684→  //      item and open the Load tab with it prefilled.
+   685→   685→  //
+   686→   686→  // Note: this is destructive — the driver's previous live loads are lost.
+   687→   687→  // This is the intended behavior per spec ("It immediately becomes Current
+   688→   688→  // Cargo because it is now the active working inventory again").
+   689→   689→  //
+   690→   690→  // SAFETY: if the snapshot for `snapshotDate` does not exist (or is empty),
+   691→   691→  // we ABORT the promotion and return the current live cargo unchanged.
+   692→   692→  // Without this guard, a missing snapshot would cause `setLoads` to delete
+   693→   693→  // ALL of the driver's current live cargo — a destructive no-op. See Bug 4
+   694→   694→  // in the worklog.
+   695→   695→  const promoteSnapshotToLive = async (
+   696→   696→    driverId: string,
+   697→   697→    snapshotDate: string
+   698→   698→  ): Promise<CargoItem[]> => {
+   699→   699→    const snapshotItems = await fetchDailySnapshots([driverId], snapshotDate);
+   700→   700→    const itemsToPromote = snapshotItems.filter((item) => item.quantity > 0);
+   701→   701→
+   702→   702→    // SAFETY: no snapshot (or all-qty-0 snapshot) → abort promotion.
+   703→   703→    // Return the driver's CURRENT live cargo unchanged so the caller can
+   704→   704→    // still open the editor against the matching product. Without this
+   705→   705→    // guard, a missing snapshot would cause `setLoads` to delete ALL of
+   706→   706→    // the driver's current live cargo — a destructive no-op. See Bug 4
+   707→   707→    // in the worklog.
+   708→   708→    if (itemsToPromote.length === 0) {
+   709→   709→      return loads.filter((l) => l.driverId === driverId);
+   710→   710→    }
+   711→   711→
+   712→   712→    const newCargo: CargoItem[] = itemsToPromote.map((item) => ({
+   713→   713→      id: generateId(),
+   714→   714→      driverId,
+   715→   715→      productName: item.productName,
+   716→   716→      quantity: item.quantity,
+   717→   717→      unitPrice: item.unitPrice,
+   718→   718→    }));
+   719→   719→
+   720→   720→    // Optimistic local state update: remove old loads for this driver, add new.
+   721→   721→    setLoads((prev) => [
+   722→   722→      ...prev.filter((l) => l.driverId !== driverId),
+   723→   723→      ...newCargo,
+   724→   724→    ]);
+   725→   725→
+   726→   726→    // DB: atomically replace the driver's loads.
+   727→   727→    await replaceDriverLoads(driverId, newCargo);
+   728→   728→
+   729→   729→    // Promoting a historical snapshot to live IS a cargo edit — latch the
+   730→   730→    // "cargo edited today" flag so today's title becomes "الحمولة الحالية".
+   731→   731→    // Only latches when the promotion targets the current driver (the
+   732→   732→    // company-dashboard case where `driverId === currentDriverId`); the
+   733→   733→    // company dashboard is read-only and never calls this with another
+   734→   734→    // driver's id, but we guard anyway for safety.
+   735→   735→    if (driverId === currentDriverId) {
+   736→   736→      markCargoEditedToday();
+   737→   737→    }
+   738→   738→
+   739→   739→    return newCargo;
+   740→   740→  };
+   741→   741→
+   742→   742→  // ── Sales ─────────────────────────────────────────────────────────────────
+   743→   743→
+   744→   744→  const addSale = (items: SaleLineItem[], receiptImageUrl?: string | null) => {
+   745→   745→    if (!currentDriverId) return;
+   746→   746→
+   747→   747→    // Capture pre-mutation cargo so the finalize call below freezes yesterday's
+   748→   748→    // EOD state, not the post-sale (decremented) state. UI updates synchronously.
+   749→   749→    const preMutationCargo = loads.filter((l) => l.driverId === currentDriverId);
+   750→   750→
+   751→   751→    setLoads((prev) =>
+   752→   752→      prev.map((load) => {
+   753→   753→        if (load.driverId !== currentDriverId) return load;
+   754→   754→        const soldItem = items.find(
+   755→   755→          (i) => i.productName.trim().toLowerCase() === load.productName.trim().toLowerCase()
+   756→   756→        );
+   757→   757→        if (!soldItem) return load;
+   758→   758→        const newQty = Math.max(0, load.quantity - soldItem.quantity);
+   759→   759→        void decrementLoad(currentDriverId, load.productName, soldItem.quantity);
+   760→   760→        return { ...load, quantity: newQty };
+   761→   761→      })
+   762→   762→    );
+   763→   763→
+   764→   764→    // Finalize yesterday's snapshot AFTER local state update, using captured
+   765→   765→    // pre-mutation state. Fire-and-forget — idempotent. Must come before the
+   766→   766→    // createSale call so yesterday's EOD is frozen before today's first sale
+   767→   767→    // is recorded, but it doesn't need to be awaited (the snapshot insert is
+   768→   768→    // independent of the sale insert; both are async DB writes).
+   769→   769→    void finalizeYesterdayIfNeeded(currentDriverId, preMutationCargo);
+   770→   770→
+   771→   771→    const totalPrice = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+   772→   772→    // Baghdad local date (UTC+3, no DST). en-CA → 'YYYY-MM-DD'.
+   773→   773→    // Previously used UTC which mis-stamped sales made between 00:00–03:00 Baghdad.
+   774→   774→    const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Baghdad' });
+   775→   775→
+   776→   776→    const newSale: SaleRecord = {
+   777→   777→      id: generateId(),
+   778→   778→      driverId: currentDriverId,
+   779→   779→      date,
+   780→   780→      items,
+   781→   781→      totalPrice,
+   782→   782→      receiptImageUrl: receiptImageUrl ?? null,
+   783→   783→    };
+   784→   784→    setSales((prev) => [newSale, ...prev]);
+   785→   785→    void createSale(newSale.id, currentDriverId, date, items, totalPrice, receiptImageUrl ?? null);
+   786→   786→
+   787→   787→    // ── Notify company owner via FCM Edge Function ────────────────────────
+   788→   788→    // The driver's app (which is open) calls the Edge Function, which sends
+   789→   789→    // an FCM Web Push to the company owner's device. This works even when
+   790→   790→    // the company app/PWA is completely closed.
+   791→   791→    //
+   792→   792→    // IMPORTANT: For drivers, authCompanyId is NULL (AuthContext only sets it
+   793→   793→    // for company-role users). The driver's companyId comes from their profile
+   794→   794→    // (authDriverProfile.companyId), which is populated from the drivers table's
+   795→   795→    // company_id foreign key during bootstrap.
+   796→   796→    const driverCompanyId = role === 'driver'
+   797→   797→      ? authDriverProfile?.companyId
+   798→   798→      : authCompanyId;
+   799→   799→    if (isFirebaseConfigured && role === 'driver' && driverCompanyId) {
+   800→   800→      const driverName = driversRef.current.find((d) => d.id === currentDriverId)?.name || '';
+   801→   801→      void notifySaleViaEdgeFunction(
+   802→   802→        newSale.id,
+   803→   803→        currentDriverId,
+   804→   804→        driverName,
+   805→   805→        totalPrice,
+   806→   806→        driverCompanyId,
+   807→   807→      );
+   808→   808→    }
+   809→   809→
+   810→   810→    // Per the revised midnight-logic spec, a sale IS a cargo mutation —
+   811→   811→    // it decrements live quantities. Latch the "cargo edited today" flag
+   812→   812→    // so the Day-2 carry-over title flips from "الحمولة المتبقية من اليوم
+   813→   813→    // السابق" to "الحمولة الحالية" on the first sale of the day.
+   814→   814→    markCargoEditedToday();
+   815→   815→  };
+   816→   816→
+   817→   817→  // When enabled: request permission + register FCM token + save to Supabase.
+   818→   818→  // If token registration FAILS, the toggle flips back OFF — deterministic.
+   819→   819→  const enableNotifications = async () => {
+   820→   820→    if (typeof window === 'undefined' || !('Notification' in window)) {
+   821→   821→      setNotificationPermission('unsupported');
+   822→   822→      return;
+   823→   823→    }
+   824→   824→
+   825→   825→    // Request browser notification permission
+   826→   826→    const permission = await fcmRequestPermission();
+   827→   827→    setNotificationPermission(permission);
+   828→   828→
+   829→   829→    if (permission === 'granted') {
+   830→   830→      // Optimistically enable — will revert if token registration fails
+   831→   831→      setNotificationsEnabled(true);
+   832→   832→      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '1');
+   833→   833→
+   834→   834→      // Register FCM token — AWAIT the result (not fire-and-forget)
+   835→   835→      if (isFirebaseConfigured && role === 'company' && authCompanyId) {
+   836→   836→        const token = await registerFcmToken(authCompanyId);
+   837→   837→        if (!token) {
+   838→   838→          // Token registration failed — revert toggle to OFF
+   839→   839→          setNotificationsEnabled(false);
+   840→   840→          localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+   841→   841→        }
+   842→   842→      }
+   843→   843→    } else {
+   844→   844→      // Denied or dismissed — keep the toggle off.
+   845→   845→      setNotificationsEnabled(false);
+   846→   846→      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+   847→   847→    }
+   848→   848→  };
+   849→   849→
+   850→   850→  // When disabled: remove FCM token from Supabase (stop push delivery).
+   851→   851→  const disableNotifications = () => {
+   852→   852→    setNotificationsEnabled(false);
+   853→   853→    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, '0');
+   854→   854→
+   855→   855→    // Remove FCM token so the Edge Function stops sending push to this device
+   856→   856→    if (isFirebaseConfigured && role === 'company' && authCompanyId) {
+   857→   857→      void unregisterFcmToken(authCompanyId);
+   858→   858→    }
+   859→   859→  };
+   860→   860→
+   861→   861→  // ── FCM foreground message handler ──────────────────────────────────────
+   862→   862→  // When the page IS in the foreground, FCM delivers messages to the
+   863→   863→  // onMessage callback instead of the service worker's onBackgroundMessage.
+   864→   864→  // We show a notification via SW's showNotification() (not new Notification)
+   865→   865→  // to keep it branded as "TrackTracker" and avoid the Chrome/TrackTracker
+   866→   866→  // duplicate issue.
+   867→   867→  useEffect(() => {
+   868→   868→    if (role !== 'company' || !authCompanyId) return;
+   869→   869→    if (!isFirebaseConfigured || !notificationsEnabled) return;
+   870→   870→
+   871→   871→    let unsubscribe: (() => void) | null = null;
+   872→   872→
+   873→   873→    void (async () => {
+   874→   874→      const messaging = await getFirebaseMessaging();
+   875→   875→      if (!messaging) return;
+   876→   876→
+   877→   877→      const { onMessage } = await import('firebase/messaging');
+   878→   878→
+   879→   879→      unsubscribe = onMessage(messaging, (payload) => {
+   880→   880→        const data = payload.data || {};
+   881→   881→        const saleId = data.saleId || '';
+   882→   882→        const type = data.type || '';
+   883→   883→
+   884→   884→        // Only handle sale notifications
+   885→   885→        if (type !== 'sale') return;
+   886→   886→
+   887→   887→        // Dedup guard — skip if we already notified for this sale
+   888→   888→        const now = Date.now();
+   889→   889→        const DEDUP_TTL = 5 * 60 * 1000;
+   890→   890→        const dedupMap = notifiedSaleIdsRef.current;
+   891→   891→        if (saleId && dedupMap.has(saleId)) {
+   892→   892→          return;
+   893→   893→        }
+   894→   894→        // Expire old entries
+   895→   895→        for (const [id, ts] of dedupMap) {
+   896→   896→          if (now - ts > DEDUP_TTL) dedupMap.delete(id);
+   897→   897→        }
+   898→   898→        if (saleId) dedupMap.set(saleId, now);
+   899→   899→
+   900→   900→        const title = data.title || 'عملية بيع جديدة';
+   901→   901→        const body = data.body || 'تم تسجيل عملية بيع جديدة';
+   902→   902→        const icon = data.icon || 'https://track-tracker-app.vercel.app/icons/icon-192.png';
+   903→   903→        const badge = 'https://track-tracker-app.vercel.app/icons/notification-bell.png';
+   904→   904→        // ALWAYS use sale-based tag for dedup — never Date.now()
+   905→   905→        const tag = `sale-${saleId}`;
+   906→   906→
+   907→   907→        // Use SW showNotification() — single "TrackTracker"-branded notification
+   908→   908→        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+   909→   909→          navigator.serviceWorker.ready.then((reg) => {
+   910→   910→            reg.showNotification(title, { body, icon, badge, tag, data: { saleId, type, clickAction: '/' }, dir: 'rtl', lang: 'ar' });
+   911→   911→          }).catch(() => {
+   912→   912→            try { new Notification(title, { body, icon, tag }); } catch {}
+   913→   913→          });
+   914→   914→        } else {
+   915→   915→          try { new Notification(title, { body, icon, tag }); } catch {}
+   916→   916→        }
+   917→   917→      });
+   918→   918→    })();
+   919→   919→
+   920→   920→    return () => { unsubscribe?.(); };
+   921→   921→  }, [role, authCompanyId, notificationsEnabled]);
+   922→   922→
+   923→   923→  // ── FCM token refresh on visibility change ────────────────────────────────
+   924→   924→  // When the app regains focus (e.g., user returns to the tab), re-register
+   925→   925→  // the FCM token to handle token rotation by the browser/Firebase.
+   926→   926→  useEffect(() => {
+   927→   927→    if (role !== 'company' || !authCompanyId) return;
+   928→   928→    if (!isFirebaseConfigured || !notificationsEnabled) return;
+   929→   929→
+   930→   930→    const onVisibilityChange = () => {
+   931→   931→      if (document.visibilityState === 'visible') {
+   932→   932→        void refreshFcmTokenIfNeeded(authCompanyId);
+   933→   933→      }
+   934→   934→    };
+   935→   935→
+   936→   936→    document.addEventListener('visibilitychange', onVisibilityChange);
+   937→   937→    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+   938→   938→  }, [role, authCompanyId, notificationsEnabled]);
+   939→   939→
+   940→   940→  // ── Re-register FCM token on login/refresh ──────────────────────────────
+   941→   941→  // When a company owner logs in or refreshes, ensure their FCM token is
+   942→   942→  // still registered (handles token expiry, browser update, etc.).
+   943→   943→  // Also fires when notificationsEnabled flips to true (user enables toggle).
+   944→   944→  useEffect(() => {
+   945→   945→    if (role !== 'company' || !authCompanyId) return;
+   946→   946→    if (!isFirebaseConfigured || !notificationsEnabled) return;
+   947→   947→    if (fcmGetPermission() !== 'granted') return;
+   948→   948→
+   949→   949→    // Re-register token on mount (handles refresh/login)
+   950→   950→    void registerFcmToken(authCompanyId);
+   951→   951→  }, [role, authCompanyId, notificationsEnabled]);
+   952→   952→
+   953→   953→  // ── Supabase Realtime for UI updates ONLY (no notifications) ─────────────
+   954→   954→  // Realtime is still used to update the sales list in real-time, but
+   955→   955→  // it does NOT display notifications — FCM handles all notifications.
+   956→   956→  useEffect(() => {
+   957→   957→    if (role !== 'company' || !authCompanyId) return;
+   958→   958→    if (!isSupabaseConfigured) return;
+   959→   959→
+   960→   960→    const channel = supabase
+   961→   961→      .channel(`company-sales-realtime-${authCompanyId}`)
+   962→   962→      .on(
+   963→   963→        'postgres_changes',
+   964→   964→        { event: 'INSERT', schema: 'public', table: 'sales' },
+   965→   965→        (payload) => {
+   966→   966→          // Intentionally NOT showing a notification here.
+   967→   967→          // FCM + Edge Function handles all sale notifications.
+   968→   968→          // Realtime is only for live UI updates (the sales list refreshes
+   969→   969→          // automatically when a new sale is inserted).
+   970→   970→          console.log('[AppContext] Realtime: new sale detected (UI update only, no notification)');
+   971→   971→        },
+   972→   972→      )
+   973→   973→      .subscribe();
+   974→   974→
+   975→   975→    return () => {
+   976→   976→      void supabase.removeChannel(channel);
+   977→   977→    };
+   978→   978→  }, [role, authCompanyId]);
+   979→   979→
+   980→   980→  const currentDriver = drivers.find((d) => d.id === currentDriverId) ?? null;
+   981→   981→
+   982→   982→  return (
+   983→   983→    <AppContext.Provider
+   984→   984→      value={{
+   985→   985→        company,
+   986→   986→        darkMode,
+   987→   987→        toggleDarkMode,
+   988→   988→        updateLogo,
+   989→   989→        setCompanyProfile,
+   990→   990→        setJoinCode,
+   991→   991→        regenerateJoinCode,
+   992→   992→        logout,
+   993→   993→        activateSubscription,
+   994→   994→        companySubscriptionActive: role === 'driver'
+   995→   995→          ? driverCompanySubscriptionActive
+   996→   996→          : company.subscriptionActive,
+   997→   997→        drivers,
+   998→   998→        loads,
+   999→   999→        sales,
+  1000→  1000→        currentDriverId,
+  1001→  1001→        currentDriver,
+  1002→  1002→        logoutDriver,
+  1003→  1003→        updateDriverProfile,
+  1004→  1004→        upsertLoad,
+  1005→  1005→        removeLoad,
+  1006→  1006→        promoteSnapshotToLive,
+  1007→  1007→        addSale,
+  1008→  1008→        cargoEditedToday,
+  1009→  1009→        notificationsEnabled,
+  1010→  1010→        notificationPermission,
+  1011→  1011→        enableNotifications,
+  1012→  1012→        disableNotifications,
+  1013→  1013→        fcmRegStatus,
+  1014→  1014→        fcmRegError,
+  1015→  1015→        fcmDiagnostics: fcmDiagnosticsState,
+  1016→  1016→        sendTestFcmNotification: async () => {
+  1017→  1017→          if (!authCompanyId) return { success: false, message: 'Not logged in' };
+  1018→  1018→          return sendTestNotification(authCompanyId);
+  1019→  1019→        },
+  1020→  1020→      }}
+  1021→  1021→    >
+  1022→  1022→      {children}
+  1023→  1023→    </AppContext.Provider>
+  1024→  1024→  );
+  1025→  1025→}
+  1026→  1026→
+  1027→  1027→export function useApp(): AppContextType {
+  1028→  1028→  const ctx = useContext(AppContext);
+  1029→  1029→  if (!ctx) throw new Error('useApp must be used inside <AppProvider>');
+  1030→  1030→  return ctx;
+  1031→  1031→}
+  1032→  1032→
