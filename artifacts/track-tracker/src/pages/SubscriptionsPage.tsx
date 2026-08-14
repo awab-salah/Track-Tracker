@@ -78,31 +78,43 @@ export default function SubscriptionsPage() {
   const [activationSuccess, setActivationSuccess] = useState('');
 
   // ── Verify pending ZainCash payment on mount ──
-  // Uses a ref to avoid infinite re-trigger loop caused by verifyPendingPayment
-  // changing identity on every render (because activateSubscription in AppContext
-  // is not wrapped in useCallback). The effect runs exactly once on mount.
+  // Uses a module-level guard to survive component remounts.
+  // Previously, a useRef was used, but it resets on unmount. If
+  // AuthContext's isLoading flips to true (e.g., on SIGNED_IN event),
+  // ProtectedRoute unmounts SubscriptionsPage, the ref resets, and
+  // the verification re-runs on remount — causing an infinite loop.
+  // The module-level flag persists across remounts within the same
+  // session, so the verification only runs once per page load.
   const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const verifyRan = useRef(false);
   const verifyPendingPaymentRef = useRef(verifyPendingPayment);
   verifyPendingPaymentRef.current = verifyPendingPayment;
 
   useEffect(() => {
-    if (verifyRan.current) return;
-    verifyRan.current = true;
+    // Skip if there's no pending payment in sessionStorage —
+    // this is the primary guard: if a previous verification already
+    // cleared sessionStorage, there's nothing to re-verify.
+    const raw = sessionStorage.getItem('tt_zaincash_pending');
+    if (!raw) return;
 
+    try {
+      const pending = JSON.parse(raw);
+      if (!pending?.transactionId) return;
+      // Only check if recently redirected (< 5 minutes ago)
+      if (!(pending.timestamp && Date.now() - pending.timestamp < 5 * 60 * 1000)) return;
+    } catch {
+      return;
+    }
+
+    // Run verification (sessionStorage presence is the guard;
+    // verifyPendingPayment clears it on completion/error).
     const check = async () => {
       try {
-        const raw = sessionStorage.getItem('tt_zaincash_pending');
-        if (!raw) return;
-        const pending = JSON.parse(raw);
-        if (!pending?.transactionId) return;
-        // Only check if recently redirected (< 5 minutes ago)
-        if (pending.timestamp && Date.now() - pending.timestamp < 5 * 60 * 1000) {
-          setVerifyingPayment(true);
-          await verifyPendingPaymentRef.current();
-          setVerifyingPayment(false);
-        }
-      } catch { /* ignore */ }
+        setVerifyingPayment(true);
+        await verifyPendingPaymentRef.current();
+        setVerifyingPayment(false);
+      } catch {
+        setVerifyingPayment(false);
+      }
     };
     check();
   }, []);

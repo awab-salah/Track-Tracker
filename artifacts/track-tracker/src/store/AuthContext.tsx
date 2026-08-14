@@ -60,6 +60,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   /**
+   * Ref for the current role, kept in sync with the `role` state.
+   * Used by onAuthStateChange to detect background SIGNED_IN events
+   * without capturing a stale `role` value from the closure.
+   *
+   * Without this ref, the onAuthStateChange callback captures `role`
+   * from the initial render (null), so every SIGNED_IN event is
+   * treated as an initial sign-in, setting isLoading=true and
+   * unmounting protected routes. This caused an infinite loop on
+   * the SubscriptionsPage after ZainCash redirect:
+   *   SIGNED_IN → isLoading:true → unmount → SIGNED_IN again → loop
+   */
+  const roleRef = useRef<Role>(null);
+
+  /**
    * Version counter: every call to loadProfile increments this.
    * A response only commits its state if its version is still current —
    * this prevents a slow getSession() call from overwriting a newer
@@ -140,6 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Keep roleRef in sync with the role state so onAuthStateChange
+  // can read the latest role without capturing a stale closure value.
+  useEffect(() => { roleRef.current = role; }, [role]);
+
   useEffect(() => {
     // Resolve any existing session on mount (handles page refresh)
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -169,10 +187,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // SalesTab draft items) is lost.
       //
       // Only the initial getSession() call should show the loading spinner.
+      // Use roleRef (always current) instead of the stale `role` closure.
+      // Previously, `role` was captured as `null` from the initial render,
+      // causing every SIGNED_IN to set isLoading=true → unmount protected
+      // routes → infinite loop on SubscriptionsPage after ZainCash redirect.
       const isBackgroundRefresh =
         event === 'TOKEN_REFRESHED' ||
         event === 'PASSWORD_RECOVERY' ||
-        (event === 'SIGNED_IN' && role !== null);
+        (event === 'SIGNED_IN' && roleRef.current !== null);
 
       void loadProfile(s?.user ?? null, isBackgroundRefresh);
 

@@ -61,10 +61,7 @@ export function getZainCashConfig(): ZainCashConfig {
     // In v1, redirectUrl serves as BOTH the browser redirect and the callback.
     callbackUrl: process.env.ZAINCASH_CALLBACK_URL  ?? '',
     // redirectUrl: In ZainCash v1, this serves dual purpose — redirect + callback.
-<<<<<<< HEAD
-=======
     // ZainCash redirects the user's browser to redirectUrl?token=XXXXX after payment.
->>>>>>> origin/main
     // Production default: our callback endpoint that processes the token and redirects.
     redirectUrl: process.env.ZAINCASH_REDIRECT_URL
       ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
