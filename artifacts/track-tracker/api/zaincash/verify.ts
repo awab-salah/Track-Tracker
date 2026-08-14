@@ -157,9 +157,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[ZainCash] Verify error:', message);
-    return res.status(500).json({
-      error: message,
+
+    // Distinguish between ZainCash-side errors (502) and our errors (500)
+    const isZainCashError = message.includes('Inquiry failed') || message.includes('503') || message.includes('403');
+    return res.status(isZainCashError ? 502 : 500).json({
+      error: isZainCashError ? 'ZainCash inquiry failed' : message,
       step: 'verify_payment',
+      ...(isZainCashError && { hint: 'ZainCash may be temporarily unavailable. Try again later.' }),
     });
   }
 }
