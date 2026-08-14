@@ -143,11 +143,17 @@ export function useZainCashPayment() {
         setState({ loadingPlanId: null, error: 'Payment failed', transactionId: null, redirectUrl: null });
         return false;
       } else {
-        // Still pending/processing — user can check again
+        // Still pending/processing — clear sessionStorage to prevent re-check loops.
+        // The user can manually check status or retry payment from the UI.
+        // Re-checking automatically causes infinite flashing/reloading loops.
+        try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+        toast({ title: 'حالة الدفع: ' + (data.status || 'غير معروفة'), variant: 'destructive' });
         setState({ loadingPlanId: null, error: null, transactionId: pending!.transactionId, redirectUrl: null });
         return false;
       }
     } catch (err) {
+      // On ANY error, clear sessionStorage to prevent re-check loops
+      try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
       const message = err instanceof Error ? err.message : 'حدث خطأ أثناء التحقق';
       setState(prev => ({ ...prev, loadingPlanId: null, error: message }));
       return false;

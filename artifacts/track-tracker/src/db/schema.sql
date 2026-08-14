@@ -680,6 +680,8 @@ create table if not exists public.payment_records (
 );
 
 -- RLS: company owners can see their own payment records
+-- IMPORTANT: company_id stores the company NAME (text), not the UUID id.
+-- Compare with companies.name, NOT companies.id, or the policy will never match.
 alter table public.payment_records enable row level security;
 
 create policy payment_records_company_owner_select on public.payment_records
@@ -687,8 +689,16 @@ create policy payment_records_company_owner_select on public.payment_records
   using (
     exists (
       select 1 from companies c
-       where c.id = payment_records.company_id
+       where c.name = payment_records.company_id
          and c.auth_user_id = auth.uid()
     )
   );
+
+-- Indexes for payment_records query performance
+create index if not exists payment_records_company_id_idx
+  on public.payment_records(company_id);
+create index if not exists payment_records_status_idx
+  on public.payment_records(status);
+create index if not exists payment_records_order_id_idx
+  on public.payment_records(order_id);
 

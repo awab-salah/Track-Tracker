@@ -180,7 +180,10 @@ async function activateSubscription(companyId: string): Promise<boolean> {
   const { url, key } = getSupabaseCreds();
   if (!url || !key) return false;
 
-  const res = await fetch(`${url}/rest/v1/companies?id=eq.${companyId}`, {
+  // companyId is the company NAME (text), not the UUID id.
+  // The ZainCash flow sends company.name as companyId (see useZainCashPayment.ts).
+  // Use name=eq to match the companies.name column.
+  const res = await fetch(`${url}/rest/v1/companies?name=eq.${encodeURIComponent(companyId)}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -196,6 +199,31 @@ async function activateSubscription(companyId: string): Promise<boolean> {
     console.error('[ZainCash] Failed to activate subscription:', res.status, text);
     return false;
   }
+
+  // Verify at least one row was updated by checking the response
+  // (PostgREST with Prefer:return=minimal returns 204 even for 0 rows)
+  // Do a follow-up SELECT to confirm the subscription is now active
+  const verifyRes = await fetch(
+    `${url}/rest/v1/companies?name=eq.${encodeURIComponent(companyId)}&select=subscription_active`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    }
+  );
+  if (verifyRes.ok) {
+    const rows = await verifyRes.json() as Array<{ subscription_active: boolean }>;
+    if (rows.length > 0 && rows[0].subscription_active === true) {
+      console.log('[ZainCash] Subscription activation confirmed for company:', companyId);
+      return true;
+    }
+    console.error('[ZainCash] Subscription activation NOT confirmed for company:', companyId, 'rows:', rows);
+    return false;
+  }
+
   return true;
 }
 

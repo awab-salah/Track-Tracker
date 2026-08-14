@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { ArrowRight, Loader2, CreditCard, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -78,8 +78,18 @@ export default function SubscriptionsPage() {
   const [activationSuccess, setActivationSuccess] = useState('');
 
   // ── Verify pending ZainCash payment on mount ──
+  // Uses a ref to avoid infinite re-trigger loop caused by verifyPendingPayment
+  // changing identity on every render (because activateSubscription in AppContext
+  // is not wrapped in useCallback). The effect runs exactly once on mount.
   const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const verifyRan = useRef(false);
+  const verifyPendingPaymentRef = useRef(verifyPendingPayment);
+  verifyPendingPaymentRef.current = verifyPendingPayment;
+
   useEffect(() => {
+    if (verifyRan.current) return;
+    verifyRan.current = true;
+
     const check = async () => {
       try {
         const raw = sessionStorage.getItem('tt_zaincash_pending');
@@ -89,13 +99,13 @@ export default function SubscriptionsPage() {
         // Only check if recently redirected (< 5 minutes ago)
         if (pending.timestamp && Date.now() - pending.timestamp < 5 * 60 * 1000) {
           setVerifyingPayment(true);
-          await verifyPendingPayment();
+          await verifyPendingPaymentRef.current();
           setVerifyingPayment(false);
         }
       } catch { /* ignore */ }
     };
     check();
-  }, [verifyPendingPayment]);
+  }, []);
 
   const handleActivate = async () => {
     const code = activationCode.trim();
