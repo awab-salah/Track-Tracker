@@ -1,0 +1,221 @@
+     1→     1→/home/z/my-project/artifacts/track-tracker/vercel.json:6:    "api/zaincash/*.ts": {
+     2→     2→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:2: * GET/POST /api/zaincash/callback
+     3→     3→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:4: * ZainCash v1 payment callback endpoint.
+     4→     4→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:6: * In the ZainCash v1 API, there is NO separate server-to-server callback.
+     5→     5→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:7: * Instead, after payment completion, ZainCash REDIRECTS the user's browser
+     6→     6→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:13: *   - id: the ZainCash transaction ID
+     7→     7→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:41:// Sandbox defaults: official test credentials from ZainCash Laravel package
+     8→     8→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:44:  baseUrl:    'https://test.zaincash.iq',
+     9→     9→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:52:    baseUrl:    process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    10→    10→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:53:    msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
+    11→    11→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:54:    merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
+    12→    12→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:55:    secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
+    13→    13→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:136:    console.error('[ZainCash] Callback inquiry failed:', response.status, text);
+    14→    14→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:196:    console.error('[ZainCash] Failed to activate subscription:', res.status, text);
+    15→    15→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:221:    console.log('[ZainCash] Callback: payment already completed (idempotent skip):', transactionId);
+    16→    16→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:231:  console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
+    17→    17→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:251:    console.warn('[ZainCash] Cannot reliably extract companyId from orderId. Using query param fallback.');
+    18→    18→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:254:  console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
+    19→    19→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:263:      console.log('[ZainCash] Subscription activated for company:', companyId);
+    20→    20→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:265:      console.error('[ZainCash] Failed to activate subscription for company:', companyId);
+    21→    21→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:325:  // GET — ZainCash v1 redirect callback
+    22→    22→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:326:  // After payment, ZainCash redirects the user's browser to redirectUrl?token=XXXXX
+    23→    23→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:337:      // No token = user cancelled payment (ZainCash redirects without token on cancel)
+    24→    24→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:339:        console.log('[ZainCash] GET callback without token — payment cancelled by user');
+    25→    25→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:346:      // Decode the JWT token from ZainCash
+    26→    26→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:353:        console.log('[ZainCash] GET callback: decoded token — id:', transactionId, 'status:', tokenStatus);
+    27→    27→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:355:        console.error('[ZainCash] GET callback: JWT decode failed:', jwtErr);
+    28→    28→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:361:        console.error('[ZainCash] GET callback: no transactionId in token');
+    29→    29→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:381:      console.error('[ZainCash] GET callback error:', message);
+    30→    30→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:389:  // ZainCash v1 uses GET redirect, but we keep POST support for future
+    31→    31→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:401:      // Handle v1 JWT callback body (ZainCash sends { token: "jwt..." })
+    32→    32→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:403:        console.log('[ZainCash] POST callback: v1 JWT body received');
+    33→    33→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:409:          console.error('[ZainCash] POST callback: JWT decode failed:', jwtErr);
+    34→    34→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:416:        console.log('[ZainCash] POST callback: JSON body received');
+    35→    35→/home/z/my-project/artifacts/track-tracker/api/zaincash/callback.ts:441:      console.error('[ZainCash] POST callback error:', message);
+    36→    36→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:2: * GET /api/zaincash/verify?transactionId=xxx
+    37→    37→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:4: * Verifies a ZainCash payment by checking the transaction status.
+    38→    38→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:27:// Sandbox defaults: official test credentials from ZainCash Laravel package
+    39→    39→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:30:  baseUrl:    'https://test.zaincash.iq',
+    40→    40→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:38:    baseUrl:    process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    41→    41→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:39:    msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
+    42→    42→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:40:    merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
+    43→    43→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:41:    secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
+    44→    44→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:88:        error: 'ZainCash not configured',
+    45→    45→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:103:    console.log('[ZainCash] Verify: requesting inquiry for transaction:', transactionId);
+    46→    46→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:118:    console.log('[ZainCash] Verify: inquiry response status:', response.status);
+    47→    47→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:119:    console.log('[ZainCash] Verify: inquiry response body:', responseText);
+    48→    48→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:122:      console.error('[ZainCash] Verify: inquiry failed:', response.status, responseText);
+    49→    49→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:126:        zaincashStatus: response.status,
+    50→    50→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:127:        zaincashResponse: responseText,
+    51→    51→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:136:        error: 'Invalid JSON from ZainCash inquiry',
+    52→    52→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:138:        zaincashResponse: responseText,
+    53→    53→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:145:        error: 'ZainCash inquiry error',
+    54→    54→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:147:        zaincashError: details.err,
+    55→    55→/home/z/my-project/artifacts/track-tracker/api/zaincash/verify.ts:159:    console.error('[ZainCash] Verify error:', message);
+    56→    56→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:2: * POST /api/zaincash/create
+    57→    57→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:4: * Creates a ZainCash payment transaction and returns the redirect URL.
+    58→    58→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:6: * Uses ZainCash v1 API (JWT-based authentication).
+    59→    59→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:8: * server-to-server requests. All production ZainCash integrations
+    60→    60→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:42:// ZainCash v1 API uses JWT (HMAC-SHA256) signed with a secret key.
+    61→    61→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:45:// Sandbox defaults: official test credentials from the ZainCash Laravel package
+    62→    62→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:46:// (https://github.com/waadmawlood/zaincash) and docs.zaincash.iq.
+    63→    63→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:51:  baseUrl:    'https://test.zaincash.iq',
+    64→    64→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:59:    baseUrl:    process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    65→    65→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:60:    msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
+    66→    66→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:61:    merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
+    67→    67→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:62:    secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
+    68→    68→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:63:    // redirectUrl: In ZainCash v1 API, this serves DUAL purpose:
+    69→    69→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:65:    //   2. Payment notification (ZainCash appends ?token=XXXXX with JWT result)
+    70→    70→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:68:    redirectUrl: process.env.ZAINCASH_REDIRECT_URL
+    71→    71→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:69:      ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
+    72→    72→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:70:    lang:       process.env.ZAINCASH_LANG           ?? 'ar',
+    73→    73→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:135:    // Check ZainCash is configured (v1 API requires msisdn, merchantId, and secret)
+    74→    74→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:137:      console.error('[ZainCash] Not configured — missing msisdn, merchantId, or secret');
+    75→    75→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:139:        error: 'ZainCash payment gateway not configured',
+    76→    76→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:148:    // In ZainCash v1, redirectUrl serves as BOTH user redirect and callback:
+    77→    77→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:149:    //   - After payment, ZainCash redirects the user's browser to redirectUrl?token=XXXXX
+    78→    78→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:162:      redirectUrl,  // ZainCash v1 callback: browser redirect to this URL + ?token=XXXXX
+    79→    79→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:168:    console.log('[ZainCash] JWT token created for order:', orderId);
+    80→    80→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:171:    // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON.
+    81→    81→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:180:    console.log('[ZainCash] Initiating transaction at:', initUrl);
+    82→    82→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:181:    console.log('[ZainCash] Content-Type: application/x-www-form-urlencoded');
+    83→    83→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:182:    console.log('[ZainCash] merchantId:', config.merchantId);
+    84→    84→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:183:    console.log('[ZainCash] lang:', config.lang);
+    85→    85→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:184:    console.log('[ZainCash] JWT payload (decoded):', JSON.stringify(jwtPayload));
+    86→    86→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:185:    console.log('[ZainCash] msisdn type in JWT:', typeof jwtPayload.msisdn, '| value:', jwtPayload.msisdn);
+    87→    87→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:186:    console.log('[ZainCash] amount type in JWT:', typeof jwtPayload.amount, '| value:', jwtPayload.amount);
+    88→    88→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:195:    console.log('[ZainCash] Init response status:', initResponse.status);
+    89→    89→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:196:    console.log('[ZainCash] Init response body:', initText);
+    90→    90→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:199:      console.error('[ZainCash] Init failed:', initResponse.status, initText);
+    91→    91→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:201:        error: 'ZainCash transaction init failed',
+    92→    92→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:203:        zaincashStatus: initResponse.status,
+    93→    93→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:204:        zaincashResponse: initText,
+    94→    94→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:212:      console.error('[ZainCash] Invalid JSON response:', initText);
+    95→    95→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:214:        error: 'Invalid JSON from ZainCash',
+    96→    96→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:216:        zaincashResponse: initText,
+    97→    97→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:220:    // Check for error in response body (ZainCash returns errors as { err: { msg } })
+    98→    98→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:222:      console.error('[ZainCash] ZainCash error:', initData.err);
+    99→    99→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:224:        error: 'ZainCash rejected the transaction',
+   100→   100→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:226:        zaincashError: initData.err,
+   101→   101→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:231:      console.error('[ZainCash] No transaction ID in response:', initData);
+   102→   102→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:233:        error: 'No transaction ID from ZainCash',
+   103→   103→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:235:        zaincashResponse: initData,
+   104→   104→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:245:    console.log('[ZainCash] Transaction created:', initData.id, 'for order:', orderId);
+   105→   105→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:246:    console.log('[ZainCash] Redirect URL:', redirectUrlFull);
+   106→   106→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:247:    console.log('[ZainCash] ── TRANSACTION PAYLOAD VERIFICATION ──');
+   107→   107→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:248:    console.log('[ZainCash] ZainCash returned transactionId:', initData.id);
+   108→   108→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:249:    console.log('[ZainCash] ZainCash returned rUrl:', initData.rUrl || '(not provided)');
+   109→   109→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:250:    console.log('[ZainCash] Full redirect URL:', redirectUrlFull);
+   110→   110→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:251:    console.log('[ZainCash] Merchant MSISDN in JWT:', config.msisdn, '(type:', typeof config.msisdn, ')');
+   111→   111→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:252:    console.log('[ZainCash] Amount in JWT:', amount, '(type:', typeof amount, ')');
+   112→   112→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:253:    console.log('[ZainCash] ServiceType in JWT: subscription');
+   113→   113→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:254:    console.log('[ZainCash] NOTE: Customer MSISDN is NOT sent by our app.');
+   114→   114→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:255:    console.log('[ZainCash]       The customer enters their own wallet number on the ZainCash payment page.');
+   115→   115→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:256:    console.log('[ZainCash]       Sandbox test wallets (from docs.zaincash.iq):');
+   116→   116→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:257:    console.log('[ZainCash]         1. MSISDN 9647802999569, PIN 1111, OTP 111111');
+   117→   117→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:258:    console.log('[ZainCash]         2. MSISDN 9647829744432, PIN 1111, OTP 111111');
+   118→   118→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:259:    console.log('[ZainCash]         3. MSISDN 9647829744464, PIN 1111, OTP 111111');
+   119→   119→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:260:    console.log('[ZainCash]         4. MSISDN 9647829744474, PIN 1111, OTP 111111');
+   120→   120→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:288:      console.warn('[ZainCash] Failed to store payment record:', dbErr);
+   121→   121→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:302:        zaincashBaseUrl: config.baseUrl,
+   122→   122→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:303:        zaincashRUrl: initData.rUrl || null,
+   123→   123→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:304:        note: 'Customer MSISDN is NOT sent by our app. Customer enters it on ZainCash payment page.',
+   124→   124→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:311:    console.error('[ZainCash] Create payment error:', message);
+   125→   125→/home/z/my-project/artifacts/track-tracker/api/zaincash/create.ts:312:    console.error('[ZainCash] Stack:', stack);
+   126→   126→/home/z/my-project/artifacts/track-tracker/src/components/SubscriptionPlanCard.tsx:12:  /** ID of the plan currently loading via ZainCash, or null (Bug 2 fix). */
+   127→   127→/home/z/my-project/artifacts/track-tracker/src/components/SubscriptionPlanCard.tsx:75:              جارٍ الاتصال بـ ZainCash…
+   128→   128→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:2: * useZainCashPayment —4 Hook for ZainCash payment flow from the client side.
+   129→   129→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:5: *   1. Call /api/zaincash/create with plan details
+   130→   130→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:6: *   2. Redirect user to ZainCash payment page
+   131→   131→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:7: *   3. After redirect back, call /api/zaincash/verify to confirm
+   132→   132→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:22:export function useZainCashPayment() {
+   133→   133→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:34:   * Initiate a ZainCash payment for a subscription plan.
+   134→   134→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:35:   * On success, redirects the browser to ZainCash payment page.
+   135→   135→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:41:      const response = await fetch('/api/zaincash/create', {
+   136→   136→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:64:        sessionStorage.setItem('tt_zaincash_pending', JSON.stringify({
+   137→   137→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:79:      // Redirect user to ZainCash payment page
+   138→   138→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:90:   * Verify a pending payment after redirect back from ZainCash.
+   139→   139→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:97:      const raw = sessionStorage.getItem('tt_zaincash_pending');
+   140→   140→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:105:        sessionStorage.removeItem('tt_zaincash_pending');
+   141→   141→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:115:      const response = await fetch(`/api/zaincash/verify?transactionId=${pending!.transactionId}`);
+   142→   142→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:125:        // Use a special activation code for ZainCash payments
+   143→   143→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:129:        try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+   144→   144→/home/z/my-project/artifacts/track-tracker/src/hooks/useZainCashPayment.ts:141:        try { sessionStorage.removeItem('tt_zaincash_pending'); } catch { /* ok */ }
+   145→   145→/home/z/my-project/artifacts/track-tracker/src/services/subscriptionService.ts:2: * Subscription Service — Subscription plan definitions + ZainCash integration helpers.
+   146→   146→/home/z/my-project/artifacts/track-tracker/src/services/subscriptionService.ts:4: * Plan prices are in IQD. ZainCash expects amounts in IQD (integer).
+   147→   147→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:2: * ZainCash Payment Gateway Service
+   148→   148→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:4: * Implements the ZainCash Payment Gateway v1 API (JWT-based):
+   149→   149→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:13: * ZainCash integrations use the v1 JWT flow.
+   150→   150→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:19: *   ZAINCASH_BASE_URL       - API base URL (sandbox or production)
+   151→   151→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:20: *   ZAINCASH_MERCHANT_ID    - Merchant ID
+   152→   152→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:21: *   ZAINCASH_SECRET_KEY     - JWT secret for encoding/decoding tokens
+   153→   153→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:22: *   ZAINCASH_MSISDN         - Merchant wallet phone number (e.g. 964780xxxxxxx)
+   154→   154→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:23: *   ZAINCASH_CALLBACK_URL   - URL ZainCash calls after payment
+   155→   155→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:24: *   ZAINCASH_REDIRECT_URL   - URL to redirect user after payment
+   156→   156→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:25: *   ZAINCASH_LANG           - Language for payment page (ar or en)
+   157→   157→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:30:// ZainCash v1 API uses JWT (HMAC-SHA256) signed with a secret key.
+   158→   158→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:31:// Sandbox defaults: official test credentials from the ZainCash Laravel package
+   159→   159→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:32:// (https://github.com/waadmawlood/zaincash).
+   160→   160→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:36:  baseUrl:    'https://test.zaincash.iq',
+   161→   161→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:42:export interface ZainCashConfig {
+   162→   162→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:52:export function getZainCashConfig(): ZainCashConfig {
+   163→   163→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:54:    baseUrl:     process.env.ZAINCASH_BASE_URL     || SANDBOX_DEFAULTS.baseUrl,
+   164→   164→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:55:    msisdn:      process.env.ZAINCASH_MSISDN        || SANDBOX_DEFAULTS.msisdn,
+   165→   165→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:56:    merchantId:  process.env.ZAINCASH_MERCHANT_ID   || SANDBOX_DEFAULTS.merchantId,
+   166→   166→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:57:    secretKey:   process.env.ZAINCASH_SECRET_KEY    || SANDBOX_DEFAULTS.secret,
+   167→   167→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:58:    callbackUrl: process.env.ZAINCASH_CALLBACK_URL  ?? '',
+   168→   168→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:59:    // redirectUrl: In ZainCash v1, this serves dual purpose — redirect + callback.
+   169→   169→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:61:    redirectUrl: process.env.ZAINCASH_REDIRECT_URL
+   170→   170→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:62:      ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
+   171→   171→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:63:    lang:        (process.env.ZAINCASH_LANG as 'ar' | 'en') ?? 'ar',
+   172→   172→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:67:export function isZainCashConfigured(): boolean {
+   173→   173→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:68:  const c = getZainCashConfig();
+   174→   174→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:75:export interface ZainCashInitResponse {
+   175→   175→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:80:export interface ZainCashTransactionDetails {
+   176→   176→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:82:  status: ZainCashTransactionStatus;
+   177→   177→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:90:export enum ZainCashTransactionStatus {
+   178→   178→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:98:export interface ZainCashCallbackPayload {
+   179→   179→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:137: * Create a new ZainCash payment transaction (v1 API).
+   180→   180→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:145:  const config = getZainCashConfig();
+   181→   181→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:162:  // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+   182→   182→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:168:  console.log('[ZainCash] Initiating transaction at:', initUrl);
+   183→   183→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:169:  console.log('[ZainCash] Content-Type: application/x-www-form-urlencoded');
+   184→   184→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:170:  console.log('[ZainCash] JWT payload:', JSON.stringify(jwtPayload));
+   185→   185→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:171:  console.log('[ZainCash] msisdn type:', typeof jwtPayload.msisdn, '| value:', jwtPayload.msisdn);
+   186→   186→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:181:    console.error('[ZainCash] Transaction init failed:', response.status, text);
+   187→   187→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:182:    throw new Error(`ZainCash transaction init failed: ${response.status} — ${text}`);
+   188→   188→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:185:  const data = (await response.json()) as ZainCashInitResponse;
+   189→   189→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:188:    throw new Error('ZainCash transaction init: missing id in response');
+   190→   190→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:195:  console.log('[ZainCash] Transaction created:', data.id, '→ redirect to:', redirectUrl);
+   191→   191→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:202: * Query the status of a ZainCash transaction (v1 API).
+   192→   192→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:204:export async function inquireTransaction(transactionId: string): Promise<ZainCashTransactionDetails> {
+   193→   193→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:205:  const config = getZainCashConfig();
+   194→   194→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:218:  console.log('[ZainCash] Inquiring transaction:', transactionId);
+   195→   195→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:220:  // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+   196→   196→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:233:    console.error('[ZainCash] Transaction inquiry failed:', response.status, text);
+   197→   197→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:234:    throw new Error(`ZainCash inquiry failed: ${response.status} — ${text}`);
+   198→   198→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:237:  const data = (await response.json()) as ZainCashTransactionDetails;
+   199→   199→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:239:  console.log('[ZainCash] Transaction status:', data.id, '→', data.status);
+   200→   200→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:246:export async function verifyPaymentCompleted(transactionId: string): Promise<ZainCashTransactionDetails> {
+   201→   201→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:249:  if (details.status !== ZainCashTransactionStatus.COMPLETED) {
+   202→   202→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:250:    throw new Error(`ZainCash payment not completed. Status: ${details.status}`);
+   203→   203→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:259: * Decode a ZainCash callback JWT token.
+   204→   204→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:262:export function decodeCallbackToken(token: string): ZainCashCallbackPayload {
+   205→   205→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:263:  const config = getZainCashConfig();
+   206→   206→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:274:  let payload: ZainCashCallbackPayload;
+   207→   207→/home/z/my-project/artifacts/track-tracker/src/services/zaincashService.ts:294:  console.log('[ZainCash] Callback token decoded successfully:', payload);
+   208→   208→/home/z/my-project/artifacts/track-tracker/src/db/schema.sql:664:-- ── 12. Payment records (ZainCash) ────────────────────────────────────────────
+   209→   209→/home/z/my-project/artifacts/track-tracker/src/db/schema.sql:666:-- Tracks ZainCash payment transactions for subscription activation.
+   210→   210→/home/z/my-project/artifacts/track-tracker/src/db/schema.sql:667:-- The API routes (api/zaincash/create, callback, verify) write to this table.
+   211→   211→/home/z/my-project/artifacts/track-tracker/src/db/schema.sql:669:-- only after verifying the payment via ZainCash inquiry.
+   212→   212→/home/z/my-project/artifacts/track-tracker/src/db/schema.sql:672:  id           text primary key,             -- ZainCash transaction ID
+   213→   213→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:12:import { useZainCashPayment } from '@/hooks/useZainCashPayment';
+   214→   214→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:18: * Displays subscription plan cards connected to ZainCash payment flow,
+   215→   215→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:27: *   loadingPlanId tracks which plan is in-flight via ZainCash.
+   216→   216→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:33:  const { loadingPlanId, initiatePayment, verifyPendingPayment } = useZainCashPayment();
+   217→   217→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:80:  // ── Verify pending ZainCash payment on mount ──
+   218→   218→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:85:        const raw = sessionStorage.getItem('tt_zaincash_pending');
+   219→   219→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:242:            {/* ── ZainCash payment info ── */}
+   220→   220→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:249:                  <p className="text-xs text-muted-foreground font-semibold">الدفع عبر ZainCash</p>
+   221→   221→/home/z/my-project/artifacts/track-tracker/src/pages/SubscriptionsPage.tsx:252:                  اختر خطة الاشتراك واضغط "اشترك الآن" للدفع عبر ZainCash

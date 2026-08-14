@@ -20,8 +20,8 @@
  *   ZAINCASH_MERCHANT_ID    - Merchant ID
  *   ZAINCASH_SECRET_KEY     - JWT secret for encoding/decoding tokens
  *   ZAINCASH_MSISDN         - Merchant wallet phone number (e.g. 964780xxxxxxx)
- *   ZAINCASH_CALLBACK_URL   - URL ZainCash calls after payment
- *   ZAINCASH_REDIRECT_URL   - URL to redirect user after payment
+ *   ZAINCASH_REDIRECT_URL   - URL ZainCash redirects to after payment (v1: serves as BOTH redirect and callback)
+ *   ZAINCASH_CALLBACK_URL   - (v2 only) Server-to-server webhook URL — NOT used in v1
  *   ZAINCASH_LANG           - Language for payment page (ar or en)
  */
 
@@ -44,7 +44,9 @@ export interface ZainCashConfig {
   msisdn: string;
   merchantId: string;
   secretKey: string;
+  /** v2 only: server-to-server webhook URL. NOT used in v1 JWT flow. */
   callbackUrl: string;
+  /** v1 redirectUrl: ZainCash redirects browser here with ?token=JWT after payment. */
   redirectUrl: string;
   lang: 'ar' | 'en';
 }
@@ -55,8 +57,14 @@ export function getZainCashConfig(): ZainCashConfig {
     msisdn:      process.env.ZAINCASH_MSISDN        || SANDBOX_DEFAULTS.msisdn,
     merchantId:  process.env.ZAINCASH_MERCHANT_ID   || SANDBOX_DEFAULTS.merchantId,
     secretKey:   process.env.ZAINCASH_SECRET_KEY    || SANDBOX_DEFAULTS.secret,
+    // callbackUrl: v2-only webhook URL. Not used in v1 JWT flow.
+    // In v1, redirectUrl serves as BOTH the browser redirect and the callback.
     callbackUrl: process.env.ZAINCASH_CALLBACK_URL  ?? '',
     // redirectUrl: In ZainCash v1, this serves dual purpose — redirect + callback.
+<<<<<<< HEAD
+=======
+    // ZainCash redirects the user's browser to redirectUrl?token=XXXXX after payment.
+>>>>>>> origin/main
     // Production default: our callback endpoint that processes the token and redirects.
     redirectUrl: process.env.ZAINCASH_REDIRECT_URL
       ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',

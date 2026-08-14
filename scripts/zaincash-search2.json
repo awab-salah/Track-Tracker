@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "ZainCash redirects the customer back to your successUrl or failureUrl with a JWT token. JWT-based redirect and webhook callbacks . Call the transaction/init ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API . based on the official ZainCash API documentation . JWT during requests.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "This article helps you integrate your website with ZainCash , Create the JWT token, you can use it easily as the code below. The redirection ...",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.",
+    "host_name": "fatora.io",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.paytrail.com",
+    "name": "Paytrail Payment API",
+    "snippet": "Redirect and callback URL parameters. Once the payment is complete, or cancelled, the client browser is normally redirected to the merchant provided URL. If ... Read more",
+    "host_name": "docs.paytrail.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://project.paywire.com/dbtranz/docs/OSBP/files/Development.html",
+    "name": "Introduction – Paywire Developer Documentation",
+    "snippet": "Sending a UnionPay payment transaction to the gateway is a two-step process using two distinct transaction types consecutively: INITIALIZE and FINALIZE. Read more",
+    "host_name": "project.paywire.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://payzahpaymentgatewaydocumentationupdated.docs.apiary.io",
+    "name": "Payzah Payment Gateway Documentation · Apiary",
+    "snippet": "This document provides a comprehensive guide to integrating Payzah's payment gateway into your website. The Payzah gateway supports seamless transactions ... Read more",
+    "host_name": "payzahpaymentgatewaydocumentationupdated.docs.apiary.io",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.mastercard.com/masterpass-psp-integration-v7/documentation/full-integration",
+    "name": "Masterpass Checkout Integration for Service Providers",
+    "snippet": "The consumer clicks checkout and the merchant server redirects the consumer's browser to the PSP hosted payment page implemented using TLS v1 .2 or higher. Read more",
+    "host_name": "developer.mastercard.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/documentation/zaincash/latest",
+    "name": "zaincash - Dart API docs",
+    "snippet": "zaincash_flutter. A none offical Zaincash payment gateway integration for flutter. INSTALL. in your project terminal enter content_copy Read more",
+    "host_name": "pub.dev",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  }
+]

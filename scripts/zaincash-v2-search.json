@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "ZainCash Integration API Laravel Package - GitHub",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. This package is based on the official ZainCash API documentation.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
+    "snippet": "Feb 19, 2020 · This article helps you integrate your website with ZainCash, all code samples provided are in JavaScript. Also, we've made this package for ...",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.tap.company/docs/webhook",
+    "name": "Webhook - Tap API Docs 1.0",
+    "snippet": "Tap ensures secure and realtime webhooks for payment events, and to send the post payment details. Payments webhook is a server-to-server call(also known as IPN ...",
+    "host_name": "developers.tap.company",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.sprintcheckout.com/api-reference/sessions/quickstart",
+    "name": "Quickstart - Sprintcheckout",
+    "snippet": "On this guide you can learn how to create a payment session and get notification on to your backend via webhooks. Create payment session and receive a redirect ...",
+    "host_name": "docs.sprintcheckout.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://anzworldline.gateway.mastercard.com/api/documentation/integrationGuidelines/supportedFeatures/pickAdditionalFunctionality/webhookNotifications.html?locale=en_US",
+    "name": "Webhook notification for the Web Services API operations - Mastercard",
+    "snippet": "A webhook allows an application to send notifications to other applications. When the gateway creates or updates a transaction for an order, it sends a ...",
+    "host_name": "anzworldline.gateway.mastercard.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io/api/zaincash.php",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments - فاتورة",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration. a leading payment gateway provider",
+    "host_name": "fatora.io",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://rapidgateway.pk/resources/payment-webhooks-guide",
+    "name": "Payment Webhooks: Integration & Signature Guide - Rapid Gateway",
+    "snippet": "Jul 7, 2026 · Rapid Gateway notifies your server of payment outcomes by POSTing a signed JSON webhook to your URL. This guide shows you how to receive and ...",
+    "host_name": "rapidgateway.pk",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.checkout.com/docs/payments/add-payment-methods/przelewy24/unified-payments-api",
+    "name": "Przelewy24 for Unified Payments API - Docs - Checkout.com",
+    "snippet": "Aug 5, 2026 · Redirect your customer to the redirect link's href in the response. The customer will be redirected to a Przelewy24 page where they can ...",
+    "host_name": "www.checkout.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers-gate.qi.iq/docs/webhook-guide/webhook-setup",
+    "name": "Enable Webhooks - QiCard Payment Gateway",
+    "snippet": "The steps needed to enable Payment Gateway webhook notifications: In POST /payment request (the request we use to create payments), there is a field named ...",
+    "host_name": "developers-gate.qi.iq",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

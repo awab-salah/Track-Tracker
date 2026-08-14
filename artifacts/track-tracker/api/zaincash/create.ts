@@ -253,11 +253,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[ZainCash] ServiceType in JWT: subscription');
     console.log('[ZainCash] NOTE: Customer MSISDN is NOT sent by our app.');
     console.log('[ZainCash]       The customer enters their own wallet number on the ZainCash payment page.');
-    console.log('[ZainCash]       Sandbox test wallets (from docs.zaincash.iq):');
-    console.log('[ZainCash]         1. MSISDN 9647802999569, PIN 1111, OTP 111111');
-    console.log('[ZainCash]         2. MSISDN 9647829744432, PIN 1111, OTP 111111');
-    console.log('[ZainCash]         3. MSISDN 9647829744464, PIN 1111, OTP 111111');
-    console.log('[ZainCash]         4. MSISDN 9647829744474, PIN 1111, OTP 111111');
+    console.log('[ZainCash]       Sandbox test wallets (from official ZainCash Laravel package):');
+    console.log('[ZainCash]         1. MSISDN 9647802999569, PIN 1234, OTP 1111');
+    console.log('[ZainCash]         2. MSISDN 9647829744432, PIN 1234, OTP 1111');
+    console.log('[ZainCash]         3. MSISDN 9647829744464, PIN 1234, OTP 1111');
+    console.log('[ZainCash]         4. MSISDN 9647829744474, PIN 1234, OTP 1111');
 
     // Store payment record in Supabase (fire-and-forget)
     try {
