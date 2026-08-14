@@ -62,6 +62,7 @@ function getConfig() {
 function getSupabaseCreds() {
   const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+  console.log('[ZainCash] Supabase creds: url=', url ? url.substring(0, 30) + '...' : 'MISSING', 'key=', key ? key.substring(0, 10) + '...' : 'MISSING');
   return { url, key };
 }
 
@@ -185,13 +186,18 @@ async function getPaymentRecord(transactionId: string): Promise<{ status: string
 
 async function updatePaymentRecord(transactionId: string, status: string) {
   const { url, key } = getSupabaseCreds();
-  if (!url || !key) return;
+  if (!url || !key) {
+    console.warn('[ZainCash] updatePaymentRecord: missing Supabase creds');
+    return;
+  }
 
   // Use the security-definer RPC to update payment_records.
   // Direct PostgREST PATCH with anon key + RLS silently fails to update rows
   // (PostgREST 204 but 0 rows affected). The RPC bypasses RLS.
   try {
-    await fetch(`${url}/rest/v1/rpc/update_payment_record`, {
+    const rpcUrl = `${url}/rest/v1/rpc/update_payment_record`;
+    console.log('[ZainCash] updatePaymentRecord: calling RPC', rpcUrl, 'tx=', transactionId, 'status=', status);
+    const rpcRes = await fetch(rpcUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -200,10 +206,15 @@ async function updatePaymentRecord(transactionId: string, status: string) {
       },
       body: JSON.stringify({ p_id: transactionId, p_status: status }),
     });
+    const rpcBody = await rpcRes.text();
+    console.log('[ZainCash] updatePaymentRecord: RPC response', rpcRes.status, rpcBody);
+    if (!rpcRes.ok) {
+      throw new Error(`RPC returned ${rpcRes.status}: ${rpcBody}`);
+    }
   } catch (err) {
     console.warn('[ZainCash] RPC update_payment_record failed, trying direct PATCH:', err);
     // Fallback to direct PATCH (works with service key which bypasses RLS)
-    await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
+    const patchRes = await fetch(`${url}/rest/v1/payment_records?id=eq.${transactionId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -213,6 +224,7 @@ async function updatePaymentRecord(transactionId: string, status: string) {
       },
       body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
     });
+    console.log('[ZainCash] updatePaymentRecord: fallback PATCH response', patchRes.status);
   }
 }
 
