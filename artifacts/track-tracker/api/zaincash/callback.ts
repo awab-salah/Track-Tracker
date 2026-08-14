@@ -537,6 +537,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         received: true,
         transactionId: result.transactionId,
         status: result.status,
+        _updateOk: (result as Record<string, unknown>)._updateOk,
+        _message: result.message,
       });
 
     } catch (err) {
