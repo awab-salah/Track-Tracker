@@ -468,7 +468,15 @@ async function processCallback(params: {
     try {
       const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
       if (supabaseUrl && supabaseKey) {
-        const activateRes = await fetch(`${supabaseUrl}/rest/v1/companies?id=eq.${companyId}`, {
+        // BUG FIX: The frontend sends company.name as companyId (see
+        // useZainCashPayment.ts line 47: companyId: company.name).
+        // The previous code used `id=eq.${companyId}` which filters by the UUID
+        // `id` column — that never matches a company name, so activation
+        // silently failed (PostgREST returns 204 with 0 rows updated).
+        // Fix: filter by `name` column instead, matching what the frontend sends.
+        // Also URL-encode the company name in case it contains special chars.
+        const companyName = encodeURIComponent(companyId);
+        const activateRes = await fetch(`${supabaseUrl}/rest/v1/companies?name=eq.${companyName}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -479,7 +487,29 @@ async function processCallback(params: {
           body: JSON.stringify({ subscription_active: true }),
         });
         if (activateRes.ok) {
-          console.log('[ZainCash] Subscription activated for company:', companyId);
+          // PostgREST with Prefer:return=minimal returns 204 even for 0 rows updated.
+          // Do a follow-up SELECT to confirm the subscription is now active.
+          const verifyRes = await fetch(
+            `${supabaseUrl}/rest/v1/companies?name=eq.${companyName}&select=subscription_active`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+              },
+            },
+          );
+          if (verifyRes.ok) {
+            const rows = await verifyRes.json() as Array<{ subscription_active: boolean }>;
+            if (rows.length > 0 && rows[0].subscription_active === true) {
+              console.log('[ZainCash] Subscription activation confirmed for company:', companyId);
+            } else {
+              console.error('[ZainCash] Subscription activation NOT confirmed for company:', companyId, 'rows:', rows);
+            }
+          } else {
+            console.error('[ZainCash] Subscription activation verify failed:', verifyRes.status);
+          }
         } else {
           const text = await activateRes.text();
           console.error('[ZainCash] Failed to activate subscription:', activateRes.status, text);
@@ -652,6 +682,154 @@ router.get('/zaincash/verify', async (req: Request, res: Response) => {
       error: message,
       step: 'verify_payment',
     });
+  }
+});
+
+/**
+ * POST /api/zaincash/debug-complete-payment
+ *
+ * DEBUG-ONLY endpoint to complete a ZainCash test payment via the v1 API
+ * by directly calling /transaction/processing and /transaction/processingOTP.
+ *
+ * This endpoint exists ONLY for verifying the integration end-to-end with
+ * the documented UAT test wallet. It should be removed before production use,
+ * or protected with a debug secret.
+ *
+ * Request body:
+ *   { transactionId: string, phone?: string, pin?: string, otp?: string }
+ *
+ * Default test wallet (from official ZainCash Laravel package docs):
+ *   Phone: 9647802999569
+ *   PIN:   1234
+ *   OTP:   1111
+ *
+ * Returns:
+ *   { processing: {...}, pay: {...}, finalStatus: {...} }
+ */
+router.post('/zaincash/debug-complete-payment', async (req: Request, res: Response) => {
+  try {
+    const body = req.body as {
+      transactionId?: string;
+      phone?: string;
+      pin?: string;
+      otp?: string;
+    };
+
+    const transactionId = body.transactionId;
+    if (!transactionId) {
+      return res.status(400).json({ error: 'Missing transactionId' });
+    }
+
+    // Defaults = documented UAT test wallet
+    const phone = body.phone || '9647802999569';
+    const pin = body.pin || '1234';
+    const otp = body.otp || '1111';
+
+    console.log('[ZainCash Debug] Starting complete-payment flow for tx:', transactionId);
+    console.log('[ZainCash Debug] Test wallet:', { phone, pin, otp });
+
+    const config = getConfig();
+
+    // Helper to call ZainCash API
+    const callZainCash = async (endpoint: string, params: Record<string, string>, label: string) => {
+      const url = `${config.baseUrl}${endpoint}`;
+      const formBody = new URLSearchParams(params).toString();
+      console.log(`[ZainCash Debug ${label}] POST ${url}`);
+      console.log(`[ZainCash Debug ${label}] Body:`, formBody);
+
+      const start = Date.now();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody,
+      });
+      const text = await response.text();
+      const elapsed = Date.now() - start;
+      console.log(`[ZainCash Debug ${label}] Status: ${response.status} (${elapsed}ms)`);
+      console.log(`[ZainCash Debug ${label}] Body:`, text.slice(0, 1000));
+
+      let data: unknown = text;
+      try { data = JSON.parse(text); } catch { /* keep as text */ }
+
+      return {
+        label,
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        body: data,
+        rawBody: text.slice(0, 2000),
+        elapsedMs: elapsed,
+      };
+    };
+
+    // STEP 1: Initial status check
+    const now1 = Math.floor(Date.now() / 1000);
+    const checkToken1 = createJWT({
+      id: transactionId,
+      msisdn: config.msisdn,
+      iat: now1,
+      exp: now1 + 60 * 60 * 4,
+    }, config.secret);
+
+    const initialCheck = await callZainCash('/transaction/get', {
+      merchantId: config.merchantId,
+      token: checkToken1,
+    }, 'INITIAL_CHECK');
+
+    // STEP 2: Processing (phone + PIN)
+    const processing = await callZainCash('/transaction/processing', {
+      id: transactionId,
+      phonenumber: phone,
+      pin,
+    }, 'PROCESSING');
+
+    await new Promise(r => setTimeout(r, 1000));
+
+    // STEP 3: Pay (phone + PIN + OTP)
+    const pay = await callZainCash('/transaction/processingOTP?type=MERCHANT_PAYMENT', {
+      id: transactionId,
+      phonenumber: phone,
+      pin,
+      otp,
+    }, 'PAY');
+
+    await new Promise(r => setTimeout(r, 1500));
+
+    // STEP 4: Final status check
+    const now2 = Math.floor(Date.now() / 1000);
+    const checkToken2 = createJWT({
+      id: transactionId,
+      msisdn: config.msisdn,
+      iat: now2,
+      exp: now2 + 60 * 60 * 4,
+    }, config.secret);
+
+    const finalCheck = await callZainCash('/transaction/get', {
+      merchantId: config.merchantId,
+      token: checkToken2,
+    }, 'FINAL_CHECK');
+
+    return res.status(200).json({
+      transactionId,
+      testWallet: { phone, pin, otp },
+      steps: {
+        initialCheck,
+        processing,
+        pay,
+        finalCheck,
+      },
+      summary: {
+        initialStatus: (initialCheck.body as { status?: string })?.status ?? 'unknown',
+        processingSuccess: (processing.body as { success?: number })?.success ?? 'unknown',
+        paySuccess: (pay.body as { success?: number })?.success ?? 'unknown',
+        finalStatus: (finalCheck.body as { status?: string })?.status ?? 'unknown',
+      },
+    });
+
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[ZainCash Debug] Error:', message);
+    return res.status(500).json({ error: message });
   }
 });
 
