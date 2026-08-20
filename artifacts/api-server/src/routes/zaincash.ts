@@ -387,11 +387,13 @@ async function processCallback(params: {
   orderId?: string;
   planId?: string;
   companyId?: string;
-}): Promise<{ success: boolean; transactionId: string; status: string; message: string }> {
+}): Promise<{ success: boolean; transactionId: string; status: string; message: string; _debug?: Record<string, unknown> }> {
   const { transactionId } = params;
 
+  const _debug: Record<string, unknown> = {};
+
   if (!transactionId) {
-    return { success: false, transactionId: '', status: 'invalid', message: 'Missing transaction ID' };
+    return { success: false, transactionId: '', status: 'invalid', message: 'Missing transaction ID', _debug };
   }
 
   let companyId = params.companyId ?? '';
@@ -403,6 +405,8 @@ async function processCallback(params: {
   // The get_payment_record RPC is SECURITY DEFINER and bypasses RLS.
   try {
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+    _debug.supabaseUrl = supabaseUrl ? supabaseUrl.substring(0, 40) + '...' : 'MISSING';
+    _debug.supabaseKeyPrefix = supabaseKey ? supabaseKey.substring(0, 15) + '...' : 'MISSING';
     if (supabaseUrl && supabaseKey) {
       const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_payment_record`, {
         method: 'POST',
@@ -413,12 +417,14 @@ async function processCallback(params: {
         },
         body: JSON.stringify({ p_id: transactionId }),
       });
+      _debug.idempotencyCheckStatus = rpcRes.status;
       if (rpcRes.ok) {
         const rows = await rpcRes.json() as Array<{ status: string; company_id: string }>;
+        _debug.idempotencyCheckRows = rows.length;
         if (rows.length > 0) {
           if (rows[0].status === 'completed') {
             console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
-            return { success: true, transactionId, status: 'completed', message: 'Already processed' };
+            return { success: true, transactionId, status: 'completed', message: 'Already processed', _debug };
           }
           // Use company_id from payment_records (most reliable)
           if (!companyId && rows[0].company_id) {
@@ -427,7 +433,9 @@ async function processCallback(params: {
         }
       }
     }
-  } catch { /* non-fatal — continue without idempotency check */ }
+  } catch (err) {
+    _debug.idempotencyCheckError = err instanceof Error ? err.message : String(err);
+  }
 
   // Always verify via inquiry — NEVER trust the callback payload alone
   console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
@@ -435,6 +443,8 @@ async function processCallback(params: {
     status: string;
     orderId: string;
   };
+  _debug.inquiryStatus = details.status;
+  _debug.companyIdResolved = companyId;
 
   console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
 
@@ -457,11 +467,14 @@ async function processCallback(params: {
       });
       const rpcBody = await rpcRes.text();
       console.log('[ZainCash] update_payment_record RPC:', rpcRes.status, rpcBody);
+      _debug.updateRpcStatus = rpcRes.status;
+      _debug.updateRpcBody = rpcBody.slice(0, 200);
       if (!rpcRes.ok) {
         console.error('[ZainCash] update_payment_record RPC failed:', rpcRes.status, rpcBody);
       }
     }
   } catch (err) {
+    _debug.updateRpcError = err instanceof Error ? err.message : String(err);
     console.error('[ZainCash] update_payment_record RPC error:', err);
   }
 
@@ -638,6 +651,7 @@ router.post('/zaincash/callback', async (req: Request, res: Response) => {
       received: true,
       transactionId: result.transactionId,
       status: result.status,
+      _debug: (result as { _debug?: Record<string, unknown> })._debug,
     });
 
   } catch (err) {
