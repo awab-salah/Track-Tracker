@@ -396,16 +396,25 @@ async function processCallback(params: {
 
   let companyId = params.companyId ?? '';
 
-  // ── Idempotency check: if payment already completed, skip ──────────────
+  // ── Idempotency check via RPC (RLS bypass) ───────────────────────────────
+  // Direct PostgREST SELECT on payment_records is subject to RLS — with the
+  // anon key, the SELECT policy requires companies.auth_user_id = auth.uid(),
+  // which is NULL for server-side requests, so direct SELECT returns 0 rows.
+  // The get_payment_record RPC is SECURITY DEFINER and bypasses RLS.
   try {
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
     if (supabaseUrl && supabaseKey) {
-      const recordRes = await fetch(
-        `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`,
-        { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
-      );
-      if (recordRes.ok) {
-        const rows = await recordRes.json() as Array<{ status: string; company_id: string }>;
+      const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_payment_record`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ p_id: transactionId }),
+      });
+      if (rpcRes.ok) {
+        const rows = await rpcRes.json() as Array<{ status: string; company_id: string }>;
         if (rows.length > 0) {
           if (rows[0].status === 'completed') {
             console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
@@ -427,41 +436,34 @@ async function processCallback(params: {
     orderId: string;
   };
 
-  // Use companyId from payment_records (already set above) or fallback
-  if (!companyId) {
-    try {
-      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
-      if (supabaseUrl && supabaseKey) {
-        const recordRes = await fetch(
-          `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=company_id`,
-          { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
-        );
-        if (recordRes.ok) {
-          const rows = await recordRes.json() as Array<{ company_id: string }>;
-          if (rows.length > 0 && rows[0].company_id) companyId = rows[0].company_id;
-        }
-      }
-    } catch { /* non-fatal */ }
-  }
-
   console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
 
-  // Update payment record
+  // ── Update payment record via RPC (RLS bypass) ──────────────────────────
+  // Direct PostgREST PATCH on payment_records is subject to RLS — there is NO
+  // UPDATE policy on payment_records (only SELECT and INSERT policies exist),
+  // so direct PATCH returns 204 with 0 rows updated when using the anon key.
+  // The update_payment_record RPC is SECURITY DEFINER and bypasses RLS.
   try {
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
     if (supabaseUrl && supabaseKey) {
-      await fetch(`${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}`, {
-        method: 'PATCH',
+      const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/update_payment_record`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           apikey: supabaseKey,
           Authorization: `Bearer ${supabaseKey}`,
-          Prefer: 'return=minimal',
         },
-        body: JSON.stringify({ status: details.status, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ p_id: transactionId, p_status: details.status }),
       });
+      const rpcBody = await rpcRes.text();
+      console.log('[ZainCash] update_payment_record RPC:', rpcRes.status, rpcBody);
+      if (!rpcRes.ok) {
+        console.error('[ZainCash] update_payment_record RPC failed:', rpcRes.status, rpcBody);
+      }
     }
-  } catch { /* non-fatal */ }
+  } catch (err) {
+    console.error('[ZainCash] update_payment_record RPC error:', err);
+  }
 
   // Only activate if payment is COMPLETED
   if (details.status === 'completed' && companyId) {
