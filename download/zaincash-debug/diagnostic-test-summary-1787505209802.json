@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-08-23T17:14:17.212Z",
+  "results": [
+    {
+      "label": "Documented phone + PIN 1234",
+      "phone": "9647802999569",
+      "pin": "1234",
+      "otp": "1111",
+      "transactionId": "6a8b2a3acb2621325abeb170",
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    },
+    {
+      "label": "Documented phone + PIN 9876",
+      "phone": "9647802999569",
+      "pin": "9876",
+      "otp": "1111",
+      "transactionId": "6a8b2a48cb2621325abeb171",
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    },
+    {
+      "label": "Random phone + PIN 1234",
+      "phone": "9647800000000",
+      "pin": "1234",
+      "otp": "1111",
+      "transactionId": "6a8b2a55cb2621325abeb172",
+      "processingMsg": "User not found!",
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647800000000"
+    },
+    null,
+    null
+  ],
+  "analysis": {
+    "allReturnWrongCredentials": false,
+    "phoneIsValid": true,
+    "pinIsWrong": true
+  }
+}

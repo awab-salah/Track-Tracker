@@ -1,0 +1,114 @@
+{
+  "transactionId": "6a8b2a55cb2621325abeb172",
+  "testWallet": {
+    "phone": "9647800000000",
+    "pin": "1234",
+    "otp": "1111"
+  },
+  "steps": {
+    "initialCheck": {
+      "label": "INITIAL_CHECK",
+      "url": "https://test.zaincash.iq/transaction/get",
+      "status": 200,
+      "statusText": "OK",
+      "body": {
+        "to": {
+          "createdAt": "2024-05-23T08:48:56.675Z",
+          "currency": "IQD",
+          "deleted": false,
+          "msisdn": 9647835077893,
+          "name": "test integration en",
+          "pay_by_reference": "1",
+          "updatedAt": "2025-11-05T06:09:03.170Z",
+          "sofId": "5185245",
+          "id": "5ffacf6612b5777c6d44266f"
+        },
+        "source": "web",
+        "type": "MERCHANT_PAYMENT",
+        "amount": "1000",
+        "serviceType": "Other",
+        "lang": "ar",
+        "orderId": "tt-plan-10-Smoke Test Co 2-1787505237285-3amefk",
+        "currencyConversion": {},
+        "referenceNumber": "PWE8MX",
+        "redirectUrl": "https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202",
+        "credit": false,
+        "status": "pending",
+        "reversed": false,
+        "createdAt": "2026-08-23T17:13:57.964Z",
+        "updatedAt": "2026-08-23T17:13:57.964Z",
+        "id": "6a8b2a55cb2621325abeb172"
+      },
+      "rawBody": "{\"to\":{\"createdAt\":\"2024-05-23T08:48:56.675Z\",\"currency\":\"IQD\",\"deleted\":false,\"msisdn\":9647835077893,\"name\":\"test integration en\",\"pay_by_reference\":\"1\",\"updatedAt\":\"2025-11-05T06:09:03.170Z\",\"sofId\":\"5185245\",\"id\":\"5ffacf6612b5777c6d44266f\"},\"source\":\"web\",\"type\":\"MERCHANT_PAYMENT\",\"amount\":\"1000\",\"serviceType\":\"Other\",\"lang\":\"ar\",\"orderId\":\"tt-plan-10-Smoke Test Co 2-1787505237285-3amefk\",\"currencyConversion\":{},\"referenceNumber\":\"PWE8MX\",\"redirectUrl\":\"https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202\",\"credit\":false,\"status\":\"pending\",\"reversed\":false,\"createdAt\":\"2026-08-23T17:13:57.964Z\",\"updatedAt\":\"2026-08-23T17:13:57.964Z\",\"id\":\"6a8b2a55cb2621325abeb172\"}",
+      "elapsedMs": 188
+    },
+    "processing": {
+      "label": "PROCESSING",
+      "url": "https://test.zaincash.iq/transaction/processing",
+      "status": 200,
+      "statusText": "OK",
+      "body": {
+        "success": 0,
+        "url": "https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdGF0dXMiOiJmYWlsZWQiLCJtc2ciOiJVc2VyIG5vdCBmb3VuZCEiLCJvcmRlcmlkIjoidHQtcGxhbi0xMC1TbW9rZSBUZXN0IENvIDItMTc4NzUwNTIzNzI4NS0zYW1lZmsiLCJpZCI6IjZhOGIyYTU1Y2IyNjIxMzI1YWJlYjE3MiJ9.nHXQ9AJ1jw54_DcziJrdEfyDeZswidTlNFoJ-al96ps"
+      },
+      "rawBody": "{\"success\":0,\"url\":\"https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdGF0dXMiOiJmYWlsZWQiLCJtc2ciOiJVc2VyIG5vdCBmb3VuZCEiLCJvcmRlcmlkIjoidHQtcGxhbi0xMC1TbW9rZSBUZXN0IENvIDItMTc4NzUwNTIzNzI4NS0zYW1lZmsiLCJpZCI6IjZhOGIyYTU1Y2IyNjIxMzI1YWJlYjE3MiJ9.nHXQ9AJ1jw54_DcziJrdEfyDeZswidTlNFoJ-al96ps\"}",
+      "elapsedMs": 359
+    },
+    "pay": {
+      "label": "PAY",
+      "url": "https://test.zaincash.iq/transaction/processingOTP?type=MERCHANT_PAYMENT",
+      "status": 200,
+      "statusText": "OK",
+      "body": {
+        "success": 0,
+        "url": "https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdGF0dXMiOiJmYWlsZWQiLCJtc2ciOiJpbmNvcnJlY3Rfb3RwIiwib3JkZXJpZCI6InR0LXBsYW4tMTAtU21va2UgVGVzdCBDbyAyLTE3ODc1MDUyMzcyODUtM2FtZWZrIiwiaWQiOiI2YThiMmE1NWNiMjYyMTMyNWFiZWIxNzIifQ.4QkfKZ1S9sW7EnaSfnzUt0yiGpPSiMTVZsgYr7jW5Vc"
+      },
+      "rawBody": "{\"success\":0,\"url\":\"https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdGF0dXMiOiJmYWlsZWQiLCJtc2ciOiJpbmNvcnJlY3Rfb3RwIiwib3JkZXJpZCI6InR0LXBsYW4tMTAtU21va2UgVGVzdCBDbyAyLTE3ODc1MDUyMzcyODUtM2FtZWZrIiwiaWQiOiI2YThiMmE1NWNiMjYyMTMyNWFiZWIxNzIifQ.4QkfKZ1S9sW7EnaSfnzUt0yiGpPSiMTVZsgYr7jW5Vc\"}",
+      "elapsedMs": 197
+    },
+    "finalCheck": {
+      "label": "FINAL_CHECK",
+      "url": "https://test.zaincash.iq/transaction/get",
+      "status": 200,
+      "statusText": "OK",
+      "body": {
+        "to": {
+          "createdAt": "2024-05-23T08:48:56.675Z",
+          "currency": "IQD",
+          "deleted": false,
+          "msisdn": 9647835077893,
+          "name": "test integration en",
+          "pay_by_reference": "1",
+          "updatedAt": "2025-11-05T06:09:03.170Z",
+          "sofId": "5185245",
+          "id": "5ffacf6612b5777c6d44266f"
+        },
+        "source": "web",
+        "type": "MERCHANT_PAYMENT",
+        "amount": "1000",
+        "serviceType": "Other",
+        "lang": "ar",
+        "orderId": "tt-plan-10-Smoke Test Co 2-1787505237285-3amefk",
+        "currencyConversion": {},
+        "referenceNumber": "PWE8MX",
+        "redirectUrl": "https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202",
+        "credit": false,
+        "status": "failed",
+        "reversed": false,
+        "createdAt": "2026-08-23T17:13:57.964Z",
+        "updatedAt": "2026-08-23T17:14:03.222Z",
+        "due": "incorrect_otp",
+        "from": "9647800000000",
+        "id": "6a8b2a55cb2621325abeb172"
+      },
+      "rawBody": "{\"to\":{\"createdAt\":\"2024-05-23T08:48:56.675Z\",\"currency\":\"IQD\",\"deleted\":false,\"msisdn\":9647835077893,\"name\":\"test integration en\",\"pay_by_reference\":\"1\",\"updatedAt\":\"2025-11-05T06:09:03.170Z\",\"sofId\":\"5185245\",\"id\":\"5ffacf6612b5777c6d44266f\"},\"source\":\"web\",\"type\":\"MERCHANT_PAYMENT\",\"amount\":\"1000\",\"serviceType\":\"Other\",\"lang\":\"ar\",\"orderId\":\"tt-plan-10-Smoke Test Co 2-1787505237285-3amefk\",\"currencyConversion\":{},\"referenceNumber\":\"PWE8MX\",\"redirectUrl\":\"https://track-tracker-app.vercel.app/api/zaincash/callback?orderId=tt-plan-10-Smoke%20Test%20Co%202-1787505237285-3amefk&planId=plan-10&companyId=Smoke%20Test%20Co%202\",\"credit\":false,\"status\":\"failed\",\"reversed\":false,\"createdAt\":\"2026-08-23T17:13:57.964Z\",\"updatedAt\":\"2026-08-23T17:14:03.222Z\",\"due\":\"incorrect_otp\",\"from\":\"9647800000000\",\"id\":\"6a8b2a55cb2621325abeb172\"}",
+      "elapsedMs": 186
+    }
+  },
+  "summary": {
+    "initialStatus": "pending",
+    "processingSuccess": 0,
+    "paySuccess": 0,
+    "finalStatus": "failed"
+  }
+}
