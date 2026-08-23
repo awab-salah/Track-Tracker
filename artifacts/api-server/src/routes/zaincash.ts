@@ -212,10 +212,13 @@ router.post('/zaincash/create', async (req: Request, res: Response) => {
     const redirectUrl = `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`;
 
     // ── Step 1: Create JWT token ──────────────────────────────────────────
+    // Per Laravel README at https://github.com/waadmawlood/zaincash, valid
+    // serviceType values are: Book, Food, Grocery, Pharmacy, Transportation, Other.
+    // 'subscription' is NOT in the allowed list — use 'Other'.
     const now = Math.floor(Date.now() / 1000);
     const jwtPayload = {
       amount,
-      serviceType: 'subscription',
+      serviceType: 'Other',
       msisdn: config.msisdn,
       orderId,
       redirectUrl,  // ZainCash v1 callback: browser redirect to this URL + ?token=XXXXX
