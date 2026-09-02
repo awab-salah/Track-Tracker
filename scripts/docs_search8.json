@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://pub.dev/packages/phonepe_payment_sdk",
+    "name": "phonepe_payment_sdk | Flutter package",
+    "snippet": "Flutter PhonePe Payment SDK #. Use this Plugin as a library #. Add the dependency in flutter project from the command line. Read more",
+    "host_name": "pub.dev",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/documentation/online_payments_sdk/latest",
+    "name": "Online Payments - Flutter SDK",
+    "snippet": "1. Initialize the Flutter SDK for this payment · 2 . Retrieve the payment products · 3. Retrieve payment product details · 4. Encrypt payment information · 5. Read more",
+    "host_name": "pub.dev",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@dtejaswini.06/integrating-phonepe-payment-gateway-in-flutter-a-step-by-step-guide-134dd6455871",
+    "name": "Integrating PhonePe Payment Gateway in Flutter: A Step-",
+    "snippet": "Install the PhonePe Simulator app; Use the test credentials provided by PhonePe; Test different scenarios (success, failure, cancellation). 2 . Read more",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/easebuzz_flutter_sdk",
+    "name": "easebuzz_flutter_sdk | Flutter package",
+    "snippet": "The Easebuzz Flutter SDK streamlines secure payment integration across Android, iOS, and web platforms ... Test credentials will be sent to your registered email ... Read more",
+    "host_name": "pub.dev",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.tap.company/docs/checkout-sdk-flutter",
+    "name": "Checkout Flutter SDK - Tap API Docs 1.0",
+    "snippet": "A comprehensive Flutter SDK for integrating payment processing into your Flutter applications. This SDK provides a secure, user-friendly checkout experience ...",
+    "host_name": "developers.tap.company",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/auth0_flutter",
+    "name": "auth0_flutter | Flutter package",
+    "snippet": "Handling credentials on the web - how to check and retrieve credentials on the web platform. · Multi-Factor Authentication (MFA) - complete an MFA flow mid-login ... Read more",
+    "host_name": "pub.dev",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/packages/pay_with_paymob",
+    "name": "pay_with_paymob | Flutter package",
+    "snippet": "A Flutter package for integrating pay_with_paymob services, enabling Visa and mobile wallet payments with customizable UI and secure payment processing.",
+    "host_name": "pub.dev",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/flutter/flutter/issues/159492",
+    "name": "Error while running flutter pub get · Issue #159492",
+    "snippet": "Nov 26, 2024 — Please re-run the Visual Studio installer for the \"Desktop development with C++\" workload, and include these components: MSVC v142 - VS 2019 C++ ... Read more",
+    "host_name": "github.com",
+    "rank": 7,
+    "date": "Nov 26, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.payone.com/en/integration/how-to-integrate/client-sdks/flutter",
+    "name": "Flutter SDK",
+    "snippet": "Our native SDK helps you communicate with the Client API . It offers: Convenient wrappers for API responses. Handling of all the details concerning the ... Read more",
+    "host_name": "developer.payone.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  }
+]

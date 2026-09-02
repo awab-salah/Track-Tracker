@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Webhooks allow ZainCash to notify your backend whenever a transaction status changes. You configure a server-side notificationUrl that receives POST requests.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. to redirect to the ZainCash payment",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.stripe.com/webhooks",
+    "name": "Receive Stripe events in your webhook endpoint",
+    "snippet": "Stripe uses HTTPS to send webhook events to your app as a JSON payload that includes event information. Handles POST requests with a JSON payload that includes ...",
+    "host_name": "docs.stripe.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service. Real-time reports, contacting us through the Whatsapp number number: +9647835428888",
+    "host_name": "zaincash.iq",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.direct.worldline-solutions.com/en/integration/api-developer-guide/webhooks",
+    "name": "Webhooks - Worldline",
+    "snippet": "A webhook is a POST request from our platform to an HTTPS endpoint at your server. It contains information about the current status of a transaction. Our ... Read more",
+    "host_name": "docs.direct.worldline-solutions.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.tap.company/docs/webhook",
+    "name": "Webhook",
+    "snippet": "Make sure your endpoint URL is active and working smoothly, and ready to accept webhooks . Define the webhook endpoint URL in the API/SDK call (parameter POST:\" ... Read more",
+    "host_name": "developers.tap.company",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "ZainCash will redirect to your site with a token to inform you about the payment status. Prepare the redirection handling code. The redirection ...",
+    "host_name": "medium.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.webhook.site/index.html",
+    "name": "Webhook.site Docs: FAQ",
+    "snippet": "The HTTP body data (e.g. files or JSON data) submitted to Webhook .site must be below 10 megabytes. More than that will cause a HTTP 413 response.",
+    "host_name": "docs.webhook.site",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.squadco.com/webhook-direct-url/webhook-and-direct-url",
+    "name": "Webhook & Redirect URL",
+    "snippet": "Login to your Squad dashboard. · Go to Profile > API & Webhook . · In the Webhook URL field, enter your Notification URL. · In the redirect URL field, enter your ... Read more",
+    "host_name": "docs.squadco.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  }
+]

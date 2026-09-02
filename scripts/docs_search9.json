@@ -1,0 +1,65 @@
+[
+  {
+    "url": "https://learn.microsoft.com",
+    "name": "OAuth 2.0 client credentials flow on the Microsoft identity",
+    "snippet": "Jan 30, 2026 — The OAuth 2.0 client credentials grant flow permits a web service (confidential client ) to use its own credentials, instead of impersonating ... Read more",
+    "host_name": "learn.microsoft.com",
+    "rank": 0,
+    "date": "Jan 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sailpoint.com",
+    "name": "OAuth 2.0 (client credentials) as a token-based protocol for",
+    "snippet": "May 16, 2026 — Token URL - \"http://localhost:8080/identityiq/ oauth2 / token \". Sample REST Client to get access token . Client client = ClientBuilder.newClient();. Read more",
+    "host_name": "community.sailpoint.com",
+    "rank": 1,
+    "date": "May 16, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://apidev.egain.com",
+    "name": "API Authentication",
+    "snippet": "Apr 22, 2026 — Token URL: The endpoint to exchange an authorization code for an access token or to use the client credentials flow. Domain URL: The base URL ... Read more",
+    "host_name": "apidev.egain.com",
+    "rank": 2,
+    "date": "Apr 22, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.onespan.com",
+    "name": "OAuth 2.0 Client Credentials Flow",
+    "snippet": "Jul 31, 2025 — This article provides a comprehensive guide on authenticating with the OnespanSign API using the OAuth 2.0 client credentials flow.",
+    "host_name": "docs.onespan.com",
+    "rank": 3,
+    "date": "Jul 31, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. manage their bills. in your ZainCash account. ...",
+    "host_name": "zaincash.iq",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.payments.jpmorgan.com",
+    "name": "OAuth authentication | Payments Developer Portal",
+    "snippet": "Learn how to authenticate API calls using OAuth 2.0 . Follow detailed steps for both testing and production environments, including certificate generation.",
+    "host_name": "developer.payments.jpmorgan.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.pingidentity.com",
+    "name": "Client credentials grant with PingAM | PingGateway",
+    "snippet": "Configure the OAuth 2.0 client credentials grant, where a service uses its own credentials to obtain access tokens from PingAM.",
+    "host_name": "docs.pingidentity.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  }
+]

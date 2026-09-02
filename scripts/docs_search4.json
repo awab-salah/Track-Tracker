@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Please select one of the following customer test wallets to submit your transaction. #. MSISDN. PIN. OTP . 1, 9647802999569, 1111 ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This package is based on the official ZainCash API documentation. You can find the official documentation (https:// docs . zaincash . iq ). Total Downloads Latest ... Read more",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service … 24/7 Support for you, just by contacting us through the Whatsapp number number: +9647835428888",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/activate-walletcard",
+    "name": "How to activate your WalletCard?",
+    "snippet": "1- Open the ZainCash app . 2- Tap on the WalletCard in the main screen. 3- Select Activate YourWalletCard. Confirm to complete the process.",
+    "host_name": "zaincash.iq",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help/accounts-faq",
+    "name": "ZainCash Accounts & Wallets | Manage Your Wallet | FAQ",
+    "snippet": "Learn how to create, verify, and manage your ZainCash wallet account . Find answers on activation, login, security, and more. a licensed digital wallet account",
+    "host_name": "zaincash.iq",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://intercom.help/ondeeducate/en/articles/9263874-customer-and-driver-wallet-top-up-with-zain-cash",
+    "name": "Customer and driver Wallet top-up with Zain Cash",
+    "snippet": "Nov 14, 2025 — Customer and driver Wallet top-up with Zain Cash · Access Wallet in customer/driver app · Select Zain Cash · Enter the top-up amount > Continue. Read more",
+    "host_name": "intercom.help",
+    "rank": 5,
+    "date": "Nov 14, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help/bank-linking-faq",
+    "name": "Link Your Bank Account to ZainCash Wallet | FAQ",
+    "snippet": "Enter the OTP verification code received via SMS , select the account you want to link, then tap “Next”. The OTP is sent to you by National Bank of Iraq.",
+    "host_name": "zaincash.iq",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "ZainCash is a licensed mobile wallet regulated by the Central Bank of Iraq, Customer support calls are not free, and they take up to 30 minutes to reply.",
+    "host_name": "play.google.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.iq.zain.com/en/web/iraq/zain-cash-service",
+    "name": "Zain Cash | Electronic Wallet in Your Mobile | Zain Iraq",
+    "snippet": "Got no cash on you? No need to worry! Zain Cash Services can be used to pay bills and transfer money . Find out how you can avail of this service here!",
+    "host_name": "www.iq.zain.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment",
+    "snippet": "you will need customer wallet number and PIN . Here are the test credentials for your test purposes. 7. Prepare the redirection handling code ... Read more",
+    "host_name": "medium.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

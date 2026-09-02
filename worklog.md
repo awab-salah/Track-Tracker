@@ -1,24 +1,36 @@
 ---
-Task ID: 1
+Task ID: 2
 Agent: Super Z (main)
-Task: Test real ZainCash UAT wallet end-to-end with official docs credentials (MSISDN 9647802999569, PIN 1111, OTP 11111/111111); verify callback, transaction status, subscription activation; identify exact root cause.
+Task: Continue debugging ZainCash UAT integration and conclusively verify suspected root cause. Use ONLY official docs credentials (MSISDN 9647802999569, PIN 1111, OTP from docs). Determine whether credentials belong to v1 (test.zaincash.iq) or v2 (pg-api.zaincash.iq). Compare implementation against correct documented flow. Try one clean UAT transaction. Give definitive report answering 5 questions.
 
 Work Log:
-- Read existing E2E script and deployed zaincash.ts debug-complete-payment endpoint (accepts phone/pin/otp via body)
-- Created and ran /home/z/my-project/scripts/zaincash-docs-creds-e2e.cjs: create tx → complete with PIN 1111/OTP 11111 → verify → Supabase checks
-- Result: PROCESSING success=0 msg=SYSTEMINVALID-MSISDN; PAY success=0 incorrect_otp; tx failed; payment_records pending; subscription_active false
-- Decoded JWT from processing response: {"status":"failed","msg":"SYSTEMINVALID-MSISDN",...}
-- Searched cached official docs: pub.dev zaincash_payment SDK documents "Test customers: 9647802999569 / PIN 1111 / OTP 111111" tied to NEW pg-api.zaincash.iq v2 gateway (clientId 758055f4a8044779a35f6ceb69f858b3); Laravel GitHub README documents PIN 1234 / OTP 1111 for v1
-- Created and ran /home/z/my-project/scripts/zaincash-otp-matrix-vercel.cjs testing both OTP variants (11111, 111111) with PIN 1111, fresh tx each — both failed identically
-- Handled transient 503s from test.zaincash.iq (retry with backoff; waited 90s between runs)
-- Retrieved full failed tx record via verify endpoint: status=failed, due=incorrect_otp, from=9647802999569, sofOwnerId=10426059 (wallet recognized)
-- Checked payment_records for both txIds: still pending (browser-redirect callback not triggered in API-driven test; payment never completed)
-- Wrote evidence addendum: /home/z/my-project/download/zaincash-debug/ADDENDUM-DOCS-CREDENTIALS-TEST.md
+- Used z-ai web_search to find current docs.zaincash.iq content (Cloudflare blocks direct curl + agent-browser)
+- Search returned "ZainCash Payment Gateway API Documentation v2" — base URL https://pg-api-uat.zaincash.iq, OAuth2 client_credentials, transaction/init endpoint
+- Confirmed the documented UAT v2 client_id is 758055f4a8044779a35f6ceb69f858b3 / client_secret bibLCGTxVAig5To3OLLKPJQMlRR7Pefp via search snippets
+- Fetched libraries.io cached page for the official Flutter SDK zaincash_payment v0.0.1 — it explicitly states:
+  * "A Flutter merchant gateway for the ZainCash Payment Gateway API v2 (docs.zaincash.iq)"
+  * "Old merchant account (merchantId + JWT secret on api.zaincash.iq)? Import package:zaincash_payment/zaincash_payment_legacy.dart instead"
+  * UAT test credentials: 9647802999569 / PIN 1111 / OTP 111111
+  * productionBaseUrl: https://pg-api.zaincash.iq
+  * v2 flow: createTransaction → redirect to redirectUrl → tryDecodeRedirectUrl → checkTransaction
+  * v2 has NO /transaction/processing or /transaction/processingOTP endpoints
+- Confirmed OTP is 111111 (6 digits), not 11111 (user message) or 1111 (Laravel README)
+- Tested both OTP variants (11111 and 111111) with PIN 1111 via deployed debug-complete-payment:
+  * tx 6a9809175029ab171981a24c (PIN 1111, OTP 111111): PROCESSING=SYSTEMINVALID-MSISDN, PAY=incorrect_otp, FINAL=failed
+  * tx 6a9809275029ab171981a24d (PIN 1111, OTP 11111):  same result
+- Built side-by-side comparison: v1 (test.zaincash.iq, JWT+merchantId) vs v2 (pg-api-uat.zaincash.iq, OAuth2 client_credentials)
+- Tried to deploy a temporary /api/zaincash/debug-v2-probe endpoint to test v2 reachability from Vercel:
+  * Wrote the probe code, committed locally (c6b705e)
+  * git push failed (no GitHub token in environment)
+  * Reverted commit to keep deployed code matching what's on origin/main
+  * Probe was not strictly needed — the v2 client_id 758055f4... belongs to ZainCash's own example merchant, not ours; even if reachable we'd get 401
+- Wrote definitive report at /home/z/my-project/download/zaincash-debug/DEFINITIVE-REPORT-V2-GATEWAY.md answering all 5 required questions
 
 Stage Summary:
-- Outcome B confirmed with conclusive evidence: official docs credentials (PIN 1111, OTP 11111/111111) do NOT work on the v1 test.zaincash.iq gateway
-- PIN 1111 gives UNIQUE error SYSTEMINVALID-MSISDN (all other wrong PINs give "Wrong Credentials") → wallet recognized but system-blocked/not provisioned on v1 UAT
-- All OTP variants (1111, 11111, 111111) rejected with incorrect_otp
-- Docs credential set belongs to the new pg-api v2 gateway, not our v1 merchant account
-- Our integration format proven 100% correct again: init 200, wallet recognized (from/sofOwnerId recorded), tx/get works, payment_records row created
-- No code fix possible on our side; requires ZainCash support (ask for current v1 UAT test wallet credentials / unblock wallet sofOwnerId 10426059)
+- ROOT CAUSE CONFIRMED: We are integrated against the WRONG gateway version.
+- Our merchant (5ffacf6612b5777c6d44266f) is a v1 merchant on test.zaincash.iq.
+- The user-provided credentials (9647802999569 / PIN 1111 / OTP 11111 or 111111) are the official v2 UAT test wallet for pg-api-uat.zaincash.iq.
+- Our v1 code is structurally correct (init/get/processing/processingOTP all return 200, wallet recognized with sofOwnerId=10426059) — the failure is on the v1 side because the v2 wallet isn't provisioned to authenticate on v1 (unique SYSTEMINVALID-MSISDN error).
+- All documented OTP variants (1111, 11111, 111111) and all PIN variants tested are rejected on v1.
+- Single next step: contact ZainCash support to onboard for v2 (get v2 client_id/client_secret for pg-api-uat.zaincash.iq), then rewrite zaincash.ts to use OAuth2 client_credentials auth. Cannot make the change blind because we don't have v2 credentials for our merchant.
+- No further code-level testing will succeed on v1; the path forward is the v2 migration.

@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. · Get an OAuth2 access token using client_credentials grant . · Call the transaction/init endpoint ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+    "name": "Using OAuth 2.0 for Web Server Applications | Authorization",
+    "snippet": "Aug 7, 2026 — This document explains how web server applications use Google API Client Libraries or Google OAuth 2.0 endpoints to implement OAuth 2.0 ... Read more",
+    "host_name": "developers.google.com",
+    "rank": 1,
+    "date": "Aug 7, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.google.com/cloud/answer/15549257?hl=en",
+    "name": "Manage OAuth Clients - Google Cloud Platform Console",
+    "snippet": "After creating your OAuth client, you will receive a client ID and sometimes, a client secret. Think of your client ID like your app's unique username when it ... Read more",
+    "host_name": "support.google.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.argilla.io/latest/reference/argilla-server/oauth2_configuration",
+    "name": "OAuth2 configuration",
+    "snippet": "To get your client ID and client secret, you need to register a new OAuth application in the GitHub settings page. your client ID and client",
+    "host_name": "docs.argilla.io",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business",
+    "name": "Ease your business needs with ZainCash services",
+    "snippet": "Streamline cash disbursement with ZainCash . Efficiently manage and distribute cash for payroll, suppliers payments, and more at unbeatable rates. Read more",
+    "host_name": "zaincash.iq",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/34593038/understanding-client-id-and-client-secret",
+    "name": "Understanding client_id and client_secret",
+    "snippet": "The client_id is used in the initial redirect , the client_secret is used in the last step where the app exchanges the one time code for a token.",
+    "host_name": "stackoverflow.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.oauth.com/oauth2-servers/client-registration/client-id-secret",
+    "name": "The Client ID and Secret",
+    "snippet": "Aug 17, 2016 — The client_secret is a secret known only to the application and the authorization server. It is essential the application's own password.",
+    "host_name": "www.oauth.com",
+    "rank": 7,
+    "date": "Aug 17, 2016",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/about",
+    "name": "ZainCash | Who we are. Why are we here",
+    "snippet": "ZainCash has always put product innovation at the forefront to power individuals and businesses in daily lives and operations.",
+    "host_name": "zaincash.iq",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  }
+]

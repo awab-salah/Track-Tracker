@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Obtain your client_id, client_secret, and API key from ZainCash. Get an OAuth2 access token using client_credentials grant . Call the transaction/init endpoint ... Read more",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/applications-and-forms",
+    "name": "Applications & Forms",
+    "snippet": "Effortlessly handle all business transactions with our secure platform. Become a ZainCash Agent to serve customers and more. Docs Become an Agent Applications ...",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.cloud.google.com/apigee/docs/api-platform/security/oauth/oauth-20-client-credentials-grant-type",
+    "name": "Implementing the client credentials grant type | Apigee",
+    "snippet": "With the client credentials grant type , an app sends its own credentials (the Client ID and Client Secret) to an endpoint on Apigee that is set up to generate ... Read more",
+    "host_name": "docs.cloud.google.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This package is based on the official ZainCash API documentation. You can find the official documentation (https:// docs . zaincash . iq ). Total Downloads Latest ... Read more",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.box.com/guides/authentication/client-credentials",
+    "name": "Client Credentials Grant - Box Dev Docs",
+    "snippet": "Grant (CCG) is an authentication method for Platform Apps using Server Authentication. It verifies your application's identity using a client ID and client ...",
+    "host_name": "developer.box.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant",
+    "name": "Authenticate an app for stores in your organization",
+    "snippet": "This tutorial shows how to use the client credentials grant to get access tokens for a server-side app acting on stores in your own Shopify organization. Read more",
+    "host_name": "shopify.dev",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow",
+    "name": "OAuth 2.0 client credentials flow on the Microsoft identity",
+    "snippet": "Jan 30, 2026 — The OAuth 2.0 client credentials grant flow permits a web service (confidential client) to use its own credentials, instead of impersonating ... Read more",
+    "host_name": "learn.microsoft.com",
+    "rank": 7,
+    "date": "Jan 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://zitadel.com/docs/guides/integrate/service-accounts/client-credentials",
+    "name": "OAuth Client Credentials for Service Accounts",
+    "snippet": "This guide demonstrates how developers can leverage Client Credential authentication to secure communication between service accounts and client ... Read more",
+    "host_name": "zitadel.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  }
+]

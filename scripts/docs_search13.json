@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/Mastercard/oauth2-client-js",
+    "name": "Mastercard/oauth2-client-js: Access Mastercard APIs with OAuth 2.0",
+    "snippet": "A zero-dependency, OAuth 2.0 client library for accessing Mastercard APIs with OAuth 2.0, FAPI 2.0 Security Profile, and DPoP (Demonstrating Proof-of-Possession) ... Oauth 2 Client - Javascript · Quick Start · Openapi Generated Clients",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq. Zaincash Integration Api... · 📌 Installation · 🍔 Usage",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=xvma6IFL21s",
+    "name": "User Authentication Tutorial #7 - Github Authentication - YouTube",
+    "snippet": "Aug 7, 2023 · ... authentication #flutter #dart #firebase #userauthentication # ... GitHub Login With React (GitHub APIs, GitHub OAuth 2.0 Authentication).",
+    "host_name": "www.youtube.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/dart-archive/oauth2",
+    "name": "GitHub - dart-archive/oauth2: An OAuth2 client library for Dart.",
+    "snippet": "Aug 26, 2024 · A client library for authenticating with a remote service via OAuth2 on behalf of a user, and making authorized HTTP requests with the user's ...",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev/documentation/zaincash/latest",
+    "name": "zaincash - Dart API docs - Pub.dev",
+    "snippet": "zaincash API docs, for the Dart programming language. A none offical Zaincash payment gateway integration for flutter INSTALL in your project",
+    "host_name": "pub.dev",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/thephpleague/oauth2-client",
+    "name": "thephpleague/oauth2-client: Easy integration with OAuth 2.0 service",
+    "snippet": "This package provides a base for integrating with OAuth 2.0 service providers. This OAuth 2.0 client library will work with any OAuth 2.0 provider. GitHub, ...",
+    "host_name": "github.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@tony.infisical/guide-to-using-oauth-2-0-to-access-github-api-818383862591",
+    "name": "Guide to using OAuth 2.0 to access GitHub API | by Tony | Medium",
+    "snippet": "Sep 7, 2023 · In this article, I demonstrate how you can set up your application to authenticate with the GitHub API using OAuth 2.0;",
+    "host_name": "medium.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/pocketbase/dart-sdk",
+    "name": "PocketBase Dart SDK - GitHub",
+    "snippet": "Official Multi-platform Dart SDK for interacting with the PocketBase Web API. Installation; Caveats. File upload; RecordModel; Error handling; AuthStore ... Pocketbase Dart Sdk · Caveats · Oauth2 And Android 15+",
+    "host_name": "github.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/answers/questions/684068/configure-github-as-the-oauth-2-0-provider",
+    "name": "Configure Github as the OAuth 2.0 provider - Microsoft Learn",
+    "snippet": "Jan 5, 2022 · The steps provided above use Azure Active Directory. How do i go about configuring the Github as the OAuth2.0 provider and the same service to ...",
+    "host_name": "learn.microsoft.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

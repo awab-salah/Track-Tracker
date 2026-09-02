@@ -1,0 +1,65 @@
+[
+  {
+    "url": "https://github.com/square/in-app-payments-flutter-plugin",
+    "name": "Flutter Plugin for Square In-App Payments SDK",
+    "snippet": "The Flutter plugin for Square In-App Payments SDK is a wrapper for the native Android and iOS SDKs and supports the following native In-App Payments SDK ... Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.squareup.com/docs/in-app-payments-sdk/flutter",
+    "name": "Flutter Plugin: In-App Payments SDK",
+    "snippet": "The Flutter plugin is an open source project that provides a Dart interface for calling native In-App Payments SDK implementations.",
+    "host_name": "developer.squareup.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.bluesnap.com/reference/flutter-sdk",
+    "name": "Flutter SDK",
+    "snippet": "The BlueSnap Flutter SDK allows you to build payments into your Flutter applications. For more information, visit our GitHub repository.",
+    "host_name": "developers.bluesnap.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.moneyhash.io/docs/flutter-sdk",
+    "name": "Flutter SDK",
+    "snippet": "The MoneyHash Flutter SDK allows developers to integrate MoneyHash payment processing into their mobile applications. you can easily accept customer payments, ...",
+    "host_name": "docs.moneyhash.io",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/Pisano/feedback-flutter-sdk",
+    "name": "Pisano/feedback-flutter-sdk",
+    "snippet": "Flutter plugin that bridges Pisano native SDKs on Android and iOS. Customer + payload: Pass customer attributes and transactional payload",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://stackoverflow.com/questions/64518007/getting-flutter-sdk-by-git-clone",
+    "name": "Getting Flutter SDK by git clone",
+    "snippet": "Here two steps are mentioned to get Flutter SDK:  Download the following installation bundle ... Extract the zip file ...  and then it is mentioned: ...",
+    "host_name": "stackoverflow.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://api.flutter.dev",
+    "name": "Flutter - Dart API docs",
+    "snippet": "Flutter is Google's SDK for crafting beautiful, fast user experiences for mobile, web, and desktop from a single codebase. Flutter works with existing code, is ... Read more",
+    "host_name": "api.flutter.dev",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  }
+]
