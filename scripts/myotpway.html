@@ -1,0 +1,2566 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="DOYECZE0XuTEggyDQmJWob9utIKUvWoH8FOy4pxH">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#16a34a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="OTP-Way">
+    <link rel="apple-touch-icon" href="/icons/pwa-192.png">
+    <title>MY-OTP-Way — WhatsApp OTP API — WhatsApp OTP Platform</title>
+    <meta name="description" content="Send OTP verification codes via WhatsApp with one API call. Volume-based pricing from $0.0250/OTP. Simple REST API, automatic SMS fallback, pay in IQD.">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="MY-OTP-Way — WhatsApp OTP API — WhatsApp OTP Platform">
+    <meta property="og:description" content="Send OTP verification codes via WhatsApp with one API call. Volume-based pricing from $0.0250/OTP. Simple REST API, automatic SMS fallback, pay in IQD.">
+    <meta property="og:url" content="https://www.myotpway.online">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://www.myotpway.online/logo3.png">
+    <meta property="og:site_name" content="MY-OTP-Way">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="MY-OTP-Way — WhatsApp OTP API">
+    <meta name="twitter:description" content="Send OTP verification codes via WhatsApp with one API call. Volume-based pricing from $0.0250/OTP. Simple REST API, automatic SMS fallback, pay in IQD.">
+    <meta name="twitter:image" content="https://www.myotpway.online/logo3.png">
+    <link rel="canonical" href="https://www.myotpway.online">
+    <link rel="icon" type="image/png" href="https://www.myotpway.online/logo3.png">
+    
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MY-OTP-Way",
+        "url": "https://myotpway.online",
+        "description": "WhatsApp OTP delivery API for developers and businesses. Send verification codes via WhatsApp with a simple REST API.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0.005",
+            "priceCurrency": "USD",
+            "description": "Per OTP message"
+        },
+        "provider": {
+            "@type": "Organization",
+            "name": "MY-OTP-Way",
+            "url": "https://myotpway.online",
+            "email": "support@myotpway.online",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Baghdad",
+                "addressCountry": "IQ"
+            },
+            "contactPoint": {
+                "@type": "ContactPoint",
+                "contactType": "customer support",
+                "email": "support@myotpway.online",
+                "availableLanguage": ["English", "Arabic"]
+            }
+        }
+    }
+    </script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50:'#f0fdf4', 100:'#dcfce7', 200:'#bbf7d0', 300:'#86efac', 400:'#4ade80', 500:'#22c55e', 600:'#16a34a', 700:'#15803d' }
+                    }
+                }
+            }
+        }
+    </script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+    
+    <style>
+        /* Navbar scroll transition */
+        #main-nav {
+            transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            background-color: rgba(255,255,255,0.97);
+        }
+        #main-nav.scrolled {
+            background-color: rgba(255,255,255,0.97);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-bottom: 1px solid rgba(229,231,235,0.6);
+        }
+
+        /* Mobile menu overlay */
+        #mobile-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 60;
+        }
+        #mobile-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+        #mobile-menu-panel {
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+        }
+        [dir="rtl"] #mobile-menu-panel {
+            transform: translateX(-100%);
+        }
+        #mobile-overlay.open #mobile-menu-panel {
+            transform: translateX(0);
+        }
+
+        /* CTA shimmer */
+        .btn-shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-shimmer::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 60%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            transform: skewX(-20deg);
+            transition: none;
+        }
+        .btn-shimmer:hover::after {
+            animation: shimmer-sweep 0.7s ease forwards;
+        }
+        @keyframes shimmer-sweep {
+            from { left: -100%; }
+            to   { left: 150%; }
+        }
+
+        /* Lang pill */
+        .lang-pill {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(243,244,246,1);
+            border-radius: 9999px;
+            padding: 3px;
+            gap: 2px;
+        }
+        .lang-pill a {
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+            color: #6b7280;
+        }
+        .lang-pill a.active,
+        .lang-pill a:hover {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        /* Scroll reveal base */
+        [data-animate] {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        [data-animate="left"]  { transform: translateX(-24px); }
+        [data-animate="right"] { transform: translateX(24px); }
+        [data-animate="scale"] { transform: scale(0.95); }
+        [data-animate].animate-in {
+            opacity: 1 !important;
+            transform: none !important;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            [data-animate], .btn-shimmer::after, #mobile-menu-panel, #mobile-overlay {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-900 antialiased">
+
+
+<nav id="main-nav" class="fixed top-0 inset-x-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+
+            
+            <a href="https://www.myotpway.online" class="flex items-center gap-2.5 shrink-0 group me-4 lg:me-8">
+                <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-sm">
+                    <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                </div>
+                <span class="font-extrabold text-gray-900 text-base tracking-tight leading-none">
+                    MY-OTP<span class="text-brand-600">Way</span>
+                </span>
+            </a>
+
+            
+            <div class="hidden md:flex items-center gap-6">
+                <a href="https://www.myotpway.online" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    Home
+                </a>
+                <a href="https://www.myotpway.online/docs" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    Docs
+                </a>
+                <a href="https://www.myotpway.online/docs/templates"
+                   class="text-sm font-medium transition-colors text-gray-600 hover:text-gray-900">
+                    Templates
+                </a>
+                <a href="https://www.myotpway.online#campaigns" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    Campaigns
+                </a>
+                <a href="https://www.myotpway.online#pricing" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    Pricing
+                </a>
+                <a href="https://www.myotpway.online/about" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    About
+                </a>
+                <a href="https://www.myotpway.online/contact" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                    Contact
+                </a>
+            </div>
+
+            
+            <div class="hidden md:flex items-center gap-3">
+                
+                <div class="relative" data-nav-dropdown>
+                    <button type="button" onclick="toggleNavDropdown('nav-currency-dropdown')"
+                        class="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-full pl-3 pr-2 py-1.5 transition-colors cursor-pointer">
+                        IQD
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="nav-currency-dropdown"
+                         class="nav-dropdown-panel hidden absolute end-0 top-9 w-32 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden py-1">
+                        <a href="https://www.myotpway.online/currency/IQD"
+                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors text-green-700 bg-green-50">
+                            IQD
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                    </a>
+                        <a href="https://www.myotpway.online/currency/USD"
+                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors text-gray-600 hover:bg-gray-50">
+                            $ USD
+                                                    </a>
+                    </div>
+                </div>
+
+                
+                                <div class="relative" data-nav-dropdown>
+                    <button type="button" onclick="toggleNavDropdown('nav-lang-dropdown')"
+                        class="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-full pl-3 pr-2 py-1.5 transition-colors cursor-pointer">
+                        EN
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="nav-lang-dropdown"
+                         class="nav-dropdown-panel hidden absolute end-0 top-9 w-32 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden py-1">
+                                                <a href="https://www.myotpway.online/lang/ar"
+                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors text-gray-600 hover:bg-gray-50">
+                            عربي
+                                                    </a>
+                                                <a href="https://www.myotpway.online/lang/ku"
+                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors text-gray-600 hover:bg-gray-50">
+                            کوردی
+                                                    </a>
+                                                <a href="https://www.myotpway.online/lang/en"
+                           class="flex items-center justify-between px-3 py-2 text-xs font-semibold transition-colors text-green-700 bg-green-50">
+                            EN
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                    </a>
+                                            </div>
+                </div>
+
+                                    <a href="https://www.myotpway.online/login"
+                       class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                        Sign In
+                    </a>
+                    <a href="https://www.myotpway.online/register"
+                       class="btn-shimmer text-sm bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-full font-semibold transition-colors shadow-sm shadow-brand-200 cursor-pointer">
+                        Get Started Free
+                    </a>
+                            </div>
+
+            
+            <button id="hamburger-btn" aria-label="Open menu"
+                class="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                onclick="toggleMobileMenu()">
+                <span class="ham-line block w-5 h-0.5 bg-gray-700 transition-all duration-300 rounded-full"></span>
+                <span class="ham-line block w-5 h-0.5 bg-gray-700 transition-all duration-300 rounded-full"></span>
+                <span class="ham-line block w-5 h-0.5 bg-gray-700 transition-all duration-300 rounded-full"></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+
+<div id="mobile-overlay" class="fixed inset-0 z-60" onclick="closeMobileMenuOnBackdrop(event)">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+    <div id="mobile-menu-panel"
+         class="absolute top-0 end-0 w-72 h-full bg-white shadow-2xl flex flex-col overflow-y-auto">
+
+        
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <a href="https://www.myotpway.online" class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
+                    <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                </div>
+                <span class="font-extrabold text-gray-900 text-sm tracking-tight">MY-OTP<span class="text-brand-600">Way</span></span>
+            </a>
+            <button onclick="closeMobileMenu()" class="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" aria-label="Close menu">
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        
+        <nav class="flex-1 px-4 py-4 space-y-1">
+            <a href="https://www.myotpway.online" onclick="closeMobileMenu()"
+               class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+                Home
+            </a>
+            <a href="https://www.myotpway.online/docs" onclick="closeMobileMenu()"
+               class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Docs
+            </a>
+            <a href="https://www.myotpway.online/docs/templates" onclick="closeMobileMenu()"
+               class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                Templates
+            </a>
+            <a href="https://www.myotpway.online/about" onclick="closeMobileMenu()"
+               class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                About
+            </a>
+            <a href="https://www.myotpway.online/contact" onclick="closeMobileMenu()"
+               class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Contact
+            </a>
+        </nav>
+
+        
+        <div class="px-4 py-4 border-t border-gray-100 space-y-3">
+                            <a href="https://www.myotpway.online/register" onclick="closeMobileMenu()"
+                   class="flex items-center justify-center w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-3 rounded-xl transition-colors text-sm">
+                    Get Started Free
+                </a>
+                <a href="https://www.myotpway.online/login" onclick="closeMobileMenu()"
+                   class="flex items-center justify-center w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-3 rounded-xl transition-colors text-sm">
+                    Sign In
+                </a>
+            
+            
+            <div class="lang-pill justify-center w-full">
+                <a href="https://www.myotpway.online/currency/IQD" class="active">IQD</a>
+                <a href="https://www.myotpway.online/currency/USD" class="">$ USD</a>
+            </div>
+
+            
+            <div class="lang-pill justify-center w-full">
+                <a href="https://www.myotpway.online/lang/ar" class="">عربي</a>
+                <a href="https://www.myotpway.online/lang/ku" class="">کوردی</a>
+                <a href="https://www.myotpway.online/lang/en" class="active">EN</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="pt-16">
+    
+<style>
+/* ── Hero dark background (pure CSS — bypasses Tailwind version issues) ── */
+.hero-dark-bg {
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────── */
+.hero-grid-bg {
+    background-image:
+        linear-gradient(rgba(34,197,94,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,197,94,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+.particle {
+    position: absolute;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.5);
+    animation: particle-drift linear infinite;
+}
+@keyframes particle-drift {
+    0%   { transform: translateY(0) translateX(0);   opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 0.6; }
+    100% { transform: translateY(-120px) translateX(30px); opacity: 0; }
+}
+
+/* Typewriter cursor */
+#typewriter-word::after {
+    content: '|';
+    animation: cur-blink 1s step-end infinite;
+    color: #22c55e;
+    margin-inline-start: 2px;
+}
+@keyframes cur-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Badge pulse rings */
+.badge-ring {
+    animation: badge-pulse 2.5s ease-out infinite;
+}
+.badge-ring-2 {
+    animation: badge-pulse 2.5s ease-out 0.8s infinite;
+}
+@keyframes badge-pulse {
+    0%   { transform: scale(1);   opacity: 0.6; }
+    100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Scroll indicator bounce */
+.scroll-indicator {
+    animation: bounce-y 1.6s ease-in-out infinite;
+}
+@keyframes bounce-y {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(10px); }
+}
+
+/* ── Terminal ──────────────────────────────────────────────────── */
+.terminal-glow {
+    transition: box-shadow 0.4s ease;
+}
+.terminal-glow:hover {
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.3), 0 20px 60px rgba(34,197,94,0.12);
+}
+.traffic-red    { background: #ff5f56; }
+.traffic-yellow { background: #ffbd2e; }
+.traffic-green  { background: #27c93f; }
+
+/* ── Stats shimmer border ──────────────────────────────────────── */
+.stat-card {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.stat-card:hover {
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.4), 0 8px 32px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
+}
+
+/* ── How It Works connector ───────────────────────────────────── */
+.step-connector {
+    height: 2px;
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+    width: 0%;
+    transition: width 1.2s ease 0.4s;
+}
+.step-connector.drawn { width: 100%; }
+
+/* ── Step circle dash animation ───────────────────────────────── */
+.step-circle-svg circle {
+    stroke-dasharray: 88;
+    stroke-dashoffset: 88;
+    transition: stroke-dashoffset 0.8s ease;
+}
+.step-visible .step-circle-svg circle {
+    stroke-dashoffset: 0;
+}
+
+/* ── Pricing glow ─────────────────────────────────────────────── */
+.pricing-popular-glow {
+    animation: pricing-glow 3s ease-in-out infinite;
+}
+@keyframes pricing-glow {
+    0%,100% { box-shadow: 0 0 15px rgba(22,163,74,0.25), 0 0 0 2px #16a34a; }
+    50%     { box-shadow: 0 0 35px rgba(22,163,74,0.5),  0 0 0 2px #22c55e; }
+}
+.pricing-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.pricing-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+}
+.pricing-card:hover .price-num {
+    transform: scale(1.06);
+    transition: transform 0.2s ease;
+}
+
+/* ── CTA animated gradient ─────────────────────────────────────── */
+.cta-bg {
+    background: linear-gradient(135deg, #0f172a, #16a34a, #0f172a, #15803d);
+    background-size: 300% 300%;
+    animation: cta-gradient 8s ease infinite;
+}
+@keyframes cta-gradient {
+    0%,100% { background-position: 0% 50%; }
+    50%     { background-position: 100% 50%; }
+}
+
+/* Ripple button */
+.ripple-btn {
+    position: relative;
+    overflow: hidden;
+}
+.ripple-btn .ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple-anim 0.6s linear;
+    background: rgba(255,255,255,0.25);
+    pointer-events: none;
+}
+@keyframes ripple-anim {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* ── Responsive stagger delays ─────────────────────────────────── */
+.delay-100 { transition-delay: 0.1s; }
+.delay-200 { transition-delay: 0.2s; }
+.delay-300 { transition-delay: 0.3s; }
+.delay-400 { transition-delay: 0.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+    .particle, .badge-ring, .badge-ring-2, .scroll-indicator,
+    .cta-bg, #typewriter-word::after { animation: none !important; }
+    .step-connector { width: 100% !important; transition: none !important; }
+}
+</style>
+
+
+<section class="hero-dark-bg relative min-h-screen flex items-center justify-center overflow-hidden">
+
+    
+    <div class="absolute inset-0 hero-grid-bg opacity-100"></div>
+
+    
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-[600px] h-[600px] rounded-full blur-3xl" style="background:rgba(22,163,74,0.1);"></div>
+    </div>
+
+    
+    <div id="particles-container" class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true"></div>
+
+    
+    <div class="relative z-10 text-center max-w-5xl mx-auto px-4 py-20">
+
+        
+        <div class="inline-flex items-center gap-2.5 bg-white/5 border border-white/10 text-green-400 text-sm font-semibold px-4 py-2 rounded-full mb-8 backdrop-blur-sm">
+            <span class="relative flex items-center justify-center w-4 h-4 shrink-0">
+                <span class="badge-ring absolute inline-flex w-full h-full rounded-full bg-green-400 opacity-60"></span>
+                <span class="badge-ring-2 absolute inline-flex w-full h-full rounded-full bg-green-400 opacity-40"></span>
+                <span class="relative w-2 h-2 rounded-full bg-green-500"></span>
+            </span>
+            Pay as you go — No subscriptions, no hidden fees
+        </div>
+
+        
+        <div class="inline-flex items-center gap-2 text-green-400 text-sm font-mono bg-green-950/40 border border-green-800/30 px-3 py-1.5 rounded-full mb-5">
+            <span class="text-slate-600 select-none">$</span>
+            <span id="typewriter-word">WhatsApp OTP</span>
+        </div>
+
+        
+        <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] tracking-tight mb-6">
+            Send OTP via WhatsApp with one API call
+        </h1>
+
+        <p class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Integrate WhatsApp OTP verification into your app in minutes. Reliable delivery, simple API, transparent volume pricing.
+        </p>
+
+        
+        <div class="flex flex-col sm:flex-row justify-center gap-4 mb-14">
+            <a href="https://www.myotpway.online/register"
+               class="ripple-btn btn-shimmer bg-brand-600 hover:bg-brand-700 text-white font-bold px-8 py-4 rounded-xl text-base transition-all shadow-lg shadow-brand-900/40 hover:shadow-brand-900/60 hover:-translate-y-0.5 cursor-pointer"
+               onclick="addRipple(event, this)">
+                Start Now — No Credit Card
+            </a>
+            <a href="#how-it-works"
+               class="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white font-semibold px-8 py-4 rounded-xl text-base transition-all backdrop-blur-sm cursor-pointer">
+                See How It Works
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </a>
+        </div>
+
+        
+        <div class="flex flex-wrap justify-center gap-5 text-sm text-slate-400">
+                        <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                No monthly fees
+            </span>
+                        <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                No credit card required
+            </span>
+                        <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                Automatic SMS fallback
+            </span>
+                        <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                WhatsApp Business API
+            </span>
+                    </div>
+    </div>
+
+    
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 scroll-indicator" aria-hidden="true">
+        <div class="w-5 h-8 rounded-full border-2 border-white/20 flex items-start justify-center pt-1.5">
+            <div class="w-1 h-2 rounded-full bg-white/40"></div>
+        </div>
+    </div>
+</section>
+
+
+<section class="bg-slate-950 py-20">
+    <div class="max-w-4xl mx-auto px-4">
+        <p class="text-slate-500 text-sm mb-6 text-center font-mono tracking-wide uppercase">
+            Send an OTP in 3 lines
+        </p>
+
+        
+        <div class="terminal-glow bg-slate-900 rounded-2xl overflow-hidden border border-slate-800" data-animate>
+            
+            <div class="flex items-center gap-2 px-5 py-3.5 bg-slate-800/80 border-b border-slate-700/50">
+                <span class="traffic-red w-3 h-3 rounded-full"></span>
+                <span class="traffic-yellow w-3 h-3 rounded-full"></span>
+                <span class="traffic-green w-3 h-3 rounded-full"></span>
+                <span class="text-slate-500 text-xs font-mono ms-3">terminal — bash</span>
+            </div>
+
+            <div class="p-6 font-mono text-sm overflow-x-auto" dir="ltr">
+                <div id="terminal-output" class="space-y-1"></div>
+
+                
+                <div id="terminal-response" class="mt-4 opacity-0 transition-opacity duration-700">
+                    <p class="text-slate-500 mb-2"># Response</p>
+                    <div class="bg-slate-800/60 rounded-xl p-4 border border-green-900/30">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-900/40 px-2.5 py-1 rounded-full border border-green-800/50">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                200 OK
+                            </span>
+                        </div>
+                        <pre class="text-green-400 text-xs leading-relaxed">{
+  "request_id": "req_abc-123",
+  "status":     "sent",
+  "expires_in": 300
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<section class="py-16 bg-white border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            
+                        <div class="stat-card bg-white border border-gray-200 rounded-2xl p-6 text-center cursor-default" data-animate style="transition-delay: 0ms">
+                <div class="text-4xl font-extrabold text-brand-600 mb-1 tabular-nums">
+                                            <span class="stat-counter"
+                              data-target="17018"
+                              data-decimal="0"
+                              data-prefix=""
+                              data-suffix="">
+                            17,018
+                        </span>
+                                    </div>
+                <div class="text-gray-500 text-sm">Messages Delivered</div>
+            </div>
+                        <div class="stat-card bg-white border border-gray-200 rounded-2xl p-6 text-center cursor-default" data-animate style="transition-delay: 100ms">
+                <div class="text-4xl font-extrabold text-blue-600 mb-1 tabular-nums">
+                                            <span class="stat-counter"
+                              data-target="2"
+                              data-decimal="0"
+                              data-prefix=""
+                              data-suffix="s">
+                            2s
+                        </span>
+                                    </div>
+                <div class="text-gray-500 text-sm">Delivery Time</div>
+            </div>
+                        <div class="stat-card bg-white border border-gray-200 rounded-2xl p-6 text-center cursor-default" data-animate style="transition-delay: 200ms">
+                <div class="text-4xl font-extrabold text-purple-600 mb-1 tabular-nums">
+                                            39 IQD
+                                    </div>
+                <div class="text-gray-500 text-sm">Starting at</div>
+            </div>
+                        <div class="stat-card bg-white border border-gray-200 rounded-2xl p-6 text-center cursor-default" data-animate style="transition-delay: 300ms">
+                <div class="text-4xl font-extrabold text-orange-600 mb-1 tabular-nums">
+                                            24/7
+                                    </div>
+                <div class="text-gray-500 text-sm">Support</div>
+            </div>
+                    </div>
+    </div>
+</section>
+
+
+<section id="how-it-works" class="py-24 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16" data-animate>
+            <span class="text-brand-600 text-sm font-semibold uppercase tracking-widest mb-3 block">How It Works</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">How It Works</h2>
+        </div>
+
+        
+        <div class="hidden md:block">
+            
+            <div class="relative mx-auto max-w-4xl mb-8 px-20">
+                <div class="h-0.5 bg-gray-200 w-full">
+                    <div id="step-connector" class="step-connector h-full"></div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-4 gap-8">
+                                <div class="step-item text-center group cursor-default"
+                     data-animate
+                     style="transition-delay: 0ms">
+                    <div class="flex justify-center mb-5">
+                        <div class="relative">
+                            <svg class="step-circle-svg w-16 h-16 -rotate-90" viewBox="0 0 32 32">
+                                <circle cx="16" cy="16" r="14" fill="none" stroke="#e5e7eb" stroke-width="1.5"/>
+                                <circle cx="16" cy="16" r="14" fill="none" class="stroke-blue-400" stroke-width="2"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center text-lg font-extrabold text-blue-600">
+                                1
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-gray-900 text-base mb-2 group-hover:text-brand-600 transition-colors">Create Account</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed">Sign up, top up your wallet, and unlock better rates instantly.</p>
+                </div>
+                                <div class="step-item text-center group cursor-default"
+                     data-animate
+                     style="transition-delay: 150ms">
+                    <div class="flex justify-center mb-5">
+                        <div class="relative">
+                            <svg class="step-circle-svg w-16 h-16 -rotate-90" viewBox="0 0 32 32">
+                                <circle cx="16" cy="16" r="14" fill="none" stroke="#e5e7eb" stroke-width="1.5"/>
+                                <circle cx="16" cy="16" r="14" fill="none" class="stroke-purple-400" stroke-width="2"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center text-lg font-extrabold text-purple-600">
+                                2
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-gray-900 text-base mb-2 group-hover:text-brand-600 transition-colors">Generate API Key</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed">Create your API key from your dashboard.</p>
+                </div>
+                                <div class="step-item text-center group cursor-default"
+                     data-animate
+                     style="transition-delay: 300ms">
+                    <div class="flex justify-center mb-5">
+                        <div class="relative">
+                            <svg class="step-circle-svg w-16 h-16 -rotate-90" viewBox="0 0 32 32">
+                                <circle cx="16" cy="16" r="14" fill="none" stroke="#e5e7eb" stroke-width="1.5"/>
+                                <circle cx="16" cy="16" r="14" fill="none" class="stroke-brand-500" stroke-width="2"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center text-lg font-extrabold text-brand-600">
+                                3
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-gray-900 text-base mb-2 group-hover:text-brand-600 transition-colors">Send OTP</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed">One POST request sends a WhatsApp OTP to any number.</p>
+                </div>
+                                <div class="step-item text-center group cursor-default"
+                     data-animate
+                     style="transition-delay: 450ms">
+                    <div class="flex justify-center mb-5">
+                        <div class="relative">
+                            <svg class="step-circle-svg w-16 h-16 -rotate-90" viewBox="0 0 32 32">
+                                <circle cx="16" cy="16" r="14" fill="none" stroke="#e5e7eb" stroke-width="1.5"/>
+                                <circle cx="16" cy="16" r="14" fill="none" class="stroke-orange-400" stroke-width="2"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center text-lg font-extrabold text-orange-600">
+                                4
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-gray-900 text-base mb-2 group-hover:text-brand-600 transition-colors">Verify</h3>
+                    <p class="text-gray-500 text-sm leading-relaxed">Verify the code with another POST request. Done.</p>
+                </div>
+                            </div>
+        </div>
+
+        
+        <div class="md:hidden space-y-6">
+                        <div class="flex items-start gap-4" data-animate style="transition-delay: 0ms">
+                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-extrabold shrink-0">
+                    1
+                </div>
+                <div class="pt-1">
+                    <h3 class="font-bold text-gray-900 mb-1">Create Account</h3>
+                    <p class="text-gray-500 text-sm">Sign up, top up your wallet, and unlock better rates instantly.</p>
+                </div>
+            </div>
+                        <div class="flex items-start gap-4" data-animate style="transition-delay: 120ms">
+                <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center text-xl font-extrabold shrink-0">
+                    2
+                </div>
+                <div class="pt-1">
+                    <h3 class="font-bold text-gray-900 mb-1">Generate API Key</h3>
+                    <p class="text-gray-500 text-sm">Create your API key from your dashboard.</p>
+                </div>
+            </div>
+                        <div class="flex items-start gap-4" data-animate style="transition-delay: 240ms">
+                <div class="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center text-xl font-extrabold shrink-0">
+                    3
+                </div>
+                <div class="pt-1">
+                    <h3 class="font-bold text-gray-900 mb-1">Send OTP</h3>
+                    <p class="text-gray-500 text-sm">One POST request sends a WhatsApp OTP to any number.</p>
+                </div>
+            </div>
+                        <div class="flex items-start gap-4" data-animate style="transition-delay: 360ms">
+                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center text-xl font-extrabold shrink-0">
+                    4
+                </div>
+                <div class="pt-1">
+                    <h3 class="font-bold text-gray-900 mb-1">Verify</h3>
+                    <p class="text-gray-500 text-sm">Verify the code with another POST request. Done.</p>
+                </div>
+            </div>
+                    </div>
+    </div>
+</section>
+
+
+<section id="templates" class="py-24 bg-slate-950 relative overflow-hidden">
+
+    
+    <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-1/4 w-80 h-80 bg-green-500/8 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 relative">
+
+        
+        <div class="text-center mb-16" data-animate>
+            <span class="inline-flex items-center gap-2 bg-brand-500/20 border border-brand-500/40 text-brand-300 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Template Library
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-4">
+                Ready-to-Use WhatsApp Templates
+            </h2>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                Authentication, utility, and marketing templates in English &amp; Arabic — copy the cURL and start sending in minutes.
+            </p>
+        </div>
+
+        
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                                    <div class="group bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-brand-500/50 hover:bg-slate-800/70 transition-all duration-300"
+                 data-animate style="transition-delay: 0ms">
+
+                
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <span class="text-blue-400 text-xs font-bold bg-blue-400/10 px-2.5 py-1 rounded-full">
+                            🔐 Authentication
+                        </span>
+                        <p class="font-mono text-sm text-neutral-400 mt-2 truncate">verify_transaction_3</p>
+                    </div>
+                    <span class="text-slate-600 text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg uppercase">en</span>
+                </div>
+
+                
+                                <div class="bg-[#1a2a1e] rounded-xl p-3">
+                    <div class="bg-[#202c33] rounded-xl p-3 max-w-full" >
+                                                <p class="text-sm text-gray-200 leading-relaxed">Use code *<span class="text-brand-400 font-semibold"></span>* to verify your transaction of <span class="text-brand-400 font-semibold"></span> on your card ending in <span class="text-brand-400 font-semibold"></span>. If you did not request this transaction, please contact support.</p>
+                        <div class="text-right text-[10px] text-slate-500 mt-1">12:00 ✓✓</div>
+                    </div>
+                </div>
+
+                
+                                <div class="mt-3 flex items-center gap-1.5">
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;1&#125;&#125;
+                    </span>
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;2&#125;&#125;
+                    </span>
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;3&#125;&#125;
+                    </span>
+                                    </div>
+                
+            </div>
+                                    <div class="group bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-brand-500/50 hover:bg-slate-800/70 transition-all duration-300"
+                 data-animate style="transition-delay: 100ms">
+
+                
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <span class="text-amber-400 text-xs font-bold bg-amber-400/10 px-2.5 py-1 rounded-full">
+                            ⚙️ Utility
+                        </span>
+                        <p class="font-mono text-sm text-neutral-400 mt-2 truncate">order_completed_with_course</p>
+                    </div>
+                    <span class="text-slate-600 text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg uppercase">en</span>
+                </div>
+
+                
+                                <div class="bg-[#1a2a1e] rounded-xl p-3">
+                    <div class="bg-[#202c33] rounded-xl p-3 max-w-full" >
+                                                <p class="text-sm font-semibold text-white mb-1">{{header}}</p>
+                                                <p class="text-sm text-gray-200 leading-relaxed">تم تجهيز طلبك *<span class="text-brand-400 font-semibold"></span>* وهو حاليا عند شركة التوصيل وسيصل اليكم خلال 48 ساعة.
+
+يرجى التأكد من:
+1) تنزيل آخر إصدار من التطبيق من المتجر الإلكتروني
+2) التأكد من وجود الدورة في خانة "دوراتي"
+3) الدخول إلى مجموعة الدورة عبر الرابط:
+
+<span class="text-brand-400 font-semibold"></span>
+
+سيتم إرسال روابط المحاضرات المباشرة داخل هذه المجموعة.
+اتصل على *<span class="text-brand-400 font-semibold"></span>* للتواصل مع الدعم التقني</p>
+                        <div class="text-right text-[10px] text-slate-500 mt-1">12:00 ✓✓</div>
+                    </div>
+                </div>
+
+                
+                                <div class="mt-3 flex items-center gap-1.5">
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;url&#125;&#125;
+                    </span>
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;title&#125;&#125;
+                    </span>
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;header&#125;&#125;
+                    </span>
+                                        <span class="text-[11px] font-mono bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                        &#123;&#123;phone_sup&#125;&#125;
+                    </span>
+                                    </div>
+                
+            </div>
+                    </div>
+        
+        
+        <div class="mb-10 rounded-2xl border border-brand-500/40 bg-slate-800/80 p-6 sm:p-8 relative overflow-hidden"
+             style="box-shadow: 0 0 0 1px rgba(34,197,94,0.2), 0 8px 40px rgba(34,197,94,0.08);"
+             data-animate>
+
+            
+            <div class="absolute inset-0 pointer-events-none">
+                <div class="absolute -top-12 -right-12 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl"></div>
+                <div class="absolute -bottom-8 -left-8 w-48 h-48 bg-green-500/8 rounded-full blur-2xl"></div>
+            </div>
+
+            <div class="relative flex flex-col md:flex-row items-start md:items-center gap-6">
+
+                
+                <div class="flex-1">
+                    <span class="inline-flex items-center gap-1.5 bg-brand-500/20 border border-brand-500/40 text-brand-300 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Managed Service
+                    </span>
+
+                    <h3 class="text-white font-extrabold text-xl sm:text-2xl mb-2">
+                        Need a Custom Template?
+                    </h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-5 max-w-xl">
+                        Don&#039;t see what you need? Tell us what you want — we&#039;ll write the template, submit it to Meta, and track approval. All on your behalf.
+                    </p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <div class="flex items-center gap-2 text-sm text-slate-300">
+                            <span class="w-5 h-5 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center shrink-0">
+                                <svg class="w-3 h-3 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </span>
+                            We write the template for you
+                        </div>
+                                                <div class="flex items-center gap-2 text-sm text-slate-300">
+                            <span class="w-5 h-5 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center shrink-0">
+                                <svg class="w-3 h-3 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </span>
+                            We submit to Meta &amp; handle approval
+                        </div>
+                                                <div class="flex items-center gap-2 text-sm text-slate-300">
+                            <span class="w-5 h-5 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center shrink-0">
+                                <svg class="w-3 h-3 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </span>
+                            Ready in 24–48 hours
+                        </div>
+                                                <div class="flex items-center gap-2 text-sm text-slate-300">
+                            <span class="w-5 h-5 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center shrink-0">
+                                <svg class="w-3 h-3 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </span>
+                            Supports Auth / Utility / Marketing
+                        </div>
+                                            </div>
+                </div>
+
+                
+                <div class="shrink-0">
+                    <a href="https://www.myotpway.online/contact"
+                       class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-brand-900/40 hover:-translate-y-0.5 hover:shadow-brand-800/60 whitespace-nowrap">
+                        Request a Custom Template
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                        </svg>
+                    </a>
+                    <p class="text-slate-500 text-xs mt-2 text-center">No credit card required</p>
+                </div>
+
+            </div>
+        </div>
+
+        
+        <div class="flex flex-wrap justify-center gap-4 sm:gap-10 mb-12 text-center" data-animate>
+                        <div class="text-slate-400">
+                <div class="text-2xl mb-1">🔐</div>
+                <div class="text-white font-bold text-sm">Authentication</div>
+                <div class="text-slate-500 text-xs">OTP &amp; verification</div>
+            </div>
+                        <div class="text-slate-400">
+                <div class="text-2xl mb-1">⚙️</div>
+                <div class="text-white font-bold text-sm">Utility</div>
+                <div class="text-slate-500 text-xs">Notifications &amp; alerts</div>
+            </div>
+                        <div class="text-slate-400">
+                <div class="text-2xl mb-1">📣</div>
+                <div class="text-white font-bold text-sm">Marketing</div>
+                <div class="text-slate-500 text-xs">Promotions &amp; offers</div>
+            </div>
+                        <div class="text-slate-400">
+                <div class="text-2xl mb-1">🌍</div>
+                <div class="text-white font-bold text-sm">EN / AR</div>
+                <div class="text-slate-500 text-xs">2 languages</div>
+            </div>
+            
+            
+            <a href="https://www.myotpway.online/contact"
+               class="text-slate-400 group hover:text-brand-400 transition-colors">
+                <div class="text-2xl mb-1">✏️</div>
+                <div class="text-white group-hover:text-brand-400 font-bold text-sm transition-colors">
+                    Custom
+                </div>
+                <div class="text-slate-500 group-hover:text-brand-500 text-xs transition-colors flex items-center justify-center gap-1">
+                    Contact us
+                    <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                </div>
+            </a>
+        </div>
+
+        
+        <div class="text-center" data-animate>
+            <a href="https://www.myotpway.online/docs/templates"
+               class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-brand-900/40 hover:-translate-y-0.5 hover:shadow-brand-800/60">
+                Browse All Templates
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            </a>
+            <p class="text-slate-500 text-sm mt-3">Free to browse — sign up to use via API</p>
+        </div>
+
+    </div>
+</section>
+
+
+<section id="campaigns" class="py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-4">
+
+        
+        <div class="text-center mb-12" data-animate>
+            <span class="inline-flex items-center gap-2 bg-brand-50 border border-brand-300 text-brand-700 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+                </span>
+                New — Bulk Campaigns
+            </span>
+            <h2 class="text-3xl sm:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
+                A full WhatsApp campaign — in one click
+            </h2>
+            <p class="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+                Upload your customer list from Excel, pick an approved template, and reach thousands of customers — each with a message personalized in their own name.
+            </p>
+        </div>
+
+        
+        <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-6 items-center" data-animate>
+
+            
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                    Your Excel file
+                </p>
+                <div class="rounded-xl border border-gray-200 overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="bg-gray-50 text-gray-500">
+                                <th class="p-2.5 text-start font-semibold border-b border-gray-200">phone</th>
+                                <th class="p-2.5 text-start font-semibold border-b border-gray-200">name</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-800">
+                            <tr class="border-b border-gray-100">
+                                <td class="p-2.5 font-mono" dir="ltr">+964 770 123 4567</td>
+                                <td class="p-2.5">أحمد</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2.5 font-mono" dir="ltr">+964 770 987 6543</td>
+                                <td class="p-2.5">سارة</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex justify-center my-1 md:hidden">
+                    <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                    </svg>
+                </div>
+            </div>
+
+            
+            <div>
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                    What your customers receive
+                </p>
+                <div class="rounded-2xl p-4 bg-[#ECE5DD] border border-gray-200">
+                    <div class="space-y-2.5">
+                        <div class="bg-white rounded-xl rounded-ss-sm shadow-sm px-3.5 py-2.5 text-sm max-w-[90%]" dir="auto">
+                            Hi Ahmed 👋 our new offer is waiting for you — 20% off until Thursday.
+                            <div class="text-[10px] text-gray-400 text-end mt-1">10:24 <span class="text-sky-500">✓✓</span></div>
+                        </div>
+                        <div class="bg-white rounded-xl rounded-ss-sm shadow-sm px-3.5 py-2.5 text-sm max-w-[90%]" dir="auto">
+                            Hi Sara 👋 our new offer is waiting for you — 20% off until Thursday.
+                            <div class="text-[10px] text-gray-400 text-end mt-1">10:24 <span class="text-sky-500">✓✓</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-14" data-animate>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Import from Excel</p>
+                <p class="text-xs text-gray-500 leading-relaxed">Upload once, save your numbers in reusable groups with their names and details.</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Personalized for everyone</p>
+                <p class="text-xs text-gray-500 leading-relaxed">Map template variables to your columns — every customer reads their own name.</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Live tracking</p>
+                <p class="text-xs text-gray-500 leading-relaxed">Watch every message go out: sent, delivered, or failed — number by number.</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Cost under control</p>
+                <p class="text-xs text-gray-500 leading-relaxed">See the full cost before launching. The campaign never spends more than your balance.</p>
+            </div>
+
+        </div>
+
+        
+        <div class="text-center mt-12" data-animate>
+            <a href="https://www.myotpway.online/register"
+               class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-10 py-4 rounded-xl text-lg transition-all shadow-lg hover:-translate-y-0.5">
+                Start your first campaign
+            </a>
+            <p class="text-xs text-gray-400 mt-3">Included in every account — pay only per delivered message.</p>
+        </div>
+
+    </div>
+</section>
+
+
+<section class="py-24 relative overflow-hidden" style="background: linear-gradient(135deg, #020617 0%, #0d1929 60%, #020617 100%);">
+
+    
+    <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div class="absolute top-1/4 left-1/4 w-72 h-72 bg-green-500/8 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-500/6 rounded-full blur-3xl"></div>
+        <div class="absolute top-10 right-10 w-48 h-48 bg-emerald-500/5 rounded-full blur-2xl"></div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 relative">
+
+        
+        <div class="text-center mb-12" data-animate>
+            <span class="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full mb-5 shadow-lg shadow-emerald-900/30">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                ✨ New Feature
+            </span>
+            <h2 class="text-3xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
+                Send messages with your name &amp; logo
+            </h2>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+                Get a WhatsApp Business number dedicated to your brand — your name and logo appear on every message you send to your customers.
+            </p>
+        </div>
+
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16" data-animate>
+
+            
+            <div class="relative pt-4">
+                <div class="absolute -top-1 start-4 bg-slate-700 text-slate-300 text-xs font-bold px-3 py-1 rounded-full">
+                    ❌ Without a custom number
+                </div>
+                <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-5 pt-6">
+                    
+                    <div class="flex items-center gap-3 mb-4 pb-4 border-b border-slate-700" dir="ltr">
+                        <div class="w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center text-slate-400 text-xl font-bold shrink-0">?</div>
+                        <div>
+                            <p class="text-white font-semibold text-sm">+964 7XX XXX XXXX</p>
+                            <p class="text-slate-500 text-xs">Unknown number — no name shown</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2" dir="ltr">
+                        <div class="bg-[#202c33] rounded-xl rounded-tl-sm px-4 py-3 max-w-[85%] inline-block">
+                            <p class="text-gray-200 text-sm leading-relaxed" dir="auto">Your verification code: <span class="font-bold text-white font-mono">482951</span></p>
+                            <p class="text-slate-500 text-[10px] text-end mt-1">10:24 ✓✓</p>
+                        </div>
+                    </div>
+                    <p class="text-slate-600 text-xs text-center mt-3 italic">Your customer doesn&#039;t know who sent this!</p>
+                </div>
+            </div>
+
+            
+            <div class="relative pt-4">
+                <div class="absolute -top-1 start-4 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold px-3 py-1 rounded-full">
+                    ✅ With your branded number
+                </div>
+                <div class="bg-slate-800/70 border border-emerald-500/40 rounded-2xl p-5 pt-6"
+                     style="box-shadow: 0 0 0 1px rgba(16,185,129,0.2), 0 8px 32px rgba(16,185,129,0.06);">
+                    
+                    <div class="flex items-center gap-3 mb-4 pb-4 border-b border-slate-700" dir="ltr">
+                        
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white text-sm font-extrabold shrink-0 shadow-lg shadow-emerald-900/40 overflow-hidden">
+                            <svg class="w-6 h-6 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold text-sm">Your Company</p>
+                            <p class="text-slate-400 text-xs">WhatsApp Business</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2" dir="ltr">
+                        <div class="bg-[#202c33] rounded-xl rounded-tl-sm px-4 py-3 max-w-[85%] inline-block">
+                            <p class="text-gray-200 text-sm leading-relaxed" dir="auto">Your verification code: <span class="font-bold text-emerald-400 font-mono">482951</span></p>
+                            <p class="text-slate-500 text-[10px] text-end mt-1">10:24 ✓✓</p>
+                        </div>
+                    </div>
+                    <p class="text-emerald-400/80 text-xs text-center mt-3 font-medium">Your customer recognises your brand instantly!</p>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="flex flex-wrap justify-center gap-3 mb-16" data-animate>
+                        <span class="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 hover:border-emerald-500/50 text-slate-300 text-sm px-4 py-2 rounded-full transition-colors duration-200 cursor-default">
+                <span>🏷️</span>
+                <span>Your brand name as sender</span>
+            </span>
+                        <span class="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 hover:border-emerald-500/50 text-slate-300 text-sm px-4 py-2 rounded-full transition-colors duration-200 cursor-default">
+                <span>🖼️</span>
+                <span>Your logo as profile picture</span>
+            </span>
+                        <span class="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 hover:border-emerald-500/50 text-slate-300 text-sm px-4 py-2 rounded-full transition-colors duration-200 cursor-default">
+                <span>📞</span>
+                <span>Dedicated number for your business</span>
+            </span>
+                        <span class="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 hover:border-emerald-500/50 text-slate-300 text-sm px-4 py-2 rounded-full transition-colors duration-200 cursor-default">
+                <span>🔒</span>
+                <span>Higher customer trust</span>
+            </span>
+                        <span class="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 hover:border-emerald-500/50 text-slate-300 text-sm px-4 py-2 rounded-full transition-colors duration-200 cursor-default">
+                <span>📈</span>
+                <span>Higher open rate</span>
+            </span>
+                    </div>
+
+        
+        <div class="max-w-3xl mx-auto" data-animate>
+            <div class="relative rounded-2xl overflow-hidden"
+                 style="background: linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.08) 100%); border: 1px solid rgba(16,185,129,0.3); box-shadow: 0 0 0 1px rgba(16,185,129,0.1), 0 20px 60px rgba(16,185,129,0.08);">
+                <div class="absolute inset-0 pointer-events-none">
+                    <div class="absolute -end-8 -top-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-start">
+                    <div>
+                                                <p class="text-white font-bold text-xl mb-1">Want a custom number for your business?</p>
+                        <p class="text-slate-400 text-sm">Contact us and we&#039;ll set up your branded WhatsApp Business number with your logo and name — 153,000 IQD/year. Message receiving and the menu bot are optional add-on subscriptions.</p>
+                    </div>
+                    <div class="shrink-0">
+                        <a href="https://www.myotpway.online/contact"
+                           class="inline-flex items-center gap-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-7 py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-emerald-900/40 hover:-translate-y-0.5 hover:shadow-emerald-800/50 whitespace-nowrap">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            Contact Us Now
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7M17 7H7M17 7v10"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+<section id="bot" class="py-24 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-4">
+
+        
+        <div class="text-center mb-12" data-animate>
+            <span class="inline-flex items-center gap-2 bg-brand-50 border border-brand-300 text-brand-700 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+                </span>
+                New — Auto-reply bot
+            </span>
+            <h2 class="text-3xl sm:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
+                A bot that answers your customers 24/7
+            </h2>
+            <p class="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+                Attach an interactive menu bot to your dedicated WhatsApp number: instant answers, tappable buttons, and one-tap handoff to a human — you build the whole menu from your dashboard, no code.
+            </p>
+        </div>
+
+        
+        <div class="max-w-md mx-auto" data-animate>
+            <div class="rounded-2xl p-4 bg-[#ECE5DD] border border-gray-200 space-y-2.5 text-sm">
+                <div class="flex justify-end">
+                    <span class="bg-[#d9fdd3] text-gray-800 rounded-xl rounded-br-sm px-3.5 py-2 shadow-sm">Hello</span>
+                </div>
+                <div class="max-w-[88%]">
+                    <div class="bg-white text-gray-800 rounded-xl rounded-bl-sm px-3.5 py-2.5 shadow-sm">Welcome to Al-Noor Store! How can we help?</div>
+                    <div class="mt-1 space-y-1">
+                        <div class="bg-white text-emerald-600 font-semibold text-center rounded-lg py-1.5 shadow-sm">Prices &amp; offers</div>
+                        <div class="bg-white text-emerald-600 font-semibold text-center rounded-lg py-1.5 shadow-sm ring-2 ring-emerald-400">Store info</div>
+                        <div class="bg-white text-emerald-600 font-semibold text-center rounded-lg py-1.5 shadow-sm">Talk to an agent</div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-500 text-center">👆 Customer taps: "Store info"</p>
+                <div class="max-w-[88%]">
+                    <div class="bg-white text-gray-800 rounded-xl rounded-bl-sm px-3.5 py-2.5 shadow-sm">📍 Baghdad – Karrada, St. 62. Daily 10am–10pm except Friday</div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-14" data-animate>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Answers 24/7 — free</p>
+                <p class="text-xs text-gray-500 leading-relaxed">Every customer message gets your menu instantly, at no per-message cost (service-window replies are free).</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Buttons &amp; menus</p>
+                <p class="text-xs text-gray-500 leading-relaxed">Two-level interactive menus with real WhatsApp buttons — prices, tracking, addresses, anything.</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Human handoff</p>
+                <p class="text-xs text-gray-500 leading-relaxed">A &quot;talk to an agent&quot; button silences the bot and hands the chat to you in the live inbox.</p>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 text-center hover:shadow-sm transition">
+                <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-gray-900 mb-1">Priority alerts</p>
+                <p class="text-xs text-gray-500 leading-relaxed">Mark buttons like &quot;confirm purchase&quot; — whoever taps them jumps to the top of your inbox with an alert.</p>
+            </div>
+
+        </div>
+
+        
+                <div class="text-center mt-12" data-animate>
+            <a href="https://www.myotpway.online/register"
+               class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-10 py-4 rounded-xl text-lg transition-all shadow-lg hover:-translate-y-0.5">
+                Build your bot now
+            </a>
+            <p class="text-xs text-gray-400 mt-3">7 days free, then 15,300 IQD/month or 153,000 IQD/year per number</p>
+        </div>
+
+    </div>
+</section>
+
+
+<section id="inbox" class="py-24 bg-slate-950 relative overflow-hidden">
+
+    
+    <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-1/4 w-80 h-80 bg-brand-500/8 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 relative">
+
+        
+        <div class="text-center mb-12" data-animate>
+            <span class="inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18M17 8l4 4m0 0l-4 4"/>
+                </svg>
+                Two-way messaging
+            </span>
+            <h2 class="text-3xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
+                Receive your customers&#039; replies — and answer free for 24 hours
+            </h2>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+                Your dedicated number doesn&#039;t just send: every customer reply lands in a WhatsApp-style inbox on your dashboard, in real time — and reaches your system via API and webhooks.
+            </p>
+        </div>
+
+        
+        <div class="max-w-md mx-auto" data-animate>
+            <div class="rounded-2xl p-4 bg-[#0b141a] border border-slate-800 shadow-2xl shadow-emerald-900/20 space-y-2.5 text-sm">
+                <div class="max-w-[88%]">
+                    <div class="bg-[#202c33] text-slate-100 rounded-xl rounded-bl-sm px-3.5 py-2.5 shadow-sm">Hello</div>
+                </div>
+                <div class="flex justify-center">
+                    <span class="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold px-3 py-1 rounded-full">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Free 24-hour window
+                    </span>
+                </div>
+                <div class="flex justify-end">
+                    <span class="bg-[#005c4b] text-slate-100 rounded-xl rounded-br-sm px-3.5 py-2 shadow-sm">Open your inbox ✅</span>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mt-14" data-animate>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center hover:border-emerald-500/50 transition">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white mb-1">Live inbox</p>
+                <p class="text-xs text-slate-400 leading-relaxed">WhatsApp-style conversations on your dashboard: contact names, unread counts, and instant delivery over websockets.</p>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center hover:border-emerald-500/50 transition">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white mb-1">Free 24-hour window</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Every message a customer sends opens a 24-hour service window — reply with free text during it, no template and at zero cost.</p>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center hover:border-emerald-500/50 transition">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white mb-1">Media included</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Photos, voice notes, videos and documents your customers send show up right in the conversation.</p>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center hover:border-emerald-500/50 transition">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"/>
+                    </svg>
+                </div>
+                <p class="text-sm font-bold text-white mb-1">API &amp; webhooks</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Pull incoming messages from the API or get a message.received webhook the moment one arrives — build on top of it.</p>
+            </div>
+
+        </div>
+
+        
+                <div class="text-center mt-12" data-animate>
+            <a href="https://www.myotpway.online/register"
+               class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold px-10 py-4 rounded-xl text-lg transition-all shadow-lg shadow-emerald-900/40 hover:-translate-y-0.5">
+                Open your inbox
+            </a>
+            <p class="text-xs text-slate-500 mt-3">7 days free, then 15,300 IQD/month or 153,000 IQD/year per number</p>
+        </div>
+
+    </div>
+</section>
+
+
+<section id="pricing" class="py-24 bg-white">
+    <div class="max-w-5xl mx-auto px-4">
+        <div class="text-center mb-4" data-animate>
+            <span class="text-brand-600 text-sm font-semibold uppercase tracking-widest mb-3 block">Pricing</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3">Volume-Based Pricing</h2>
+            <p class="text-gray-500 max-w-lg mx-auto">The more you deposit, the less you pay per message. No monthly fees.</p>
+            <p class="text-xs text-gray-400 mt-2">Price tier is based on the amount of each single top-up.</p>
+        </div>
+
+        
+        <div class="flex justify-center mt-6" data-animate>
+            <div class="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-xl p-1">
+                <span class="sr-only">Currency</span>
+                                                <a href="https://www.myotpway.online/currency/IQD?anchor=pricing"
+                    aria-current="true"                    class="px-5 py-2 rounded-lg text-sm font-bold transition-colors bg-white text-gray-900 shadow-sm">
+                    IQD
+                </a>
+                                                <a href="https://www.myotpway.online/currency/USD?anchor=pricing"
+                                      class="px-5 py-2 rounded-lg text-sm font-bold transition-colors text-gray-500 hover:text-gray-800">
+                    $ USD
+                </a>
+                            </div>
+        </div>
+
+        
+        <div class="grid md:grid-cols-4 gap-6 mt-12">
+                                    <div class="pricing-card relative flex flex-col rounded-2xl border border-gray-200 bg-white"
+                 data-animate style="transition-delay: 0ms">
+
+                
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="font-bold text-lg mb-1 text-gray-900">Starter</h3>
+                    <p class="text-xs mb-5 text-gray-400">
+                                                    Any deposit
+                                            </p>
+
+                    
+                    <div class="mb-0.5">
+                        <span class="price-num text-4xl font-extrabold text-gray-900 tabular-nums transition-transform inline-block">
+                            42 IQD
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-400 mb-4">/OTP (Authentication)</div>
+
+                    
+                    <div class="space-y-1.5 mb-6">
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                                Utility
+                            </span>
+                            <span class="font-mono font-semibold text-purple-700">29 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
+                                Marketing
+                            </span>
+                            <span class="font-mono font-semibold text-orange-600">64 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                                SMS
+                            </span>
+                            <span class="font-mono font-semibold text-blue-700">224 IQD</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="https://www.myotpway.online/register"
+                           class="block text-center font-semibold py-2.5 rounded-xl transition text-sm
+                                  bg-gray-100 hover:bg-gray-200 text-gray-700">
+                            Get Started
+                        </a>
+                    </div>
+                </div>
+            </div>
+                                    <div class="pricing-card relative flex flex-col rounded-2xl border border-gray-200 bg-white"
+                 data-animate style="transition-delay: 100ms">
+
+                
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="font-bold text-lg mb-1 text-gray-900">Basic</h3>
+                    <p class="text-xs mb-5 text-gray-400">
+                                                    Deposit from 153,000 IQD
+                                            </p>
+
+                    
+                    <div class="mb-0.5">
+                        <span class="price-num text-4xl font-extrabold text-gray-900 tabular-nums transition-transform inline-block">
+                            41 IQD
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-400 mb-4">/OTP (Authentication)</div>
+
+                    
+                    <div class="space-y-1.5 mb-6">
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                                Utility
+                            </span>
+                            <span class="font-mono font-semibold text-purple-700">28 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
+                                Marketing
+                            </span>
+                            <span class="font-mono font-semibold text-orange-600">63 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                                SMS
+                            </span>
+                            <span class="font-mono font-semibold text-blue-700">224 IQD</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="https://www.myotpway.online/register"
+                           class="block text-center font-semibold py-2.5 rounded-xl transition text-sm
+                                  bg-gray-100 hover:bg-gray-200 text-gray-700">
+                            Get Started
+                        </a>
+                    </div>
+                </div>
+            </div>
+                                    <div class="pricing-card relative flex flex-col rounded-2xl pricing-popular-glow bg-slate-900"
+                 data-animate style="transition-delay: 200ms">
+
+                                <div class="absolute -top-3.5 inset-x-0 flex justify-center">
+                    <span class="bg-brand-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-sm">
+                        BEST VALUE
+                    </span>
+                </div>
+                
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="font-bold text-lg mb-1 text-white">Pro</h3>
+                    <p class="text-xs mb-5 text-slate-400">
+                                                    Deposit from 765,000 IQD
+                                            </p>
+
+                    
+                    <div class="mb-0.5">
+                        <span class="price-num text-4xl font-extrabold text-green-400 tabular-nums transition-transform inline-block">
+                            40 IQD
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-400 mb-4">/OTP (Authentication)</div>
+
+                    
+                    <div class="space-y-1.5 mb-6">
+                        <div class="flex items-center justify-between text-xs text-slate-300">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                                Utility
+                            </span>
+                            <span class="font-mono font-semibold text-purple-300">27 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-slate-300">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
+                                Marketing
+                            </span>
+                            <span class="font-mono font-semibold text-orange-300">61 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-slate-300">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                                SMS
+                            </span>
+                            <span class="font-mono font-semibold text-blue-300">224 IQD</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="https://www.myotpway.online/register"
+                           class="block text-center font-semibold py-2.5 rounded-xl transition text-sm
+                                  bg-brand-600 hover:bg-brand-700 text-white">
+                            Get Started
+                        </a>
+                    </div>
+                </div>
+            </div>
+                                    <div class="pricing-card relative flex flex-col rounded-2xl border border-gray-200 bg-white"
+                 data-animate style="transition-delay: 300ms">
+
+                
+                <div class="p-6 flex-1 flex flex-col">
+                    <h3 class="font-bold text-lg mb-1 text-gray-900">Enterprise</h3>
+                    <p class="text-xs mb-5 text-gray-400">
+                                                    Deposit from 1,530,000 IQD
+                                            </p>
+
+                    
+                    <div class="mb-0.5">
+                        <span class="price-num text-4xl font-extrabold text-gray-900 tabular-nums transition-transform inline-block">
+                            39 IQD
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-400 mb-4">/OTP (Authentication)</div>
+
+                    
+                    <div class="space-y-1.5 mb-6">
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                                Utility
+                            </span>
+                            <span class="font-mono font-semibold text-purple-700">26 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
+                                Marketing
+                            </span>
+                            <span class="font-mono font-semibold text-orange-600">60 IQD</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-600">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                                SMS
+                            </span>
+                            <span class="font-mono font-semibold text-blue-700">224 IQD</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <a href="https://www.myotpway.online/register"
+                           class="block text-center font-semibold py-2.5 rounded-xl transition text-sm
+                                  bg-gray-100 hover:bg-gray-200 text-gray-700">
+                            Get Started
+                        </a>
+                    </div>
+                </div>
+            </div>
+                    </div>
+
+        
+        <div class="mt-10 bg-gray-50 rounded-2xl px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 border border-gray-100" data-animate>
+            <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div class="text-sm text-gray-600">
+                <strong class="text-gray-800">How it works: </strong>
+                Your price tier is set by the amount of your LAST top-up — each recharge sets your rate until the next one. Bigger single top-ups unlock cheaper rates.
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<section id="reseller" class="py-24 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 relative overflow-hidden">
+
+    
+    <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 sm:w-[700px] sm:h-[700px] bg-green-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute top-0 right-1/4 w-72 h-72 bg-brand-500/8 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-1/4 w-72 h-72 bg-green-500/8 rounded-full blur-3xl"></div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 relative">
+
+        
+        <div class="text-center mb-16" data-animate>
+            <span class="inline-flex items-center gap-2 bg-green-500/20 border border-green-500/40 text-green-300 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
+                💼 Reseller Program
+            </span>
+            <h2 class="text-3xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
+                Earn Real Profit. Become a Partner.
+            </h2>
+            <p class="text-neutral-400 text-lg max-w-2xl mx-auto">
+                Resell our OTP service to your own clients. You set the price, we handle the infrastructure. The margin is yours — guaranteed.
+            </p>
+        </div>
+
+        
+        <div class="max-w-3xl mx-auto mb-16" data-animate>
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center">
+                
+                <div class="flex-1">
+                    <p class="text-neutral-400 text-xs uppercase tracking-wide mb-1">Platform Price</p>
+                    <p class="text-2xl font-extrabold text-white">38 IQD</p>
+                    <p class="text-neutral-400 text-xs mt-1">/OTP</p>
+                </div>
+
+                
+                <div class="text-green-400 text-2xl font-black shrink-0 rotate-90 sm:rotate-0">→</div>
+
+                
+                <div class="flex-1">
+                    <p class="text-neutral-400 text-xs uppercase tracking-wide mb-1">Your Price</p>
+                    <p class="text-2xl font-extrabold text-white">92 IQD</p>
+                    <p class="text-neutral-400 text-xs mt-1">You decide</p>
+                </div>
+
+                
+                <div class="text-green-400 text-2xl font-black shrink-0 rotate-90 sm:rotate-0">=</div>
+
+                
+                <div class="flex-1 bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                    <p class="text-green-400 text-xs uppercase tracking-wide font-bold mb-1">Your Profit</p>
+                    <p class="text-3xl font-extrabold text-green-400">54 IQD</p>
+                    <p class="text-green-400/50 text-xs mt-1">/OTP ✓</p>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                        <div class="bg-slate-800/50 border border-slate-700 hover:border-green-500/50 rounded-2xl p-6 transition-all duration-300 group"
+                 data-animate style="transition-delay: 0ms">
+                <div class="text-4xl mb-4">💰</div>
+                <h3 class="text-white font-bold text-lg mb-2 group-hover:text-green-400 transition-colors">
+                    Set Your Own Price
+                </h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Choose what you charge your clients per OTP. The gap between the platform rate and your price is your guaranteed margin.</p>
+            </div>
+                        <div class="bg-slate-800/50 border border-slate-700 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-300 group"
+                 data-animate style="transition-delay: 100ms">
+                <div class="text-4xl mb-4">👥</div>
+                <h3 class="text-white font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">
+                    Manage Your Clients
+                </h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Create sub-user accounts for each client. They use their own API keys while you stay in full control of billing.</p>
+            </div>
+                        <div class="bg-slate-800/50 border border-slate-700 hover:border-purple-500/50 rounded-2xl p-6 transition-all duration-300 group"
+                 data-animate style="transition-delay: 200ms">
+                <div class="text-4xl mb-4">📊</div>
+                <h3 class="text-white font-bold text-lg mb-2 group-hover:text-purple-400 transition-colors">
+                    Guaranteed Earnings
+                </h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Every OTP your clients send generates earnings deposited automatically into your earnings balance.</p>
+            </div>
+                    </div>
+
+        
+        <div class="max-w-2xl mx-auto mb-16 text-center" data-animate>
+            <p class="text-neutral-400 text-sm uppercase tracking-widest mb-6">Your Partner Network</p>
+            <div class="flex flex-col items-center gap-3">
+                
+                <div class="bg-brand-600 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-brand-900/50 text-sm">
+                    You — Partner
+                </div>
+                
+                <div class="flex gap-3 sm:gap-6 md:gap-12 items-start">
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="w-px h-6 bg-slate-600"></div>
+                        <div class="bg-slate-700 border border-slate-600 text-neutral-400 text-xs px-4 py-2 rounded-lg">Client 1</div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="w-px h-6 bg-slate-600"></div>
+                        <div class="bg-slate-700 border border-slate-600 text-neutral-400 text-xs px-4 py-2 rounded-lg">Client 2</div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="w-px h-6 bg-slate-600"></div>
+                        <div class="bg-slate-700 border border-slate-600 text-neutral-400 text-xs px-4 py-2 rounded-lg">Client 3</div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-neutral-400 text-xs mt-5">Each client uses their own API key. You top up their balance and earn the margin on every message.</p>
+        </div>
+
+        
+        <div class="text-center" data-animate>
+            <a href="https://www.myotpway.online/register"
+               class="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-white font-bold px-10 py-4 rounded-xl text-lg transition-all shadow-xl shadow-green-900/40 hover:-translate-y-0.5 mb-4">
+                Become a Partner
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            </a>
+            <p class="text-neutral-400 text-sm">
+                Have questions? 
+                <a href="https://www.myotpway.online/contact" class="text-brand-400 hover:text-brand-300 underline underline-offset-2">Contact us</a>
+            </p>
+        </div>
+
+    </div>
+</section>
+
+
+
+<section id="why-us" class="py-24 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4">
+
+        
+        <div class="text-center mb-14" data-animate>
+            <span class="inline-flex items-center gap-2 bg-brand-50 border border-brand-200 text-brand-700 text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-4">
+                ⚖️ What you get here
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3">The same message — a very different setup</h2>
+            <p class="text-gray-500 text-lg max-w-2xl mx-auto">Anyone can send a WhatsApp message. The difference is everything around it: templates, protection, visibility, and whether you can resell it.</p>
+        </div>
+
+        
+        <div class="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" data-animate>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50/60">
+                        <th class="p-5 w-1/4"></th>
+                        <th class="p-5 text-center bg-brand-50 border-x border-brand-100">
+                            <span class="block font-extrabold text-brand-700 text-base">MY-OTP-Way</span>
+                        </th>
+                        <th class="p-5 text-center font-semibold text-gray-500">Meta Cloud API direct</th>
+                        <th class="p-5 text-center font-semibold text-gray-500">Traditional SMS gateway</th>
+                    </tr>
+                </thead>
+                <tbody>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Building templates</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>Visual builder in your dashboard — text, image, video or document header, named variables, approved within hours.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">Write it in Business Manager and wait for Meta review.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">No templates at all.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Your number, name and logo</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>Paid add-on, ready today: a dedicated number showing your company name and logo on the WhatsApp profile.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">Requires your own WABA plus full business verification.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">A text sender ID only.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Protection against balance drain</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>Per-recipient cap — 10 per 15 minutes and 20 per day by default, and you set or disable both on each key yourself. If your site is attacked, your balance is not drained.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">You build it yourself in your own code.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">You build it yourself in your own code.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Why did a message fail?</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>The error code and its message appear on every message in your log.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">A raw webhook you have to parse yourself.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">Usually just &quot;failed&quot;, with no detail.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Instant notice of every message&#039;s fate (Webhook)</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>We push otp.delivered or otp.failed to your endpoint the moment it happens, HMAC-signed and retried automatically — you know every message&#039;s status without asking.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">You build the receiver and handle Meta&#039;s verification yourself.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">Usually none — you check manually, if at all.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Automatic WhatsApp → SMS fallback</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>Two automatic layers, with the WhatsApp charge refunded and the code validity restarted.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">Not available.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">Not applicable.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Multiple keys for your projects</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>Up to 5 API keys in one account (more on request) — a key per project, each with its own balance and log.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">A separate app and a separate review per project.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">Usually a separate account per project.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Accounts for your clients</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>A sub-user per key — your client tops up and follows their own messages without touching your other projects.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">Not available.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">Not available.</td>
+                    </tr>
+                                        <tr class="border-b border-gray-100 last:border-0">
+                        <td class="p-5 align-top font-bold text-gray-900 text-start">Earn as a reseller</td>
+                        <td class="p-5 align-top bg-brand-50/40 border-x border-brand-100 text-gray-800 text-start">
+                            <span class="text-green-600 font-black me-1">✓</span>Set your own price on each key and withdraw the difference as earnings.
+                        </td>
+                        <td class="p-5 align-top text-gray-500 text-start">Not available.</td>
+                        <td class="p-5 align-top text-gray-500 text-start">Closed commercial negotiation.</td>
+                    </tr>
+                                    </tbody>
+            </table>
+        </div>
+
+        
+        <div class="md:hidden space-y-4">
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 0ms">
+                <h3 class="font-bold text-gray-900 mb-3">Building templates</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>Visual builder in your dashboard — text, image, video or document header, named variables, approved within hours.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> Write it in Business Manager and wait for Meta review.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> No templates at all.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 60ms">
+                <h3 class="font-bold text-gray-900 mb-3">Your number, name and logo</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>Paid add-on, ready today: a dedicated number showing your company name and logo on the WhatsApp profile.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> Requires your own WABA plus full business verification.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> A text sender ID only.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 120ms">
+                <h3 class="font-bold text-gray-900 mb-3">Protection against balance drain</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>Per-recipient cap — 10 per 15 minutes and 20 per day by default, and you set or disable both on each key yourself. If your site is attacked, your balance is not drained.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> You build it yourself in your own code.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> You build it yourself in your own code.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 180ms">
+                <h3 class="font-bold text-gray-900 mb-3">Why did a message fail?</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>The error code and its message appear on every message in your log.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> A raw webhook you have to parse yourself.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> Usually just &quot;failed&quot;, with no detail.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 240ms">
+                <h3 class="font-bold text-gray-900 mb-3">Instant notice of every message&#039;s fate (Webhook)</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>We push otp.delivered or otp.failed to your endpoint the moment it happens, HMAC-signed and retried automatically — you know every message&#039;s status without asking.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> You build the receiver and handle Meta&#039;s verification yourself.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> Usually none — you check manually, if at all.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 300ms">
+                <h3 class="font-bold text-gray-900 mb-3">Automatic WhatsApp → SMS fallback</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>Two automatic layers, with the WhatsApp charge refunded and the code validity restarted.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> Not available.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> Not applicable.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 300ms">
+                <h3 class="font-bold text-gray-900 mb-3">Multiple keys for your projects</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>Up to 5 API keys in one account (more on request) — a key per project, each with its own balance and log.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> A separate app and a separate review per project.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> Usually a separate account per project.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 300ms">
+                <h3 class="font-bold text-gray-900 mb-3">Accounts for your clients</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>A sub-user per key — your client tops up and follows their own messages without touching your other projects.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> Not available.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> Not available.</p>
+                </div>
+            </div>
+                        <div class="bg-white rounded-2xl border border-gray-200 p-5" data-animate style="transition-delay: 300ms">
+                <h3 class="font-bold text-gray-900 mb-3">Earn as a reseller</h3>
+                <div class="bg-brand-50 border border-brand-100 rounded-xl p-3 mb-3">
+                    <p class="text-brand-700 text-[11px] font-bold uppercase tracking-wider mb-1">MY-OTP-Way</p>
+                    <p class="text-gray-800 text-sm"><span class="text-green-600 font-black me-1">✓</span>Set your own price on each key and withdraw the difference as earnings.</p>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Meta Cloud API direct:</span> Not available.</p>
+                    <p class="text-gray-500"><span class="font-semibold text-gray-400">Traditional SMS gateway:</span> Closed commercial negotiation.</p>
+                </div>
+            </div>
+                    </div>
+
+        
+        <div class="text-center mt-12" data-animate>
+            <a href="https://www.myotpway.online/register"
+               class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-10 py-4 rounded-xl text-lg transition-all shadow-lg hover:-translate-y-0.5">
+                Try it free — 10 OTPs, no card
+            </a>
+            <p class="text-gray-400 text-xs mt-4">Limits and figures above reflect the platform&#039;s actual settings.</p>
+        </div>
+
+    </div>
+</section>
+
+
+<section class="cta-bg py-24 relative overflow-hidden">
+    <div class="absolute inset-0 hero-grid-bg opacity-20 pointer-events-none"></div>
+    <div class="relative z-10 max-w-3xl mx-auto px-4 text-center">
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-4" data-animate>
+            Ready to get started?
+        </h2>
+        <p class="text-neutral-400 text-lg mb-8" data-animate style="transition-delay:0.1s">
+            Create your account, top up your wallet, and start sending OTPs in minutes.
+        </p>
+        <a href="https://www.myotpway.online/register"
+           id="cta-main-btn"
+           class="ripple-btn inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-10 py-4 rounded-xl text-lg hover:bg-gray-50 transition shadow-lg cursor-pointer"
+           data-animate style="transition-delay:0.2s"
+           onclick="addRipple(event, this)">
+            Create Account →
+        </a>
+    </div>
+</section>
+
+<script>
+(function () {
+
+// ── Floating particles ─────────────────────────────────────────────
+const pContainer = document.getElementById('particles-container');
+if (pContainer) {
+    for (let i = 0; i < 28; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'particle';
+        dot.style.left   = (Math.random() * 100) + '%';
+        dot.style.bottom = (Math.random() * 20) + '%';
+        dot.style.width  = dot.style.height = (2 + Math.random() * 3) + 'px';
+        dot.style.animationDuration  = (5 + Math.random() * 8) + 's';
+        dot.style.animationDelay     = (Math.random() * 6) + 's';
+        dot.style.opacity = 0;
+        pContainer.appendChild(dot);
+    }
+}
+
+// ── Typewriter ─────────────────────────────────────────────────────
+const words = [
+    'WhatsApp OTP',
+    'SMS Verification',
+    'API Integration',
+];
+const twEl = document.getElementById('typewriter-word');
+if (twEl) {
+    let wIdx = 0, cIdx = 0, deleting = false;
+    function type() {
+        const word = words[wIdx];
+        if (!deleting) {
+            twEl.textContent = word.slice(0, ++cIdx);
+            if (cIdx === word.length) {
+                deleting = true;
+                setTimeout(type, 2200);
+                return;
+            }
+        } else {
+            twEl.textContent = word.slice(0, --cIdx);
+            if (cIdx === 0) {
+                deleting = false;
+                wIdx = (wIdx + 1) % words.length;
+            }
+        }
+        setTimeout(type, deleting ? 55 : 110);
+    }
+    setTimeout(type, 800);
+}
+
+// ── Terminal typewriter ────────────────────────────────────────────
+const terminalLines = [
+    { text: '# Send OTP via WhatsApp',    color: '#64748b', delay: 0 },
+    { text: 'curl -X POST https://myotpway.online/api/v1/otp/send \\', color: '#60a5fa', delay: 400 },
+    { text: '  -H "X-API-Key: sk_live_xxxx" \\',  color: '#f8fafc', delay: 800 },
+    { text: '  -H "Content-Type: application/json" \\', color: '#f8fafc', delay: 1100 },
+    { text: "  -d '{\"to\":\"+9647XXXXXXXXX\",\"template\":\"myotp_default\"}'", color: '#fbbf24', delay: 1400 },
+];
+const termOut = document.getElementById('terminal-output');
+const termResp = document.getElementById('terminal-response');
+
+function typeTermLine(line, callback) {
+    const p = document.createElement('p');
+    p.style.color = line.color;
+    p.style.minHeight = '1.4em';
+    termOut.appendChild(p);
+    let i = 0;
+    function tick() {
+        if (i <= line.text.length) {
+            p.textContent = line.text.slice(0, i++);
+            setTimeout(tick, 18);
+        } else if (callback) {
+            callback();
+        }
+    }
+    setTimeout(tick, line.delay);
+}
+
+if (termOut) {
+    let idx = 0;
+    function runNextLine() {
+        if (idx < terminalLines.length) {
+            const line = terminalLines[idx++];
+            typeTermLine(line, runNextLine);
+        } else {
+            // Show response after last line
+            setTimeout(() => {
+                if (termResp) termResp.style.opacity = '1';
+            }, 600);
+        }
+    }
+
+    // Start terminal when it enters view
+    const termObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting && idx === 0) {
+                runNextLine();
+                termObs.unobserve(e.target);
+            }
+        });
+    }, { threshold: 0.3 });
+    const termSection = termOut.closest('section');
+    if (termSection) termObs.observe(termSection);
+}
+
+// ── Counter animation ─────────────────────────────────────────────
+function animateCounter(el, target, decimal, prefix, suffix) {
+    const startTime = performance.now();
+    const duration = 1800;
+    function update(now) {
+        const p = Math.min((now - startTime) / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        const val = ease * target;
+        el.textContent = prefix + (decimal > 0 ? val.toFixed(decimal) : Math.floor(val).toLocaleString('en-US')) + suffix;
+        if (p < 1) requestAnimationFrame(update);
+        else el.textContent = prefix + (decimal > 0 ? target.toFixed(decimal) : target.toLocaleString('en-US')) + suffix;
+    }
+    requestAnimationFrame(update);
+}
+
+const counterObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        const target  = parseFloat(el.dataset.target);
+        const decimal = parseInt(el.dataset.decimal) || 0;
+        const prefix  = el.dataset.prefix || '';
+        const suffix  = el.dataset.suffix || '';
+        animateCounter(el, target, decimal, prefix, suffix);
+        counterObs.unobserve(el);
+    });
+}, { threshold: 0.5 });
+document.querySelectorAll('.stat-counter').forEach(el => counterObs.observe(el));
+
+// ── How It Works: connector + step circles ─────────────────────────
+const connectorObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            const conn = document.getElementById('step-connector');
+            if (conn) conn.classList.add('drawn');
+            document.querySelectorAll('.step-item').forEach(item => item.classList.add('step-visible'));
+            connectorObs.unobserve(e.target);
+        }
+    });
+}, { threshold: 0.2 });
+const howSection = document.getElementById('how-it-works');
+if (howSection) connectorObs.observe(howSection);
+
+// ── Ripple effect ──────────────────────────────────────────────────
+window.addRipple = function(e, btn) {
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2;
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top  - size / 2;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple-effect';
+    ripple.style.cssText = 'width:' + size + 'px;height:' + size + 'px;left:' + x + 'px;top:' + y + 'px;';
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+};
+
+})();
+</script>
+
+</div>
+
+
+<footer class="bg-slate-900 text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+
+            
+            <div class="lg:col-span-1">
+                <a href="https://www.myotpway.online" class="inline-flex items-center gap-2.5 mb-4">
+                    <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                    </div>
+                    <span class="font-extrabold text-white text-base tracking-tight">MY-OTP<span class="text-brand-500">Way</span></span>
+                </a>
+                <p class="text-slate-400 text-sm leading-relaxed mb-5">
+                    WhatsApp &amp; SMS OTP verification API for developers and businesses in the Middle East.
+                </p>
+                <div class="flex items-center gap-3">
+                    
+                    <a href="https://wa.me/9647835666648" target="_blank" rel="noopener"
+                       class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-green-600 flex items-center justify-center transition-colors cursor-pointer"
+                       aria-label="WhatsApp">
+                        <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                    </a>
+                    
+                    <a href="/cdn-cgi/l/email-protection#cbb8bebbbba4b9bf8ba6b2a4bfbbbcaab2e5a4a5a7a2a5ae" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-brand-600 flex items-center justify-center transition-colors cursor-pointer" aria-label="Email">
+                        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                    </a>
+                    
+                    <a href="#"
+                       class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                       aria-label="GitHub">
+                        <svg class="w-4 h-4 text-slate-300" fill="currentColor" viewBox="0 0 24 24">
+                            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            
+            <div>
+                <h3 class="text-white text-sm font-semibold uppercase tracking-wider mb-4">Product</h3>
+                <ul class="space-y-2.5">
+                    <li><a href="https://www.myotpway.online/docs" class="text-sm text-slate-400 hover:text-white transition-colors">API Docs</a></li>
+                    <li><a href="https://www.myotpway.online#pricing" class="text-sm text-slate-400 hover:text-white transition-colors">Pricing</a></li>
+                    <li><a href="https://www.myotpway.online#how-it-works" class="text-sm text-slate-400 hover:text-white transition-colors">How It Works</a></li>
+                    <li><a href="https://www.myotpway.online#campaigns" class="text-sm text-slate-400 hover:text-white transition-colors">Campaigns</a></li>
+                    <li><a href="https://www.myotpway.online/register" class="text-sm text-slate-400 hover:text-white transition-colors">Get Started Free</a></li>
+                </ul>
+            </div>
+
+            
+            <div>
+                <h3 class="text-white text-sm font-semibold uppercase tracking-wider mb-4">Company</h3>
+                <ul class="space-y-2.5">
+                    <li><a href="https://www.myotpway.online/about" class="text-sm text-slate-400 hover:text-white transition-colors">About Us</a></li>
+                    <li><a href="https://www.myotpway.online/contact" class="text-sm text-slate-400 hover:text-white transition-colors">Contact Us</a></li>
+                    <li><a href="https://www.myotpway.online/privacy-policy" class="text-sm text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
+                    <li><a href="https://www.myotpway.online/terms" class="text-sm text-slate-400 hover:text-white transition-colors">Terms of Use</a></li>
+                </ul>
+            </div>
+
+            
+            <div>
+                <h3 class="text-white text-sm font-semibold uppercase tracking-wider mb-4">Contact</h3>
+                <ul class="space-y-3">
+                    <li class="flex items-start gap-2.5">
+                        <svg class="w-4 h-4 text-brand-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <a href="/cdn-cgi/l/email-protection#55262025253a272115382c3a212522342c7b3a3b393c3b30" class="text-sm text-slate-400 hover:text-white transition-colors"><span class="__cf_email__" data-cfemail="d0a3a5a0a0bfa2a490bda9bfa4a0a7b1a9febfbebcb9beb5">[email&#160;protected]</span></a>
+                    </li>
+                    <li class="flex items-start gap-2.5">
+                        <svg class="w-4 h-4 text-green-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        <span class="text-sm text-slate-400">
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-900/50 text-green-400 text-xs font-medium">
+                                WhatsApp Support
+                            </span>
+                        </span>
+                    </li>
+                    <li class="flex items-start gap-2.5">
+                        <svg class="w-4 h-4 text-slate-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="text-sm text-slate-400">Baghdad, Iraq</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        
+        <div class="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p class="text-sm text-slate-500">
+                © 2026 MY-OTP-Way. All rights reserved.
+            </p>
+            <div class="lang-pill">
+                <a href="https://www.myotpway.online/lang/ar" class="">عربي</a>
+                <a href="https://www.myotpway.online/lang/ku" class="">کوردی</a>
+                <a href="https://www.myotpway.online/lang/en" class="active">EN</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── Navbar scroll behavior ─────────────────────────────────────────
+(function() {
+    const nav = document.getElementById('main-nav');
+    function onScroll() {
+        nav.classList.toggle('scrolled', window.scrollY > 20);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+})();
+
+// ── Mobile menu ────────────────────────────────────────────────────
+function toggleMobileMenu() {
+    const overlay = document.getElementById('mobile-overlay');
+    const isOpen = overlay.classList.contains('open');
+    if (isOpen) closeMobileMenu();
+    else openMobileMenu();
+}
+function openMobileMenu() {
+    document.getElementById('mobile-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    // Animate hamburger to X
+    const lines = document.querySelectorAll('.ham-line');
+    if (lines[0]) lines[0].style.transform = 'translateY(6px) rotate(45deg)';
+    if (lines[1]) lines[1].style.opacity = '0';
+    if (lines[2]) lines[2].style.transform = 'translateY(-6px) rotate(-45deg)';
+}
+function closeMobileMenu() {
+    document.getElementById('mobile-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    const lines = document.querySelectorAll('.ham-line');
+    if (lines[0]) lines[0].style.transform = '';
+    if (lines[1]) lines[1].style.opacity = '';
+    if (lines[2]) lines[2].style.transform = '';
+}
+function closeMobileMenuOnBackdrop(e) {
+    const panel = document.getElementById('mobile-menu-panel');
+    if (!panel.contains(e.target)) {
+        closeMobileMenu();
+    }
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeMobileMenu();
+});
+
+// ── Nav dropdowns (currency/language) ────────────────────────────────
+function toggleNavDropdown(id) {
+    document.querySelectorAll('.nav-dropdown-panel').forEach(function (panel) {
+        if (panel.id !== id) panel.classList.add('hidden');
+    });
+    document.getElementById(id).classList.toggle('hidden');
+}
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-nav-dropdown]')) {
+        document.querySelectorAll('.nav-dropdown-panel').forEach(function (panel) {
+            panel.classList.add('hidden');
+        });
+    }
+});
+
+// ── Scroll reveal ──────────────────────────────────────────────────
+(function() {
+    if (!window.IntersectionObserver) return;
+    const obs = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate-in');
+                obs.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('[data-animate]').forEach(el => obs.observe(el));
+})();
+</script>
+</body>
+</html>

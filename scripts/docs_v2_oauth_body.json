@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://learn.microsoft.com",
+    "name": "OAuth 2.0 client credentials flow on the Microsoft identity",
+    "snippet": "Jan 30, 2026 — The OAuth 2.0 client credentials grant flow permits a web service (confidential client) to use its own credentials, instead of impersonating ... Read more",
+    "host_name": "learn.microsoft.com",
+    "rank": 0,
+    "date": "Jan 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://oauth.net",
+    "name": "Client Credentials Grant",
+    "snippet": "The Client Credentials grant is used for machine-to-machine communication where no user is involved. The client authenticates directly with the ... Read more",
+    "host_name": "oauth.net",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.sage.com",
+    "name": "OAuth 2.0 authorization · Docs (1) · Sage Intacct",
+    "snippet": "Jul 13, 2026 — Use the OAuth 2.0 authorization code or the client credentials grant type to obtain an access token, then include it in REST API requests to ... Read more",
+    "host_name": "developer.sage.com",
+    "rank": 2,
+    "date": "Jul 13, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.postman.com",
+    "name": "OAuth 2.0 Refresh Token - How To Use \"In Body\" Client",
+    "snippet": "Jan 10, 2023 — My question: Is it possible to coerce Postman's built-in OAuth 2.0 “Refresh Token ” function to use the same Client Authentication mode as ...",
+    "host_name": "community.postman.com",
+    "rank": 3,
+    "date": "Jan 10, 2023",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.ebsco.com",
+    "name": "Using the Client Credentials Grant",
+    "snippet": "The first step in the OAuth 2.0 client credentials grant type is for the client application to make an access token request to the authorization server. The ... Read more",
+    "host_name": "developer.ebsco.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://khoros-aurora.kayako.com",
+    "name": "OAuth 2.0 Client Credentials Grant Flow",
+    "snippet": "A client ID , client secret, and shared secret key are used as authorization credentials in the OAuth2 .0 Client Credentials grant flow in order to generate the ... Read more",
+    "host_name": "khoros-aurora.kayako.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sailpoint.com",
+    "name": "OAuth 2.0 (client credentials) as a token-based protocol for",
+    "snippet": "May 16, 2026 — We should use the following details to get access token from IdentityIQ: client_id - will get client id from OAuth client management ... Read more",
+    "host_name": "community.sailpoint.com",
+    "rank": 6,
+    "date": "May 16, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.google.dev",
+    "name": "Passing client_id and client_secret in Apigee X OAuth",
+    "snippet": "Mar 22, 2024 — In a normal request -for- token , using client_credentials grant_type , the client passes the client_id and client_secret in a header, called ... Read more",
+    "host_name": "discuss.google.dev",
+    "rank": 7,
+    "date": "Mar 22, 2024",
+    "favicon": ""
+  }
+]

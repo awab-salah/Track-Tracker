@@ -1,0 +1,38 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq. Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq",
+    "name": "Help",
+    "snippet": "Looking for Assistance. Get the help you need quickly. Call or email us. For help with your application or customer support. 6698 · info@ Zaincash . iq · Baghdad ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.paypal.com",
+    "name": "JavaScript SDK v6 Reference",
+    "snippet": "Aug 18, 2026 — Retrieve additional configuration details for a specific payment method. This is particularly useful for Pay Later and PayPal Credit, which ... Read more",
+    "host_name": "developer.paypal.com",
+    "rank": 2,
+    "date": "Aug 18, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://stringiq.net",
+    "name": "StringIQ Developer Hub",
+    "snippet": "Explore StringIQ's Developer Hub with APIs and documentation for payment gateway and SoftPOS integrations, built for secure Tap to Pay and scalable ...",
+    "host_name": "stringiq.net",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  }
+]

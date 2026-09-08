@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "GitHub - thejano/zaincash-laravel",
+    "snippet": "Feb 10, 2025 — This package provides an easy-to-use interface for initiating and verifying payments . Installation. You can install the package via Composer:. Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Feb 10, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com",
+    "name": "Payment Gateway API Documentation",
+    "snippet": "In response , the payment gateway provides me with a \"transaction redirect URL \". Once I have the redirect URL • I capture it and open it in a Flutter WebView. Read more",
+    "host_name": "www.facebook.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  }
+]

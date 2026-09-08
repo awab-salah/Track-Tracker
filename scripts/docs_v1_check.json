@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This package is based on the official ZainCash API documentation. You can find the official documentation (https:// docs . zaincash . iq ). Total Downloads Latest ... Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq",
+    "name": "Pay Merchants with ZainCash | Instant Payment | FAQ",
+    "snippet": "Choose to pay by ZainCash. Enter your wallet number and the secret wallet number . Enter the temporary secret code that you will receive via text message on your ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://supabase.com",
+    "name": "JWT Signing Keys | Supabase Docs",
+    "snippet": "Supabase provides two systems for dealing with signing keys: the Legacy system based on the JWT secret , and the new Signing keys system.",
+    "host_name": "supabase.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Merchant secret - This is used to decode and encode JWT during requests. also must be requested from ZainCash . msisdn - The mobile phone number for your wallet,",
+    "host_name": "fatora.io",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.dojo.tech",
+    "name": "Legacy API keys | Dojo Developer Docs",
+    "snippet": "Aug 18, 2026 — If you are using the old APIs to integrate Dojo as a payment method and want to retrieve the JWT token, do the following:. Read more",
+    "host_name": "docs.dojo.tech",
+    "rank": 4,
+    "date": "Aug 18, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.cybersource.com",
+    "name": "Step 6: Going Live",
+    "snippet": "Your merchant ID (MID) identifies you and your transactions, which requires you to include it in each transaction request. When you signed up for a sandbox ... Read more",
+    "host_name": "developer.cybersource.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

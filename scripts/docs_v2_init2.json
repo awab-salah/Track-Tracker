@@ -1,0 +1,11 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "You create a transaction using POST /api/v2/payment-gateway/transaction/init. You redirect the customer to the Payment Gateway redirectUrl. Customer completes ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  }
+]

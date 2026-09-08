@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "You create a transaction using POST /api/v2/payment-gateway/transaction/init. You redirect the customer to the Payment Gateway redirectUrl. Customer completes ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq. Set the service type for the ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ...",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/activate-walletcard",
+    "name": "Activate Your WalletCard, Discover WalletCard Features & Conditions",
+    "snippet": "How to activate your WalletCard? 1- Open the ZainCash app. 2- Tap on the WalletCard in the main screen. 3- Select Activate YourWalletCard.",
+    "host_name": "zaincash.iq",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
+    "snippet": "Feb 19, 2020 · This article helps you integrate your website with ZainCash, all code samples provided are in JavaScript. Also, we've made this package for ...",
+    "host_name": "medium.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/terms-and-conditions",
+    "name": "ZainCash | Terms & Conditions",
+    "snippet": "Review the ZainCash Terms & Conditions to understand the rules for using our services. Stay informed and use our platform with confidence.",
+    "host_name": "zaincash.iq",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business-wallets",
+    "name": "ZainCash | Explore Our Business Wallet Types",
+    "snippet": "Compare business wallet types and their transaction limits. Find the ideal wallet for your company's size, usage, and financial goals.",
+    "host_name": "zaincash.iq",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "Rating 3.8 (23,641) · Free · Android Aug 10, 2026 · With ZainCash, you can pay bills, book flight tickets, transfer money, top up your mobile balance, shop online, and much more—quickly and ...",
+    "host_name": "play.google.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/individual-wallet",
+    "name": "Individual Wallet Fees & Limits - ZainCash",
+    "snippet": "Explore your wallet's fees and transaction limits. Learn about deposit, withdrawal, transfer fees.",
+    "host_name": "zaincash.iq",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://test-gateway.mastercard.com/api/documentation/apiDocumentation/rest-json/version/100/operation/Transaction:%20%20Pay.html?locale=en_US",
+    "name": "API Operation Pay - Mastercard",
+    "snippet": "An order can have transactions representing: Movement of money. For example, payments and refunds. Validations. For example, account verification or 3-D Secure ...",
+    "host_name": "test-gateway.mastercard.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

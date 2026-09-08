@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://learn.microsoft.com",
+    "name": "Receive change notifications through webhooks",
+    "snippet": "Apr 22, 2026 — A webhook is an HTTP-based user-defined callback API that you can set up in your infrastructure to receive change notifications and events ...",
+    "host_name": "learn.microsoft.com",
+    "rank": 0,
+    "date": "Apr 22, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.sinch.com",
+    "name": "Conversation API callbacks",
+    "snippet": "Aug 20, 2026 — The Conversation API delivers contact messages, delivery receipts for app messages and various notifications through callbacks .",
+    "host_name": "developers.sinch.com",
+    "rank": 1,
+    "date": "Aug 20, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.geidea.net",
+    "name": "Webhook/Callback Notifications",
+    "snippet": "The payment gateway sends real-time updates to the callback URL, allowing the merchant to receive instant notifications about the status of the transaction.",
+    "host_name": "docs.geidea.net",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.stripe.com",
+    "name": "Receive Stripe events in your webhook endpoint",
+    "snippet": "Stripe signs every webhook event by including a signature in the Stripe- Signature header. Verify this signature using our official libraries",
+    "host_name": "docs.stripe.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.eideasy.com",
+    "name": "Signature Webhooks",
+    "snippet": "Jul 3, 2026 — A webhook is a user-defined callback over HTTP. You can use eID Easy webhooks to get notified of the signature lifecycle events.",
+    "host_name": "docs.eideasy.com",
+    "rank": 4,
+    "date": "Jul 3, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://fusionauth.io",
+    "name": "Sign Webhooks | FusionAuth Docs",
+    "snippet": "This document covers configuring webhook signatures , verifying signatures in your webhook listener, and key rotation.",
+    "host_name": "fusionauth.io",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.insightiq.ai",
+    "name": "Webhooks | Developer Docs",
+    "snippet": "Webhooks notify you of changes asynchronously, enabling real-time updates. The webhook URL must follow the standard format com/path and have a valid SSL ...",
+    "host_name": "docs.insightiq.ai",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.paytmpayments.com",
+    "name": "Callback and Webhook URL",
+    "snippet": "Callback URL and webhook are used to get the status of the transaction for a payment source. Callback URL. Paytm sends the response of the transaction on the ...",
+    "host_name": "www.paytmpayments.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]
