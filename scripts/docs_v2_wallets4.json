@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "The ZainCash Payment Gateway v2 lets you accept payments from ZainCash wallets using a secure redirect flow, with real-time status updates via API and webhooks.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq.",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business-wallets",
+    "name": "ZainCash | Explore Our Business Wallet Types",
+    "snippet": "Every 6 months (IQD Balance Only) Documents: Wallet Type Required Documents Small Merchant Wallet. Every 6 months (IQD Balance Only) Top-up by Visa/Mastercard",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "What is the Payment Gateway? It's an online payment service that can be done through your organization's website or mobile application. The company can also ...",
+    "host_name": "zaincash.iq",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/activate-walletcard",
+    "name": "Activate Your WalletCard, Discover WalletCard Features & Conditions",
+    "snippet": "1- Open the ZainCash app. · 2- Tap on the WalletCard in the main screen. · 3- Select \"Activate Your WalletCard\". · 4- Enter the 9-digit serial number on the back ...",
+    "host_name": "zaincash.iq",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
+    "snippet": "Feb 19, 2020 · you will need customer wallet number and PIN. Here are the test credentials for your test purposes. 7. Prepare the redirection handling code ...",
+    "host_name": "medium.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help/accounts-faq",
+    "name": "ZainCash Accounts & Wallets | Manage Your Wallet | FAQ",
+    "snippet": "Required Documents for Registration: For Iraqi citizens: 1- Original, valid, and undamaged National Card. 2- Original Residential Card. For non-Iraqi residents:.",
+    "host_name": "zaincash.iq",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "Rating 3.8 (23,641) · Free · Android Aug 10, 2026 · ZainCash is a licensed mobile wallet regulated. With ZainCash, you can pay bills, book flight tickets, transfer money, top up your mobile ...",
+    "host_name": "play.google.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://intercom.help/ondeeducate/en/articles/9263874-customer-and-driver-wallet-top-up-with-zain-cash",
+    "name": "Customer and driver Wallet top-up with Zain Cash | Onde Help Center",
+    "snippet": "Nov 14, 2025 · Zain Cash is the most famous E-Wallet in Iraq (IQD). Zain Cash allows for a fast and efficient driver Wallet and customer Wallet top-up. It is a ...",
+    "host_name": "intercom.help",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/iraqwallet/posts/overview-about-zaincashzaincash-is-a-licensed-mobile-wallet-linked-to-the-indivi/1164634970353903",
+    "name": "Develop and manage communication content for social media, SMS",
+    "snippet": "Aug 28, 2018 · Overview about ZainCash ZainCash is a licensed mobile wallet linked to the individual SIM card that services businesses and individuals.",
+    "host_name": "www.facebook.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

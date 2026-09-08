@@ -1,92 +1,47 @@
 [
   {
-    "url": "https://docs.zaincash.iq",
-    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
-    "snippet": "Call the transaction/init endpoint to create a payment. Redirect the user to redirectUrl from the response. Handle the redirect to your successUrl/failureUrl ...",
-    "host_name": "docs.zaincash.iq",
+    "url": "https://github.com",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "Set the service type for the transaction . The service type must be one of the following: Book , Food , Grocery , Pharmacy , Transportation , Other .",
+    "host_name": "github.com",
     "rank": 0,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://github.com/waadmawlood/zaincash",
-    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
-    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq.",
-    "host_name": "github.com",
+    "url": "https://zaincash.iq",
+    "name": "ZainCash | Terms & Conditions",
+    "snippet": "The electronic payment service via mobile that is provided by the company, zaincash . iq , ries and resolving any technical issues faced",
+    "host_name": "zaincash.iq",
     "rank": 1,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/business/payment-gateway-faq",
-    "name": "Payment Gateway",
-    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ...",
-    "host_name": "zaincash.iq",
+    "url": "https://forum.cs-cart.com",
+    "name": "Create Wallet Payment Method (Zain Cash) - Questions",
+    "snippet": "Jul 28, 2020 — The service Type (a string, any string from your side prefers to be your website name). this can help you track your payments and closing your ...",
+    "host_name": "forum.cs-cart.com",
     "rank": 2,
-    "date": "",
+    "date": "Jul 28, 2020",
     "favicon": ""
   },
   {
-    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
-    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
-    "snippet": "Feb 19, 2020 · Initialize the transaction, you will need to send the token along with the merchantId to ZainCash's initialize URL and the language. ZainCash ...",
-    "host_name": "medium.com",
+    "url": "https://stringiq.net",
+    "name": "StringIQ Developer Hub",
+    "snippet": "Explore StringIQ's Developer Hub with APIs and documentation for payment gateway and SoftPOS integrations, built for secure Tap to Pay and scalable ...",
+    "host_name": "stringiq.net",
     "rank": 3,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/applications-and-forms",
-    "name": "Applications & Forms",
-    "snippet": "Applications & Forms. For Customers. Agent Complaint Form. Govt Bill Payment Dispute. Mastercard Refund Form. Fraud Report Form. For Businesses.",
-    "host_name": "zaincash.iq",
+    "url": "https://packagist.org",
+    "name": "thejano/zaincash-laravel",
+    "snippet": "Feb 10, 2025 — Usage ; response = ZainCashPayment::initiatePayment( orderId : '12345', amount : 1000.00, serviceType : 'purchase', redirectUrl: 'https://yourdomain ...",
+    "host_name": "packagist.org",
     "rank": 4,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://zaincash.iq/business",
-    "name": "Ease your business needs with ZainCash services",
-    "snippet": "Streamline cash disbursement with ZainCash. Efficiently manage and distribute cash for payroll, suppliers payments, and more at unbeatable rates.",
-    "host_name": "zaincash.iq",
-    "rank": 5,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://zaincash.iq/terms-and-conditions",
-    "name": "ZainCash | Terms & Conditions",
-    "snippet": "Review the ZainCash Terms & Conditions to understand the rules for using our services. Stay informed and use our platform with confidence.",
-    "host_name": "zaincash.iq",
-    "rank": 6,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://test-gateway.mastercard.com/api/documentation/apiDocumentation/rest-json/version/100/operation/Transaction:%20%20Pay.html?locale=en_US",
-    "name": "API Operation Pay - Mastercard",
-    "snippet": "A single transaction to authorise the payment and transfer funds from the payer's account to your account. For card payments, Pay is a mode where the ...",
-    "host_name": "test-gateway.mastercard.com",
-    "rank": 7,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://zaincash.iq/help",
-    "name": "Help",
-    "snippet": "For help with your application or customer support. 6698 · info@Zaincash.iq · Baghdad – Hay Al-Jamia, near Salah Al-Din Intersection.",
-    "host_name": "zaincash.iq",
-    "rank": 8,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://www.iq.zain.com/en/web/iraq/zain-cash-service",
-    "name": "Zain Cash | Electronic Wallet in Your Mobile | Zain Iraq",
-    "snippet": "Got no cash on you? No need to worry! Zain Cash Services can be used to pay bills and transfer money. Find out how you can avail of this service here!",
-    "host_name": "www.iq.zain.com",
-    "rank": 9,
-    "date": "",
+    "date": "Feb 10, 2025",
     "favicon": ""
   }
 ]

@@ -1,91 +1,55 @@
 [
   {
-    "url": "https://docs.zaincash.iq",
-    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
-    "snippet": "The ZainCash Payment Gateway v2 lets you accept payments from ZainCash wallets using a secure redirect flow, with real-time status updates via API and webhooks.",
-    "host_name": "docs.zaincash.iq",
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "Aug 10, 2026 — ZainCash is a licensed mobile wallet regulated by the Central Bank of Iraq , designed to simplify your financial transactions securely and ... Read more",
+    "host_name": "play.google.com",
     "rank": 0,
-    "date": "",
+    "date": "Aug 10, 2026",
     "favicon": ""
   },
   {
-    "url": "https://github.com/waadmawlood/zaincash",
-    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
-    "snippet": "URL for the ZainCash live environment. language, string, ar, Set the language for the ZainCash payment page. Use 'ar' for Arabic or 'en' for English.",
-    "host_name": "github.com",
+    "url": "https://zaincash.iq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ... Read more",
+    "host_name": "zaincash.iq",
     "rank": 1,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/business/payment-gateway-faq",
-    "name": "Payment Gateway",
-    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. Whatsapp number number: +9647835428888",
-    "host_name": "zaincash.iq",
+    "url": "https://fatora.io",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.",
+    "host_name": "fatora.io",
     "rank": 2,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/news/item-1773731742.html",
-    "name": "ZainCash and Al-ayn Partner",
-    "snippet": "Discover how our digital systems can increase your revenues and save your resources. Submit your company's application now: https://zaincash.iq/business/ ...",
-    "host_name": "zaincash.iq",
+    "url": "https://packagist.org",
+    "name": "thejano/zaincash-laravel",
+    "snippet": "Feb 10, 2025 — README. Introduction. ZainCash Laravel is a PHP SDK designed to integrate the ZainCash payment gateway with Laravel applications seamlessly. Read more",
+    "host_name": "packagist.org",
     "rank": 3,
-    "date": "",
+    "date": "Feb 10, 2025",
     "favicon": ""
   },
   {
-    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
-    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
-    "snippet": "Rating 3.8 (23,641) · Free · Android Aug 10, 2026 · ZainCash is a licensed mobile wallet regulated by the Central Bank of Iraq, designed to simplify your financial transactions securely and ...",
-    "host_name": "play.google.com",
+    "url": "https://libraries.io",
+    "name": "ht3aa/zain-cash v0.0.1 on Packagist",
+    "snippet": "Jan 6, 2026 — This package provides a simple and elegant way to handle payment transactions, webhooks, and transaction tracking with ZainCash . production and ...",
+    "host_name": "libraries.io",
     "rank": 4,
-    "date": "",
+    "date": "Jan 6, 2026",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/applications-and-forms",
-    "name": "Applications & Forms",
-    "snippet": "Applications & Forms ZainCash En. Effortlessly handle all business transactions with our secure platform. Docs Become an Agent Applications & Forms",
-    "host_name": "zaincash.iq",
+    "url": "https://www.facebook.com",
+    "name": "Payment Gateway API Documentation",
+    "snippet": "For payment gateway API documentation , check Iraq Payments for Zain Cash guides and Kora for simple integration docs . You'll also find detailed walkthroughs ... Read more",
+    "host_name": "www.facebook.com",
     "rank": 5,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
-    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
-    "snippet": "Feb 19, 2020 · This article helps you integrate your website with ZainCash, ZainCash is a mobile payment method in Iraq, redirect to your site with a token.  ...",
-    "host_name": "medium.com",
-    "rank": 6,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://docs.fapshi.com/en/api-reference/preliminary-knowledge/environment",
-    "name": "Live vs Sandbox Environment - Fapshi Documentation",
-    "snippet": "Live (Production) Environment. Each environment is designed to serve a specific purpose and requires its own credentials and base URL.",
-    "host_name": "docs.fapshi.com",
-    "rank": 7,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://www.zaincash.iq/business/cash-disbursement-faq",
-    "name": "Cash disbursement service",
-    "snippet": "ZainCash provides companies and organizations with effective, convenient and secure solutions to pay and distribute funds instantly to a large number of ...",
-    "host_name": "www.zaincash.iq",
-    "rank": 8,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://docs.direct.worldline-solutions.com/en/integration/api-developer-guide/api",
-    "name": "API environment and versioning - Worldline",
-    "snippet": "Dive into the API Developer Guide for Worldline Solutions, providing comprehensive information on integrating and leveraging the platform's APIs.",
-    "host_name": "docs.direct.worldline-solutions.com",
-    "rank": 9,
     "date": "",
     "favicon": ""
   }

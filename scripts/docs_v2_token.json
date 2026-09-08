@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://www.oauth.com/oauth2-servers/access-tokens/access-token-response",
+    "name": "Access Token Response",
+    "snippet": "expires_in (recommended) If the access token expires, the server should reply with the duration of time the access token is granted for.",
+    "host_name": "www.oauth.com",
+    "rank": 0,
+    "date": "Aug 17, 2016",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html",
+    "name": "The token issuer endpoint - Amazon Cognito",
+    "snippet": "Learn how to generate requests to the /oauth2/token endpoint for Amazon Cognito OAuth 2.0 access tokens, OpenID Connect (OIDC) ID tokens, and refresh tokens ...",
+    "host_name": "docs.aws.amazon.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2",
+    "snippet": "Complete ZainCash Payment Gateway v2 API documentation. Learn OAuth2 authentication, payment integration, webhooks, refunds, and brand guidelines.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://connect2id.com/products/server/docs/api/token",
+    "name": "OAuth 2.0 token endpoint",
+    "snippet": "expires_in The lifetime of the access token, in seconds. Guaranteed to not exceed the refresh token lifetime or refresh token maximum idle time ...",
+    "host_name": "connect2id.com",
+    "rank": 3,
+    "date": "Apr 6, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://fusionauth.io/docs/apis/oauth/token",
+    "name": "Token API | FusionAuth Docs",
+    "snippet": "This is an implementation of the Token endpoint as defined by the IETF RFC 6749 Section 3.2. Complete the Authorization Code Grant Request#.",
+    "host_name": "fusionauth.io",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.pulsoid.net/access-token-management/oauth2-refreshing-the-token",
+    "name": "OAuth2 Refreshing the token",
+    "snippet": "New OAuth2 access tokens have expirations. Token-expiration periods vary in length, based on how the token was acquired.",
+    "host_name": "docs.pulsoid.net",
+    "rank": 5,
+    "date": "Mar 1, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.maxar.com/docs/authentication/guides/get-a-token",
+    "name": "Bearer Tokens | <Imagery for developers/>",
+    "snippet": "The Response to the GetToken request includes a refresh_token property. The refresh token allows you to request a fresh bearer token without ...",
+    "host_name": "developers.maxar.com",
+    "rank": 6,
+    "date": "Jul 16, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.lucid.co/reference/refreshing-the-access-token",
+    "name": "Refreshing the access token",
+    "snippet": "However, if it is not used, a refresh token will expire 180 days after it was created. If the refresh token expires in this way, the application will have to ...",
+    "host_name": "developer.lucid.co",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.sinch.com/docs/identity-access-management/authenticate/oauth2",
+    "name": "OAuth 2.0 access tokens",
+    "snippet": "Access tokens are valid for its full expires_in window. Cache the token and reuse it until shortly before it expires, rather than fetching one ...",
+    "host_name": "developers.sinch.com",
+    "rank": 8,
+    "date": "Aug 18, 2026",
+    "favicon": ""
+  }
+]

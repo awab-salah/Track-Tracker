@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "Webhook Event Type This value appears in the eventType field of the webhook envelope. Event Type Description STATUS_CHANGED Emitted when a transaction reaches ...",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ...",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq.",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/applications-and-forms",
+    "name": "Applications & Forms",
+    "snippet": "Effortlessly handle all business transactions with our secure platform. Docs Become an Agent Applications & Forms",
+    "host_name": "zaincash.iq",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business",
+    "name": "Ease your business needs with ZainCash services",
+    "snippet": "Streamline cash disbursement with ZainCash. Efficiently manage and distribute cash for payroll, suppliers payments, and more at unbeatable rates.",
+    "host_name": "zaincash.iq",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/news/item-1783586593.html",
+    "name": "ZainCash and Open Sooq Announce Partnership",
+    "snippet": "Providing a new integrated control panel for Open Sooq to monitor payments, generate instant reports, and reduce operational costs.",
+    "host_name": "zaincash.iq",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/about",
+    "name": "ZainCash | Who we are. Why are we here",
+    "snippet": "ZainCash has always put product innovation at the forefront to power individuals and businesses in daily lives and operations.",
+    "host_name": "zaincash.iq",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.stripe.com/webhooks",
+    "name": "Receive Stripe events in your webhook endpoint",
+    "snippet": "Receiving webhook events helps you respond to asynchronous events, such as when a customer's bank confirms a payment, a customer disputes a charge",
+    "host_name": "docs.stripe.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.com/CoinZat",
+    "name": "Zain Cash",
+    "snippet": "Zain Cash Main App.",
+    "host_name": "zaincash.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help",
+    "name": "Help",
+    "snippet": "For help with your application or customer support. 6698 · info@Zaincash.iq · Baghdad – Hay Al-Jamia, near Salah Al-Din Intersection.",
+    "host_name": "zaincash.iq",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

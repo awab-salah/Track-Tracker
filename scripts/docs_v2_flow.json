@@ -1,91 +1,46 @@
 [
   {
-    "url": "https://docs.zaincash.iq",
-    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
-    "snippet": "Once the payment is completed successfully, ZainCash redirects the customer to your successUrl with a signed JWT token. After verifying the token with your ...",
-    "host_name": "docs.zaincash.iq",
+    "url": "https://github.com",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. Specify whether or not to redirect to the ZainCash payment page. redirection after the ...",
+    "host_name": "github.com",
     "rank": 0,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/business/payment-gateway-faq",
-    "name": "Payment Gateway",
-    "snippet": "One of the ZainCash business development team will contact you and help you complete the merger process and add ZainCash as your payment method. ZainCash.",
+    "url": "https://zaincash.iq",
+    "name": "Pay Merchants with ZainCash | Instant Payment | FAQ",
+    "snippet": "Confirm the purchase to move to the payment process . Open ZainCash App. Click “ pay ” from the main menu Select \" Pay by QR code.\" Direct your camera on ZainCash ...",
     "host_name": "zaincash.iq",
     "rank": 1,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
-    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
-    "snippet": "ZainCash will redirect to your site with a token to inform you about the payment status. Initialize the transaction, you will need to send the ...",
-    "host_name": "medium.com",
+    "url": "https://forum.cs-cart.com",
+    "name": "Create Wallet Payment Method (Zain Cash) - Questions",
+    "snippet": "Jul 28, 2020 — To make it clearer here is the payment steps : you will create a token according to your merchant and secret (it's a JWT token you can find the ... Read more",
+    "host_name": "forum.cs-cart.com",
     "rank": 2,
-    "date": "Feb 19, 2020",
+    "date": "Jul 28, 2020",
     "favicon": ""
   },
   {
-    "url": "https://github.com/waadmawlood/zaincash",
-    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
-    "snippet": "This is a Laravel package to integrate ZainCash payment gateway API. For local financial transactions in Iraqi dinars inside Iraq.",
-    "host_name": "github.com",
+    "url": "https://cartdna.com",
+    "name": "Zaincash for Shopify: Payment Method Guide for Iraq",
+    "snippet": "Uses a secure flow to complete the customer payment step . Digital Wallet positioning. Digital Wallet with strong domestic checkout fit for Iraq. Read more",
+    "host_name": "cartdna.com",
     "rank": 3,
     "date": "",
     "favicon": ""
   },
   {
-    "url": "https://zaincash.iq/business",
-    "name": "Ease your business needs with ZainCash services",
-    "snippet": "Utilize the ZainCash Payment Gateway for easy and secure online transactions. Our solution ensures smooth payment processing, drivers, and finance",
-    "host_name": "zaincash.iq",
+    "url": "https://docs.alipayplus.com",
+    "name": "Guide on redirections between the merchant and the digital",
+    "snippet": "This document explains how the redirections work on Android, iOS, and Web sides, and provides best practices on how to handle the redirections in different ... Read more",
+    "host_name": "docs.alipayplus.com",
     "rank": 4,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://zaincash.iq/news/item-1783243569.html",
-    "name": "ZainCash and Next Generation Announce Partnership",
-    "snippet": "ZainCash announced the update of its collaboration with Next Generation through the launch of the new e-payment gateway, designed to provide a faster and ...",
-    "host_name": "zaincash.iq",
-    "rank": 5,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://www.youtube.com/watch?v=PPLJwKTLNH4",
-    "name": "Three Step Redirect Payment Gateway API Integration - YouTube",
-    "snippet": "https://www.integratepayments.com/payment-gateway/three-step-redirect-payment-gateway-api The 3 Three Step Redirect payment gateway API ...",
-    "host_name": "www.youtube.com",
-    "rank": 6,
-    "date": "Apr 13, 2026",
-    "favicon": ""
-  },
-  {
-    "url": "https://zaincash.iq/news/item-1783586593.html",
-    "name": "ZainCash and Open Sooq Announce Partnership",
-    "snippet": "Smart Business Management: Providing a new integrated control panel for Open Sooq to monitor payments, generate instant reports, and reduce operational costs.",
-    "host_name": "zaincash.iq",
-    "rank": 7,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://www.iq-hosting.com/myaccount/knowledgebase/66/How-to-pay-by-using-ZainCash-.html?language=english",
-    "name": "How to pay by using ZainCash - IQ Hosting",
-    "snippet": "To pay using ZainCash, please select \"ZainCash\" when submitting your order and you will be automatically redirected to ZainCash to complete the payment.",
-    "host_name": "www.iq-hosting.com",
-    "rank": 8,
-    "date": "",
-    "favicon": ""
-  },
-  {
-    "url": "https://fatora.io/api/zaincash.php",
-    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments - فاتورة",
-    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.",
-    "host_name": "fatora.io",
-    "rank": 9,
     "date": "",
     "favicon": ""
   }

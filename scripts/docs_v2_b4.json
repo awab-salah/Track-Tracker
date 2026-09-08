@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.zaincash.iq",
+    "name": "ZainCash Payment Gateway API Documentation v2 | Complete",
+    "snippet": "Customer completes the payment (including OTP). ... ZainCash will prompt the customer to enter their wallet mobile number manually on the payment page.",
+    "host_name": "docs.zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/waadmawlood/zaincash",
+    "name": "GitHub - waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "You can find the official documentation (https://docs.zaincash.iq). ... payTransaction($phonenumber, $pin, $otp) : Complete pay the transaction and ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help/accounts-faq",
+    "name": "ZainCash Accounts & Wallets | Manage Your Wallet | FAQ",
+    "snippet": "You can reset your PIN through the login interface of the ZainCash app by selecting \"Get a new PIN\": Enter your wallet number and select the type of ID ...",
+    "host_name": "zaincash.iq",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/business/payment-gateway-faq",
+    "name": "Payment Gateway",
+    "snippet": "... wallet number and the PIN code; After entering the correct code, ZainCash will send the customer information to the organization's server; The customer will ...",
+    "host_name": "zaincash.iq",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://intercom.help/ondeeducate/en/articles/9263874-customer-and-driver-wallet-top-up-with-zain-cash",
+    "name": "Customer and driver Wallet top-up with Zain Cash | Onde Help Center",
+    "snippet": "Nov 14, 2025 · Сlick “Pay” button. Fill out user details: MSISDN (phone number) + PIN. Fill out user OTP. Check payment result screen upon payment completion.",
+    "host_name": "intercom.help",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/help/bank-linking-faq",
+    "name": "Link Your Bank Account to ZainCash Wallet | FAQ",
+    "snippet": "Review the transaction details on the cash withdrawal confirmation screen, tap “Confirm”, then complete the process by entering your wallet PIN and selecting “ ...",
+    "host_name": "zaincash.iq",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq/terms-and-conditions",
+    "name": "ZainCash | Terms & Conditions",
+    "snippet": "Terms and Conditions for Providing Mobile Payment Services and Opening a ZainCash Electronic Wallet. Iraq Wallet for Financial Payment via Mobile Phone and ...",
+    "host_name": "zaincash.iq",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/solocreativestudio/how-can-integrate-my-site-with-zaincash-payment-method-6d165749e0a3",
+    "name": "How Can I Integrate My Site With ZainCash Payment Method?",
+    "snippet": "Feb 19, 2020 · ZainCash is a mobile payment method in Iraq, you will need customer wallet number and PIN. be completed ZainCash integration successfully!",
+    "host_name": "medium.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.iq.zain.com/en/web/iraq/zain-cash-service",
+    "name": "Zain Cash | Electronic Wallet in Your Mobile | Zain Iraq",
+    "snippet": "Got no cash on you? No need to worry! Zain Cash Services can be used to pay bills and transfer money. Find out how you can avail of this service here!",
+    "host_name": "www.iq.zain.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.zaincash.iq/help/cash-in-out-faq",
+    "name": "Cash In & Out With ZainCash | Deposit & Withdraw Easily | FAQ",
+    "snippet": "Log in to the ZainCash app, and from the home screen select: Payments, then Wallet Top-Up, then Top Up via Agent. A temporary QR code valid for a limited time ...",
+    "host_name": "www.zaincash.iq",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
