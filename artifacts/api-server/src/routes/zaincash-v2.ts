@@ -81,7 +81,7 @@
  *   ZAINCASH_V2_SCOPE         — default: "payment:read payment:write reverse:write"
  *   ZAINCASH_V2_SUCCESS_URL   — successUrl sent to init
  *   ZAINCASH_V2_FAILURE_URL   — failureUrl sent to init
- *   ZAINCASH_V2_LANG          — default: "En"
+ *   ZAINCASH_V2_LANG          — default: "en" (lowercase — values: en, ar, ku)
  *   ZAINCASH_V2_SERVICE_TYPE  — default: "Delivery"
  *   ZAINCASH_V2_TIMEOUT_MS    — default: 15000
  *
@@ -100,14 +100,18 @@ interface V2Config {
   scope: string;
   successUrl: string;
   failureUrl: string;
-  lang: "En" | "Ar" | "Ku";
+  lang: "en" | "ar" | "ku";
   serviceType: string;
   timeoutMs: number;
 }
 
 function getV2Config(): V2Config {
-  const langRaw = (process.env.ZAINCASH_V2_LANG ?? "En").toLowerCase();
-  const lang: "En" | "Ar" | "Ku" = langRaw === "ar" ? "Ar" : langRaw === "ku" ? "Ku" : "En";
+  // Per official Flutter SDK zaincash_config.dart:
+  //   ZainCashLang.arabic('ar'), ZainCashLang.english('en'), ZainCashLang.kurdish('ku')
+  // The ZainCash V2 backend rejects title-case ("En"/"Ar"/"Ku") with HTTP 200
+  // and err.msg = "Invalid Language Code". Codes must be lowercase.
+  const langRaw = (process.env.ZAINCASH_V2_LANG ?? "en").toLowerCase();
+  const lang: "en" | "ar" | "ku" = langRaw === "ar" ? "ar" : langRaw === "ku" ? "ku" : "en";
   return {
     baseUrl: (process.env.ZAINCASH_V2_BASE_URL ?? "").replace(/\/$/, ""),
     clientId: process.env.ZAINCASH_V2_CLIENT_ID ?? "",
