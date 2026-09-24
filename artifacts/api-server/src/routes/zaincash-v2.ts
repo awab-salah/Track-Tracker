@@ -581,14 +581,14 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
 
     // Generate stable orderId + externalReferenceId
     const orderId = `tt-v2-${planId}-${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    // externalReferenceId must be stable across retries — derive UUIDv5 from
-    // (planId, companyId, orderId) so a retry with the same orderId collapses
-    // to the same externalReferenceId (V2 dedupes by externalReferenceId).
-    const externalReferenceId = crypto
-      .createHash("sha1")
-      .update(`tt:zaincash-v2:${planId}:${companyId}:${orderId}`)
-      .digest("hex")
-      .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5"); // UUID v5-ish
+    // externalReferenceId must be a standard UUID (36 chars, 8-4-4-4-12 format)
+    // — ZainCash V2 backend deserializes it as `java.util.UUID` and rejects
+    // non-UUID strings with HTTP 400. Use crypto.randomUUID() (UUIDv4).
+    // Note: this is NOT stable across retries, but V2's externalReferenceId
+    // is the dedup key — if a retry must collapse to the same transaction, we
+    // would need to derive a deterministic UUIDv5. For now, fresh UUID per
+    // request is correct (each /api/zaincash/v2/create is a new transaction).
+    const externalReferenceId = crypto.randomUUID();
 
     // Build successUrl / failureUrl with our callback endpoint and context
     // encoded as query params so we can fall back if the JWT doesn't carry them
