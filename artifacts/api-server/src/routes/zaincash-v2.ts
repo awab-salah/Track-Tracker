@@ -372,6 +372,61 @@ function verifyV2CallbackJwt(token: string, apiKey: string): JwtClaims {
   return claims;
 }
 
+/**
+ * Decode a JWT without verifying the signature — INSPECTION ONLY.
+ *
+ * This is only used for diagnostics when the merchant's real api_key is not
+ * configured (so we cannot verify the HS256 signature). The decoded claims
+ * MUST NEVER be used to update payment_records, activate a subscription,
+ * or otherwise mutate state. The result is only returned to the caller for
+ * human inspection.
+ *
+ * Algorithm pinning does NOT apply here (we're not verifying, just
+ * decoding), but we still parse the header so the caller can see what alg
+ * ZainCash actually used.
+ */
+function decodeV2CallbackJwtWithoutVerification(token: string): { claims: JwtClaims; header: { alg?: string; typ?: string }; signatureLengthBits: number } {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Invalid JWT format (expected 3 parts)");
+
+  const headerJson = Buffer.from(parts[0].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+  let header: { alg?: string; typ?: string };
+  try { header = JSON.parse(headerJson); } catch { throw new Error("Invalid JWT header JSON"); }
+
+  const payloadJson = Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+  let claims: JwtClaims;
+  try { claims = JSON.parse(payloadJson); } catch { throw new Error("Invalid JWT payload JSON"); }
+
+  // Approximate signature length in bits (base64url-encoded, 6 bits per char).
+  // Useful for diagnosing whether the JWT is HS256 (typically 256-512 bits)
+  // vs RS256 (typically 2048+ bits).
+  const signatureLengthBits = parts[2].length * 6;
+
+  return { claims, header, signatureLengthBits };
+}
+
+/**
+ * Returns true if the configured api_key is a real-looking secret (not empty,
+ * not the well-known "placeholder-not-yet-issued" sentinel). This is the gate
+ * that decides whether JWT verification can be trusted.
+ *
+ * If this returns false, the callback handler will:
+ *   - Decode the JWT WITHOUT verification (for inspection only)
+ *   - Return a 200 with the decoded claims + a clear `verified: false` flag
+ *   - NOT update payment_records
+ *   - NOT activate the company subscription
+ *
+ * Once a real api_key is provisioned by ZainCash and set in
+ * ZAINCASH_V2_API_KEY, this function will return true and the callback will
+ * be fully verified.
+ */
+function isApiKeyReal(apiKey: string): boolean {
+  if (!apiKey) return false;
+  if (apiKey === "placeholder-not-yet-issued") return false;
+  if (apiKey.length < 16) return false;
+  return true;
+}
+
 // ── V2 status mapping ────────────────────────────────────────────────────────
 //
 // V2 statuses (per parakit ZainCashStatusMap.php + docs):
@@ -717,28 +772,92 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     }
 
     const cfg = getV2Config();
+    // SAFE-BY-DEFAULT policy: a callback JWT is only trusted to mutate state
+    // (update payment_records / activate subscription) if:
+    //   (a) ZAINCASH_V2_API_KEY is set to a REAL value (not empty, not the
+    //       well-known placeholder sentinel), AND
+    //   (b) the JWT signature verifies successfully against that real api_key.
+    //
+    // If either condition fails, we DECODE (without verify) for human
+    // inspection only and explicitly DO NOT call inquiry, DO NOT update
+    // payment_records, and DO NOT activate the subscription.
+    //
+    // This means an attacker cannot activate a subscription by sending a
+    // forged callback JWT — we will only ever trust callbacks signed with
+    // the real merchant api_key.
+    const apiKeyIsReal = isApiKeyReal(cfg.apiKey);
+    let verified = false;
     let transactionId = "";
     let status = "";
+    let decodedClaims: JwtClaims | null = null;
+    let decodedHeader: { alg?: string; typ?: string } | null = null;
+    let decodedSigBits = 0;
 
-    if (cfg.apiKey) {
+    if (apiKeyIsReal) {
       try {
         const claims = verifyV2CallbackJwt(token, cfg.apiKey);
+        verified = true;
         transactionId = claims.data?.transactionId ?? "";
         status = claims.data?.currentStatus ?? "";
         console.log("[ZainCash-V2] callback JWT verified: tx=", transactionId, "status=", status);
       } catch (e) {
-        console.error("[ZainCash-V2] callback JWT verification failed:", e);
+        console.error("[ZainCash-V2] callback JWT verification FAILED (api_key is real but signature mismatch):", e instanceof Error ? e.message : String(e));
+        // Fall through to inspection-only decode for human review
+      }
+    }
+
+    if (!verified) {
+      // Decode WITHOUT verifying — INSPECTION ONLY.
+      try {
+        const decoded = decodeV2CallbackJwtWithoutVerification(token);
+        decodedClaims = decoded.claims;
+        decodedHeader = decoded.header;
+        decodedSigBits = decoded.signatureLengthBits;
+        // Surface the transactionId/status from the decoded claims for
+        // display only. Do NOT use these values to update any state.
+        transactionId = decoded.claims.data?.transactionId ?? "";
+        status = decoded.claims.data?.currentStatus ?? "";
+        console.warn(
+          "[ZainCash-V2] callback JWT NOT verified — decoded for inspection only. " +
+          "Payment_records and subscription_active will NOT be updated. " +
+          "transactionId=", transactionId, "claimed status=", status,
+          "header.alg=", decodedHeader.alg, "signatureBits=", decodedSigBits
+        );
+      } catch (e) {
+        console.error("[ZainCash-V2] callback JWT could not be decoded at all:", e instanceof Error ? e.message : String(e));
         return res.status(400).type("text/html").send(
-          `<!DOCTYPE html><html><body><h1>Invalid callback token</h1></body></html>`
+          `<!DOCTYPE html><html><body><h1>Invalid callback token</h1><p>The token could not be parsed as a JWT.</p></body></html>`
         );
       }
-    } else {
-      // api_key not configured — cannot verify JWT. Fall back to inquiry if
-      // we can guess the transactionId from the orderId... but we can't. We
-      // have to fail this safely.
-      console.error("[ZainCash-V2] api_key not configured — cannot verify callback JWT");
-      return res.status(503).type("text/html").send(
-        `<!DOCTYPE html><html><body><h1>V2 api_key not configured</h1></body></html>`
+    }
+
+    // If verification FAILED (or api_key missing) — return inspection-only
+    // response to the user WITHOUT touching Supabase.
+    if (!verified) {
+      const claimsForDisplay = decodedClaims
+        ? JSON.stringify(decodedClaims, null, 2)
+          .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        : "(no claims decoded)";
+      const headerForDisplay = decodedHeader
+        ? JSON.stringify(decodedHeader, null, 2)
+        : "(no header decoded)";
+      const reason = apiKeyIsReal
+        ? "JWT signature verification failed — the configured api_key does not match the signature on this token."
+        : "ZAINCASH_V2_API_KEY is not configured with a real value (placeholder or empty). Cannot verify the JWT signature.";
+      return res.status(200).type("text/html").send(
+        `<!DOCTYPE html><html><body style="font-family: monospace; padding: 2rem;">
+          <h1>⚠️ Callback received but UNVERIFIED</h1>
+          <p><strong>Status:</strong> Payment NOT activated. <code>payment_records</code> NOT updated. <code>subscription_active</code> NOT set.</p>
+          <p><strong>Reason:</strong> ${reason}</p>
+          <p><strong>Transaction ID (from JWT, unverified):</strong> ${transactionId || "(none)"}</p>
+          <p><strong>Claimed status (from JWT, unverified):</strong> ${status || "(none)"}</p>
+          <p><strong>JWT header:</strong></p><pre>${headerForDisplay}</pre>
+          <p><strong>JWT payload (claims, unverified):</strong></p><pre>${claimsForDisplay}</pre>
+          <p><strong>Signature length:</strong> ${decodedSigBits} bits</p>
+          <hr/>
+          <p><em>To activate this payment, configure a real <code>ZAINCASH_V2_API_KEY</code> in Vercel env vars and re-run the payment flow. Once a real api_key is set, the callback JWT signature will be verified and Supabase will be updated.</em></p>
+          <p><em>If you're an admin investigating a payment, copy the transaction ID above and check the Vercel function logs or contact the developer.</em></p>
+        </body></html>`
       );
     }
 
@@ -748,7 +867,11 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       );
     }
 
-    // Always verify via inquiry — NEVER trust the callback JWT alone
+    // JWT verified successfully — safe to consult inquiry as defense-in-depth.
+    // (Inquiry is authenticated via OAuth2 client_credentials, so its result
+    // is authoritative — but we still require the callback JWT to be
+    // verified first, so a forged callback cannot trigger an inquiry on a
+    // transaction the merchant didn't initiate.)
     let inquiryStatus = status;
     try {
       const inquiry = await v2Request(cfg, "GET", `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(transactionId)}`);
@@ -757,8 +880,8 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
         if (b.status) inquiryStatus = b.status;
       }
     } catch (e) {
-      console.warn("[ZainCash-V2] inquiry failed in callback:", e);
-      // Continue with the JWT-claimed status as fallback
+      console.warn("[ZainCash-V2] inquiry failed in callback:", e instanceof Error ? e.message : String(e));
+      // Continue with the JWT-claimed status as fallback (JWT is verified)
     }
 
     const internalStatus = mapV2StatusToInternal(inquiryStatus);
@@ -770,7 +893,8 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
 
     const success = internalStatus === "completed";
     return res.status(200).type("text/html").send(
-      `<!DOCTYPE html><html><body><h1>${success ? "Payment completed" : "Payment " + internalStatus}</h1>` +
+      `<!DOCTYPE html><html><body><h1>${success ? "Payment completed ✓" : "Payment " + internalStatus}</h1>` +
+      `<p>Transaction: ${transactionId}</p>` +
       `<script>setTimeout(()=>location.href='/subscriptions',3000)</script></body></html>`
     );
   } catch (err) {
@@ -803,21 +927,60 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     }
 
     const cfg = getV2Config();
-    if (!cfg.apiKey) {
-      return res.status(503).json({ error: "V2 api_key not configured", received: false });
+    // SAFE-BY-DEFAULT (same policy as the GET /callback handler):
+    // Only mutate state (payment_records / subscription_active) if the
+    // webhook JWT signature verifies against a REAL api_key. Otherwise
+    // respond 200 with decoded-for-inspection claims and DO NOT touch
+    // Supabase. Returning 200 (not 400) prevents ZainCash from retrying
+    // the webhook indefinitely for a configuration issue on our side.
+    const apiKeyIsReal = isApiKeyReal(cfg.apiKey);
+    let verified = false;
+    let claims: JwtClaims | null = null;
+
+    if (apiKeyIsReal) {
+      try {
+        claims = verifyV2CallbackJwt(token, cfg.apiKey);
+        verified = true;
+      } catch (e) {
+        console.error("[ZainCash-V2] webhook JWT verification FAILED (api_key is real but signature mismatch):", e instanceof Error ? e.message : String(e));
+      }
     }
 
-    let claims: JwtClaims;
-    try {
-      claims = verifyV2CallbackJwt(token, cfg.apiKey);
-    } catch (e) {
-      console.error("[ZainCash-V2] webhook JWT verification failed:", e);
-      return res.status(400).json({ error: "Invalid webhook JWT", received: false });
+    if (!verified) {
+      try {
+        const decoded = decodeV2CallbackJwtWithoutVerification(token);
+        claims = decoded.claims;
+        console.warn(
+          "[ZainCash-V2] webhook JWT NOT verified — decoded for inspection only. " +
+          "Payment_records and subscription_active will NOT be updated. " +
+          "transactionId=", decoded.claims.data?.transactionId ?? "(none)",
+          "claimed status=", decoded.claims.data?.currentStatus ?? "(none)",
+          "header.alg=", decoded.header.alg
+        );
+      } catch (e) {
+        return res.status(200).json({
+          received: true,
+          verified: false,
+          error: "Webhook token could not be parsed as a JWT",
+        });
+      }
+      return res.status(200).json({
+        received: true,
+        verified: false,
+        reason: apiKeyIsReal
+          ? "JWT signature verification failed — the configured api_key does not match the signature on this token."
+          : "ZAINCASH_V2_API_KEY is not configured with a real value (placeholder or empty). Cannot verify the JWT signature.",
+        claims,
+        // State mutation explicitly did NOT happen — payment_records and
+        // subscription_active are unchanged.
+        stateMutated: false,
+      });
     }
 
-    const transactionId = claims.data?.transactionId ?? "";
-    const currentStatus = claims.data?.currentStatus ?? "";
-    const orderId = claims.data?.orderId ?? "";
+    // JWT verified — safe to use claims
+    const transactionId = claims!.data?.transactionId ?? "";
+    const currentStatus = claims!.data?.currentStatus ?? "";
+    const orderId = claims!.data?.orderId ?? "";
 
     if (!transactionId) {
       return res.status(400).json({ error: "Missing transactionId in webhook", received: false });
@@ -837,13 +1000,13 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
           const rows = await r.json() as Array<{ status: string; company_id: string }>;
           if (rows.length > 0) {
             if (rows[0].status === "completed") {
-              return res.status(200).json({ received: true, transactionId, status: "already_completed" });
+              return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
             }
             companyName = rows[0].company_id ?? "";
           }
         }
       } catch (e) {
-        console.warn("[ZainCash-V2] webhook idempotency check failed:", e);
+        console.warn("[ZainCash-V2] webhook idempotency check failed:", e instanceof Error ? e.message : String(e));
       }
     }
 
@@ -856,16 +1019,17 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       received: true,
+      verified: true,
       transactionId,
       status: internalStatus,
       orderId,
-      eventId: claims.eventId,
-      eventType: claims.eventType,
+      eventId: claims!.eventId,
+      eventType: claims!.eventType,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[ZainCash-V2] webhook error:", msg);
-    return res.status(200).json({ received: true, error: msg });
+    return res.status(200).json({ received: true, verified: false, error: msg });
   }
 });
 
