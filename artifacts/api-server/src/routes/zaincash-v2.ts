@@ -112,11 +112,22 @@ function getV2Config(): V2Config {
   // and err.msg = "Invalid Language Code". Codes must be lowercase.
   const langRaw = (process.env.ZAINCASH_V2_LANG ?? "en").toLowerCase();
   const lang: "en" | "ar" | "ku" = langRaw === "ar" ? "ar" : langRaw === "ku" ? "ku" : "en";
+  // Per ZainCash support (2026-10-XX): For V2 UAT, the api_key used for JWT
+  // signature verification is the SAME value as the client_secret used for
+  // OAuth2 authentication. Production may issue a separate api_key.
+  // We do NOT hardcode the secret here — we read it from env vars.
+  // Precedence: explicit ZAINCASH_V2_API_KEY > fallback to ZAINCASH_V2_CLIENT_SECRET.
+  const explicitApiKey = process.env.ZAINCASH_V2_API_KEY ?? "";
+  const clientSecret = process.env.ZAINCASH_V2_CLIENT_SECRET ?? "";
+  // If ZAINCASH_V2_API_KEY is unset OR is the well-known placeholder
+  // sentinel, fall back to the client_secret value. This matches the
+  // official Flutter SDK pattern (try apiKey, then client_secret).
+  const apiKey = isApiKeyPlaceholder(explicitApiKey) ? clientSecret : explicitApiKey;
   return {
     baseUrl: (process.env.ZAINCASH_V2_BASE_URL ?? "").replace(/\/$/, ""),
     clientId: process.env.ZAINCASH_V2_CLIENT_ID ?? "",
-    clientSecret: process.env.ZAINCASH_V2_CLIENT_SECRET ?? "",
-    apiKey: process.env.ZAINCASH_V2_API_KEY ?? "",
+    clientSecret,
+    apiKey,
     scope: process.env.ZAINCASH_V2_SCOPE ?? "payment:read payment:write reverse:write",
     successUrl: process.env.ZAINCASH_V2_SUCCESS_URL ?? "",
     failureUrl: process.env.ZAINCASH_V2_FAILURE_URL ?? "",
@@ -328,9 +339,14 @@ interface JwtClaims {
   timestamp?: string;
   data?: {
     currentStatus?: string;
+    previousStatus?: string;
     transactionId?: string;
     orderId?: string;
-    amount?: { value?: number | string; currency?: string };
+    customerMsisdn?: string;      // V2 callback uses 'customerMsisdn' (NOT 'phone')
+    operationId?: string;
+    serviceType?: string;
+    errorMessage?: string;        // FAILURE REASON — only present on failed callbacks
+    amount?: { value?: number | string; currency?: string; feeValue?: number | string };
   };
   [key: string]: unknown;
 }
@@ -406,9 +422,20 @@ function decodeV2CallbackJwtWithoutVerification(token: string): { claims: JwtCla
 }
 
 /**
+ * Returns true if the api_key value is the well-known "placeholder" sentinel
+ * or empty. Used to decide whether to fall back to client_secret (which, per
+ * ZainCash support, is the same value as api_key on V2 UAT).
+ */
+function isApiKeyPlaceholder(apiKey: string): boolean {
+  if (!apiKey) return true;
+  if (apiKey === "placeholder-not-yet-issued") return true;
+  return false;
+}
+
+/**
  * Returns true if the configured api_key is a real-looking secret (not empty,
- * not the well-known "placeholder-not-yet-issued" sentinel). This is the gate
- * that decides whether JWT verification can be trusted.
+ * not the well-known "placeholder-not-yet-issued" sentinel, ≥ 16 chars).
+ * This is the gate that decides whether JWT verification can be trusted.
  *
  * If this returns false, the callback handler will:
  *   - Decode the JWT WITHOUT verification (for inspection only)
@@ -416,15 +443,68 @@ function decodeV2CallbackJwtWithoutVerification(token: string): { claims: JwtCla
  *   - NOT update payment_records
  *   - NOT activate the company subscription
  *
- * Once a real api_key is provisioned by ZainCash and set in
- * ZAINCASH_V2_API_KEY, this function will return true and the callback will
- * be fully verified.
+ * Per ZainCash support (2026-10-XX): For V2 UAT, the api_key is the SAME
+ * value as the client_secret. The getV2Config() function falls back to
+ * client_secret when ZAINCASH_V2_API_KEY is missing/placeholder, so this
+ * function will return true whenever client_secret is set to a real value.
  */
 function isApiKeyReal(apiKey: string): boolean {
-  if (!apiKey) return false;
-  if (apiKey === "placeholder-not-yet-issued") return false;
+  if (isApiKeyPlaceholder(apiKey)) return false;
   if (apiKey.length < 16) return false;
   return true;
+}
+
+/**
+ * Mask a customer MSISDN for safe logging. Returns "***NNNN" (last 4 digits)
+ * or "***" if the value is too short. NEVER log the full MSISDN — it is PII.
+ */
+function maskMsisdn(msisdn: string | undefined): string {
+  if (!msisdn) return "(none)";
+  if (msisdn.length <= 4) return "***";
+  return "***" + msisdn.slice(-4);
+}
+
+/**
+ * Build a diagnostic-safe log object from a VERIFIED V2 callback JWT.
+ * Only includes fields that are safe to log (no secrets, masked PII).
+ * The full JWT, signature, api_key, and client_secret are NEVER included.
+ */
+interface CallbackDiagnostics {
+  eventId: string | null;
+  eventType: string | null;
+  timestamp: string | null;
+  currentStatus: string | null;
+  previousStatus: string | null;
+  transactionId: string | null;
+  orderId: string | null;
+  customerMsisdnMasked: string;       // masked — last 4 only
+  operationId: string | null;
+  serviceType: string | null;
+  errorMessage: string | null;        // FAILURE REASON (only on failed callbacks)
+  amount: { value: number | string | null; currency: string | null; feeValue: number | string | null } | null;
+}
+
+function extractCallbackDiagnostics(claims: JwtClaims): CallbackDiagnostics {
+  const data = claims.data ?? {};
+  const amount = data.amount ?? {};
+  return {
+    eventId: claims.eventId ?? null,
+    eventType: claims.eventType ?? null,
+    timestamp: claims.timestamp ?? null,
+    currentStatus: data.currentStatus ?? null,
+    previousStatus: data.previousStatus ?? null,
+    transactionId: data.transactionId ?? null,
+    orderId: data.orderId ?? null,
+    customerMsisdnMasked: maskMsisdn(data.customerMsisdn),
+    operationId: data.operationId ?? null,
+    serviceType: data.serviceType ?? null,
+    errorMessage: data.errorMessage ?? null,
+    amount: {
+      value: amount.value ?? null,
+      currency: amount.currency ?? null,
+      feeValue: amount.feeValue ?? null,
+    },
+  };
 }
 
 // ── V2 status mapping ────────────────────────────────────────────────────────
@@ -774,19 +854,21 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     const cfg = getV2Config();
     // SAFE-BY-DEFAULT policy: a callback JWT is only trusted to mutate state
     // (update payment_records / activate subscription) if:
-    //   (a) ZAINCASH_V2_API_KEY is set to a REAL value (not empty, not the
-    //       well-known placeholder sentinel), AND
-    //   (b) the JWT signature verifies successfully against that real api_key.
+    //   (a) the api_key (or its client_secret fallback) is set to a REAL value
+    //       (not empty, not the well-known placeholder sentinel), AND
+    //   (b) the JWT HS256 signature verifies successfully against that real key.
     //
-    // If either condition fails, we DECODE (without verify) for human
-    // inspection only and explicitly DO NOT call inquiry, DO NOT update
-    // payment_records, and DO NOT activate the subscription.
+    // Per ZainCash support (2026-10-XX): the V2 UAT api_key is the SAME value
+    // as the client_secret. getV2Config() handles this fallback transparently.
     //
-    // This means an attacker cannot activate a subscription by sending a
-    // forged callback JWT — we will only ever trust callbacks signed with
-    // the real merchant api_key.
+    // If verification fails, we DECODE (without verify) for human inspection
+    // only and explicitly DO NOT call inquiry, DO NOT update payment_records,
+    // and DO NOT activate the subscription. This means an attacker cannot
+    // activate a subscription by sending a forged callback JWT — we only ever
+    // trust callbacks signed with the real merchant key.
     const apiKeyIsReal = isApiKeyReal(cfg.apiKey);
     let verified = false;
+    let verifiedClaims: JwtClaims | null = null;
     let transactionId = "";
     let status = "";
     let decodedClaims: JwtClaims | null = null;
@@ -795,11 +877,13 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
 
     if (apiKeyIsReal) {
       try {
-        const claims = verifyV2CallbackJwt(token, cfg.apiKey);
+        verifiedClaims = verifyV2CallbackJwt(token, cfg.apiKey);
         verified = true;
-        transactionId = claims.data?.transactionId ?? "";
-        status = claims.data?.currentStatus ?? "";
-        console.log("[ZainCash-V2] callback JWT verified: tx=", transactionId, "status=", status);
+        transactionId = verifiedClaims.data?.transactionId ?? "";
+        status = verifiedClaims.data?.currentStatus ?? "";
+        // Log ONLY diagnostic-safe fields (mask customerMsisdn, no secrets)
+        const diag = extractCallbackDiagnostics(verifiedClaims);
+        console.log("[ZainCash-V2] callback JWT VERIFIED. Diagnostics:", JSON.stringify(diag));
       } catch (e) {
         console.error("[ZainCash-V2] callback JWT verification FAILED (api_key is real but signature mismatch):", e instanceof Error ? e.message : String(e));
         // Fall through to inspection-only decode for human review
@@ -817,10 +901,12 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
         // display only. Do NOT use these values to update any state.
         transactionId = decoded.claims.data?.transactionId ?? "";
         status = decoded.claims.data?.currentStatus ?? "";
+        // Log diagnostic-safe fields only (mask customerMsisdn, no secrets)
+        const diag = extractCallbackDiagnostics(decoded.claims);
         console.warn(
           "[ZainCash-V2] callback JWT NOT verified — decoded for inspection only. " +
           "Payment_records and subscription_active will NOT be updated. " +
-          "transactionId=", transactionId, "claimed status=", status,
+          "Diagnostics:", JSON.stringify(diag),
           "header.alg=", decodedHeader.alg, "signatureBits=", decodedSigBits
         );
       } catch (e) {
@@ -834,16 +920,18 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     // If verification FAILED (or api_key missing) — return inspection-only
     // response to the user WITHOUT touching Supabase.
     if (!verified) {
-      const claimsForDisplay = decodedClaims
-        ? JSON.stringify(decodedClaims, null, 2)
+      // Build a diagnostic-safe display object (no secrets, masked PII)
+      const diagForDisplay = decodedClaims ? extractCallbackDiagnostics(decodedClaims) : null;
+      const claimsForDisplay = diagForDisplay
+        ? JSON.stringify(diagForDisplay, null, 2)
           .replace(/</g, "&lt;").replace(/>/g, "&gt;")
         : "(no claims decoded)";
       const headerForDisplay = decodedHeader
         ? JSON.stringify(decodedHeader, null, 2)
         : "(no header decoded)";
       const reason = apiKeyIsReal
-        ? "JWT signature verification failed — the configured api_key does not match the signature on this token."
-        : "ZAINCASH_V2_API_KEY is not configured with a real value (placeholder or empty). Cannot verify the JWT signature.";
+        ? "JWT signature verification failed — the configured api_key (or client_secret fallback) does not match the signature on this token."
+        : "ZAINCASH_V2_API_KEY is not configured with a real value AND ZAINCASH_V2_CLIENT_SECRET is also missing/placeholder. Cannot verify the JWT signature.";
       return res.status(200).type("text/html").send(
         `<!DOCTYPE html><html><body style="font-family: monospace; padding: 2rem;">
           <h1>⚠️ Callback received but UNVERIFIED</h1>
@@ -852,11 +940,10 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
           <p><strong>Transaction ID (from JWT, unverified):</strong> ${transactionId || "(none)"}</p>
           <p><strong>Claimed status (from JWT, unverified):</strong> ${status || "(none)"}</p>
           <p><strong>JWT header:</strong></p><pre>${headerForDisplay}</pre>
-          <p><strong>JWT payload (claims, unverified):</strong></p><pre>${claimsForDisplay}</pre>
+          <p><strong>Diagnostic fields (masked, no secrets):</strong></p><pre>${claimsForDisplay}</pre>
           <p><strong>Signature length:</strong> ${decodedSigBits} bits</p>
           <hr/>
-          <p><em>To activate this payment, configure a real <code>ZAINCASH_V2_API_KEY</code> in Vercel env vars and re-run the payment flow. Once a real api_key is set, the callback JWT signature will be verified and Supabase will be updated.</em></p>
-          <p><em>If you're an admin investigating a payment, copy the transaction ID above and check the Vercel function logs or contact the developer.</em></p>
+          <p><em>Diagnostic fields above are safe to share with ZainCash support. The full JWT, api_key, and client_secret are NEVER logged or displayed.</em></p>
         </body></html>`
       );
     }
@@ -885,10 +972,21 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     }
 
     const internalStatus = mapV2StatusToInternal(inquiryStatus);
+    // Update payment_records status (pending → failed | completed | expired | refunded | pending)
     await updatePaymentRecordStatus(transactionId, internalStatus);
+    // NOTE: The V2 callback JWT's `data.errorMessage` field contains the
+    // failure reason (e.g., "wrong OTP", "insufficient funds"). It is logged
+    // above in the diagnostic-safe log object, but is NOT stored in Supabase
+    // because the payment_records table does NOT have an error_message column.
+    // Schema change required to persist errorMessage — see V2-FULL-INVESTIGATION-REPORT.md
+    // for the exact migration SQL needed.
 
+    // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
+    // NEVER activate on FAILED, EXPIRED, PENDING, or any other status.
     if (internalStatus === "completed" && companyId) {
       await activateCompanySubscription(companyId);
+    } else {
+      console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
     }
 
     const success = internalStatus === "completed";
