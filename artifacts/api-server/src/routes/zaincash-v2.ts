@@ -507,6 +507,94 @@ function extractCallbackDiagnostics(claims: JwtClaims): CallbackDiagnostics {
   };
 }
 
+/**
+ * Safe structural diagnostics for a callback token that could NOT be
+ * verified or decoded. Returns ONLY non-sensitive properties — NEVER
+ * the full token, NEVER the signature, NEVER secrets.
+ *
+ * The first 10 and last 10 characters of a JWT are safe to log because:
+ * - First 10 chars of a standard JWT are always "eyJhbGciOi" (base64url
+ *   encoding of `{"alg":"` — a universal JWT prefix, reveals nothing)
+ * - Last 10 chars are part of the signature hash — also not sensitive
+ *   (the signature is a derived value, not a secret key)
+ *
+ * This is used ONLY when verification AND decode-without-verify BOTH fail,
+ * to help diagnose what format ZainCash actually sent.
+ */
+interface SafeTokenDiagnostics {
+  tokenLength: number;
+  dotCount: number;           // parts.length - 1 (0 = opaque, 2 = standard JWT, 4 = JWE, etc.)
+  partCount: number;          // dotCount + 1
+  first10: string;            // first 10 chars — safe (universal JWT prefix or opaque start)
+  last10: string;             // last 10 chars — safe (part of signature or opaque end)
+  containsPlus: boolean;     // standard base64 (not base64url) — may indicate URL encoding issue
+  containsSlash: boolean;
+  containsEquals: boolean;   // base64 padding — may indicate standard base64 instead of base64url
+  containsUnderscore: boolean;
+  containsHyphen: boolean;
+  headerAlg: string | null;   // algorithm from JWT header (if first part is decodable)
+  headerKid: string | null;   // key ID from JWT header (if present and decodable)
+  headerDecodable: boolean;   // whether first part could be base64-decoded + JSON-parsed
+  payloadDecodable: boolean;  // whether second part could be base64-decoded + JSON-parsed
+}
+
+function safeTokenDiagnostics(token: string): SafeTokenDiagnostics {
+  const parts = token.split(".");
+  const dotCount = parts.length - 1;
+  const first10 = token.slice(0, 10);
+  const last10 = token.length >= 10 ? token.slice(-10) : token;
+
+  let headerAlg: string | null = null;
+  let headerKid: string | null = null;
+  let headerDecodable = false;
+  let payloadDecodable = false;
+
+  // Try to decode the header (first part) — INSPECTION ONLY, no verification.
+  // This tells us what algorithm ZainCash used, which is critical for
+  // diagnosing HS256 vs RS256 vs other format issues.
+  if (parts.length >= 1 && parts[0].length > 0) {
+    try {
+      const headerJson = Buffer.from(
+        parts[0].replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+      ).toString("utf-8");
+      const header = JSON.parse(headerJson) as { alg?: string; kid?: string };
+      headerAlg = header.alg ?? null;
+      headerKid = header.kid ?? null;
+      headerDecodable = true;
+    } catch { /* not decodable — not a JWT or malformed base64 */ }
+  }
+
+  // Try to decode the payload (second part) — INSPECTION ONLY.
+  if (parts.length >= 2 && parts[1].length > 0) {
+    try {
+      const payloadJson = Buffer.from(
+        parts[1].replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+      ).toString("utf-8");
+      JSON.parse(payloadJson);
+      payloadDecodable = true;
+    } catch { /* not decodable */ }
+  }
+
+  return {
+    tokenLength: token.length,
+    dotCount,
+    partCount: parts.length,
+    first10,
+    last10,
+    containsPlus: token.includes("+"),
+    containsSlash: token.includes("/"),
+    containsEquals: token.includes("="),
+    containsUnderscore: token.includes("_"),
+    containsHyphen: token.includes("-"),
+    headerAlg,
+    headerKid,
+    headerDecodable,
+    payloadDecodable,
+  };
+}
+
 // ── V2 status mapping ────────────────────────────────────────────────────────
 //
 // V2 statuses (per parakit ZainCashStatusMap.php + docs):
@@ -885,7 +973,13 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
         const diag = extractCallbackDiagnostics(verifiedClaims);
         console.log("[ZainCash-V2] callback JWT VERIFIED. Diagnostics:", JSON.stringify(diag));
       } catch (e) {
-        console.error("[ZainCash-V2] callback JWT verification FAILED (api_key is real but signature mismatch):", e instanceof Error ? e.message : String(e));
+        const verifyError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] callback JWT verification FAILED. " +
+          "Error:", verifyError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
         // Fall through to inspection-only decode for human review
       }
     }
@@ -910,7 +1004,13 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
           "header.alg=", decodedHeader.alg, "signatureBits=", decodedSigBits
         );
       } catch (e) {
-        console.error("[ZainCash-V2] callback JWT could not be decoded at all:", e instanceof Error ? e.message : String(e));
+        const decodeError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] callback token could not be decoded as JWT. " +
+          "Error:", decodeError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
         return res.status(400).type("text/html").send(
           `<!DOCTYPE html><html><body><h1>Invalid callback token</h1><p>The token could not be parsed as a JWT.</p></body></html>`
         );
@@ -1040,7 +1140,13 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
         claims = verifyV2CallbackJwt(token, cfg.apiKey);
         verified = true;
       } catch (e) {
-        console.error("[ZainCash-V2] webhook JWT verification FAILED (api_key is real but signature mismatch):", e instanceof Error ? e.message : String(e));
+        const verifyError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] webhook JWT verification FAILED. " +
+          "Error:", verifyError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
       }
     }
 
@@ -1056,6 +1162,13 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
           "header.alg=", decoded.header.alg
         );
       } catch (e) {
+        const decodeError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] webhook token could not be decoded as JWT. " +
+          "Error:", decodeError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
         return res.status(200).json({
           received: true,
           verified: false,
