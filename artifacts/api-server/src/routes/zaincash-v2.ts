@@ -595,6 +595,95 @@ function safeTokenDiagnostics(token: string): SafeTokenDiagnostics {
   };
 }
 
+// ── Callback HTML helper ─────────────────────────────────────────────────────
+//
+// Generates a payment-result HTML page with:
+// - Clear Arabic RTL result (success/failed/cancelled/unverified)
+// - Escaped transaction ID (never raw user-controlled values)
+// - Manual link to /subscriptions (NO auto-redirect — avoids auth session loss)
+// - No secrets, no internal errors, no sensitive customer data
+//
+// The callback handler MUST NOT assume success/failure from the URL alone.
+// Status is only shown as "verified" when confirmed by V2 inquiry or
+// verified JWT. Otherwise a neutral "needs verification" message is shown.
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+type CallbackResultKind = "success" | "failed" | "cancelled" | "unverified" | "error";
+
+function callbackResultHtml(
+  kind: CallbackResultKind,
+  transactionId: string | null,
+  extraMessage: string | null = null,
+): string {
+  const icons: Record<CallbackResultKind, string> = {
+    success: "✅",
+    failed: "❌",
+    cancelled: "⚪",
+    unverified: "⚠️",
+    error: "⚠️",
+  };
+  const titles: Record<CallbackResultKind, string> = {
+    success: "تم الدفع بنجاح",
+    failed: "فشلت عملية الدفع",
+    cancelled: "تم إلغاء الدفع",
+    unverified: "يجب التحقق من حالة الدفع",
+    error: "حدث خطأ في معالجة الدفع",
+  };
+  const messages: Record<CallbackResultKind, string> = {
+    success: "تم تفعيل اشتراكك بنجاح.",
+    failed: "لم يتم تفعيل الاشتراك. يمكنك المحاولة مرة أخرى.",
+    cancelled: "لم يتم إكمال عملية الدفع. لم يتم خصم أي مبلغ.",
+    unverified: "تعذر التحقق من حالة الدفع تلقائياً. يرجى التحقق من صفحة الاشتراكات أو التواصل مع الدعم.",
+    error: "يرجى التحقق من صفحة الاشتراكات أو المحاولة مرة أخرى.",
+  };
+
+  const icon = icons[kind];
+  const title = titles[kind];
+  const message = messages[kind];
+  const txIdHtml = transactionId
+    ? `<p>رقم العملية: <code>${escapeHtml(transactionId)}</code></p>`
+    : "";
+  const extraHtml = extraMessage
+    ? `<p>${escapeHtml(extraMessage)}</p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نتيجة الدفع</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .card { text-align: center; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); max-width: 400px; width: 90%; }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; color: #0D3B4A; }
+    p { font-size: 0.875rem; color: #666; margin: 0.25rem 0; }
+    code { font-size: 0.75rem; color: #999; word-break: break-all; }
+    a { display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #0D3B4A; color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">${icon}</div>
+    <h1>${title}</h1>
+    <p>${message}</p>
+    ${txIdHtml}
+    ${extraHtml}
+    <a href="/subscriptions">العودة إلى الاشتراكات</a>
+  </div>
+</body>
+</html>`;
+}
+
 // ── V2 status mapping ────────────────────────────────────────────────────────
 //
 // V2 statuses (per parakit ZainCashStatusMap.php + docs):
@@ -934,8 +1023,8 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
 
     if (!token) {
       console.log("[ZainCash-V2] GET callback without token — payment cancelled by user");
-      return res.status(200).type("text/html").send(
-        `<!DOCTYPE html><html><body><h1>Payment cancelled</h1><script>setTimeout(()=>location.href='/subscriptions',3000)</script></body></html>`
+      return res.status(200).type("text/html; charset=utf-8").send(
+        callbackResultHtml("cancelled", null)
       );
     }
 
@@ -1011,46 +1100,41 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
           "Error:", decodeError,
           "| Token structure:", JSON.stringify(tokenDiag)
         );
-        return res.status(400).type("text/html").send(
-          `<!DOCTYPE html><html><body><h1>Invalid callback token</h1><p>The token could not be parsed as a JWT.</p></body></html>`
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", null)
         );
       }
     }
 
-    // If verification FAILED (or api_key missing) — return inspection-only
-    // response to the user WITHOUT touching Supabase.
+    // If verification FAILED (or api_key missing) — return a NEUTRAL
+    // result page WITHOUT touching Supabase. Do NOT claim success or
+    // failure based on the unverified JWT claims.
     if (!verified) {
       // Build a diagnostic-safe display object (no secrets, masked PII)
       const diagForDisplay = decodedClaims ? extractCallbackDiagnostics(decodedClaims) : null;
       const claimsForDisplay = diagForDisplay
         ? JSON.stringify(diagForDisplay, null, 2)
           .replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        : "(no claims decoded)";
+        : "";
       const headerForDisplay = decodedHeader
         ? JSON.stringify(decodedHeader, null, 2)
-        : "(no header decoded)";
-      const reason = apiKeyIsReal
-        ? "JWT signature verification failed — the configured api_key (or client_secret fallback) does not match the signature on this token."
-        : "ZAINCASH_V2_API_KEY is not configured with a real value AND ZAINCASH_V2_CLIENT_SECRET is also missing/placeholder. Cannot verify the JWT signature.";
-      return res.status(200).type("text/html").send(
-        `<!DOCTYPE html><html><body style="font-family: monospace; padding: 2rem;">
-          <h1>⚠️ Callback received but UNVERIFIED</h1>
-          <p><strong>Status:</strong> Payment NOT activated. <code>payment_records</code> NOT updated. <code>subscription_active</code> NOT set.</p>
-          <p><strong>Reason:</strong> ${reason}</p>
-          <p><strong>Transaction ID (from JWT, unverified):</strong> ${transactionId || "(none)"}</p>
-          <p><strong>Claimed status (from JWT, unverified):</strong> ${status || "(none)"}</p>
-          <p><strong>JWT header:</strong></p><pre>${headerForDisplay}</pre>
-          <p><strong>Diagnostic fields (masked, no secrets):</strong></p><pre>${claimsForDisplay}</pre>
-          <p><strong>Signature length:</strong> ${decodedSigBits} bits</p>
-          <hr/>
-          <p><em>Diagnostic fields above are safe to share with ZainCash support. The full JWT, api_key, and client_secret are NEVER logged or displayed.</em></p>
-        </body></html>`
+          .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        : "";
+      const diagHtml = (claimsForDisplay || headerForDisplay)
+        ? `<details style="margin-top:1rem;text-align:right;font-size:0.75rem;color:#999;">
+             <summary>تفاصيل تقنية</summary>
+             ${headerForDisplay ? `<pre style="text-align:left;overflow-x:auto;">${headerForDisplay}</pre>` : ""}
+             ${claimsForDisplay ? `<pre style="text-align:left;overflow-x:auto;">${claimsForDisplay}</pre>` : ""}
+           </details>`
+        : "";
+      return res.status(200).type("text/html; charset=utf-8").send(
+        callbackResultHtml("unverified", transactionId || null) + diagHtml
       );
     }
 
     if (!transactionId) {
-      return res.status(400).type("text/html").send(
-        `<!DOCTYPE html><html><body><h1>Missing transactionId in callback</h1></body></html>`
+      return res.status(400).type("text/html; charset=utf-8").send(
+        callbackResultHtml("unverified", null, "لم يتم العثور على رقم العملية")
       );
     }
 
@@ -1089,17 +1173,27 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
     }
 
-    const success = internalStatus === "completed";
-    return res.status(200).type("text/html").send(
-      `<!DOCTYPE html><html><body><h1>${success ? "Payment completed ✓" : "Payment " + internalStatus}</h1>` +
-      `<p>Transaction: ${transactionId}</p>` +
-      `<script>setTimeout(()=>location.href='/subscriptions',3000)</script></body></html>`
+    // Determine the callback result kind based on the VERIFIED inquiry status.
+    // Do NOT assume success/failure from the callback URL alone — the status
+    // above was confirmed by V2 inquiry (authenticated, authoritative).
+    let resultKind: CallbackResultKind;
+    if (internalStatus === "completed") {
+      resultKind = "success";
+    } else if (internalStatus === "failed" || internalStatus === "expired") {
+      resultKind = "failed";
+    } else {
+      // pending, refunded, or unknown — can't confirm success or failure
+      resultKind = "unverified";
+    }
+    return res.status(200).type("text/html; charset=utf-8").send(
+      callbackResultHtml(resultKind, transactionId)
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[ZainCash-V2] callback error:", msg);
-    return res.status(200).type("text/html").send(
-      `<!DOCTYPE html><html><body><h1>Callback error</h1><p>${msg}</p></body></html>`
+    // Do NOT expose the raw error message (may contain internal details)
+    return res.status(200).type("text/html; charset=utf-8").send(
+      callbackResultHtml("error", null)
     );
   }
 });
