@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { AppButton } from '@/components/AppButton';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
@@ -7,6 +8,7 @@ import type { SubscriptionPlan } from '@/services/subscriptionService';
 interface SubscriptionPlanCardProps {
   plan: SubscriptionPlan;
   onSubscribe: (planId: string) => void;
+<<<<<<< HEAD
   /** True only for the plan the user is actually subscribed to (Bug 1 fix). */
   isActive: boolean;
   /** ID of the plan currently loading via ZainCash, or null (Bug 2 fix). */
@@ -14,6 +16,12 @@ interface SubscriptionPlanCardProps {
 }
 
 export function SubscriptionPlanCard({ plan, onSubscribe, isActive, loadingPlanId }: SubscriptionPlanCardProps) {
+=======
+  loading?: boolean;
+}
+
+export function SubscriptionPlanCard({ plan, onSubscribe, loading }: SubscriptionPlanCardProps) {
+>>>>>>> 0f686c7 (feat(payment): wire up frontend ZainCash V2 payment flow)
   const formatPrice = (price: number) =>
     price.toLocaleString('en-US');
 
@@ -67,6 +75,7 @@ export function SubscriptionPlanCard({ plan, onSubscribe, isActive, loadingPlanI
       <div className="mt-4">
         <AppButton
           onClick={() => onSubscribe(plan.id)}
+<<<<<<< HEAD
           disabled={isActive || isLoading}
         >
           {isLoading ? (
@@ -78,6 +87,17 @@ export function SubscriptionPlanCard({ plan, onSubscribe, isActive, loadingPlanI
             'مفعّل'
           ) : (
             'اشترك الآن'
+=======
+          disabled={loading}
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              جارٍ التحويل...
+            </span>
+          ) : (
+            'ادفع مع زين كاش'
+>>>>>>> 0f686c7 (feat(payment): wire up frontend ZainCash V2 payment flow)
           )}
         </AppButton>
       </div>
