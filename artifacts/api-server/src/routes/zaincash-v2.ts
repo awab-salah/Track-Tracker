@@ -786,6 +786,56 @@ async function activateCompanySubscription(companyName: string): Promise<boolean
   }
 }
 
+/**
+ * Look up a payment record by order_id using a direct PostgREST query.
+ *
+ * This requires the Supabase service role key (SUPABASE_SERVICE_KEY env var)
+ * to bypass RLS — the anon/publishable key cannot SELECT from
+ * payment_records (RLS blocks it, returns empty results).
+ *
+ * The service role key is stored ONLY in Vercel server-side env vars
+ * (NOT prefixed with VITE_ — never exposed to the frontend bundle).
+ *
+ * Returns only the fields needed for callback verification.
+ * No timestamps, no sensitive data.
+ */
+async function getPaymentRecordByOrderId(orderId: string): Promise<{
+  id: string;
+  order_id: string;
+  company_id: string;
+  plan_id: string;
+  amount: number;
+  status: string;
+} | null> {
+  const { url, key } = getSupabaseCreds();
+  if (!url || !key || !orderId) return null;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/payment_records?order_id=eq.${encodeURIComponent(orderId)}&select=id,order_id,company_id,plan_id,amount,status&limit=1`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const rows = await res.json() as Array<{
+      id: string;
+      order_id: string;
+      company_id: string;
+      plan_id: string;
+      amount: number;
+      status: string;
+    }>;
+    return rows.length > 0 ? rows[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 const router: IRouter = Router();
@@ -1022,9 +1072,110 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     const companyId = (req.query.companyId as string) ?? "";
 
     if (!token) {
-      console.log("[ZainCash-V2] GET callback without token — payment cancelled by user");
+      // No JWT token in the callback URL. ZainCash sometimes redirects without
+      // a token — even on SUCCESSFUL payments. Do NOT assume "cancelled".
+      // Instead, look up the payment record by orderId (from query params) and
+      // verify the authoritative status via V2 inquiry.
+      console.log("[ZainCash-V2] GET callback without token — checking via inquiry");
+
+      // Step 1: Need an orderId to look up the payment record
+      if (!orderId) {
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("cancelled", null)
+        );
+      }
+
+      // Step 2: Look up payment_records by orderId via direct PostgREST query
+      // (requires SUPABASE_SERVICE_KEY to bypass RLS)
+      const record = await getPaymentRecordByOrderId(orderId);
+      if (!record) {
+        console.warn("[ZainCash-V2] No payment record found for orderId:", orderId);
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", null)
+        );
+      }
+
+      // Step 3: Idempotency — if already completed, skip re-processing
+      if (record.status === "completed") {
+        console.log("[ZainCash-V2] Payment already completed (idempotent):", record.id);
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("success", record.id)
+        );
+      }
+
+      // Step 4: Call V2 inquiry with the transactionId from OUR DB
+      // (NOT from the URL — from our own payment_records row)
+      const cfgNoToken = getV2Config();
+      let inquiryStatusNoToken = "PENDING";
+      let inquiryDetails: {
+        amount?: { value?: number; currency?: string };
+        orderId?: string;
+      } | null = null;
+      try {
+        const inquiry = await v2Request(cfgNoToken, "GET",
+          `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(record.id)}`);
+        if (inquiry.status === 200 && typeof inquiry.body === "object") {
+          const b = inquiry.body as { status?: string; transactionDetails?: { orderId?: string; amount?: { value?: number; currency?: string } } };
+          if (b.status) inquiryStatusNoToken = b.status;
+          inquiryDetails = {
+            amount: b.transactionDetails?.amount,
+            orderId: b.transactionDetails?.orderId,
+          };
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] Inquiry failed in no-token callback:", e instanceof Error ? e.message : String(e));
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", record.id)
+        );
+      }
+
+      // Step 5: Consistency checks — verify inquiry result matches OUR stored record.
+      // This prevents an attacker from using a fake orderId to trigger
+      // subscription activation for a different transaction.
+      // We check: orderId, amount, and currency (IQD is the only supported currency).
+      const inquiryAmount = inquiryDetails?.amount?.value;
+      const inquiryCurrency = inquiryDetails?.amount?.currency;
+      const inquiryOrderId = inquiryDetails?.orderId;
+      const amountMatches = inquiryAmount !== undefined && inquiryAmount === record.amount;
+      const currencyMatches = inquiryCurrency === "IQD";
+      const orderIdMatches = inquiryOrderId === record.order_id;
+
+      if (!amountMatches || !orderIdMatches || !currencyMatches) {
+        console.error(
+          "[ZainCash-V2] Consistency check FAILED in no-token callback. " +
+          "DB: {amount:", record.amount, ", orderId:", record.order_id, "} | " +
+          "Inquiry: {amount:", inquiryAmount, ", currency:", inquiryCurrency, ", orderId:", inquiryOrderId, "}"
+        );
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", record.id)
+        );
+      }
+
+      // Step 6: Process the verified inquiry status
+      const internalStatusNoToken = mapV2StatusToInternal(inquiryStatusNoToken);
+      console.log("[ZainCash-V2] No-token callback inquiry result:", inquiryStatusNoToken, "->", internalStatusNoToken, "for tx:", record.id);
+
+      await updatePaymentRecordStatus(record.id, internalStatusNoToken);
+
+      // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
+      // Uses record.company_id from OUR database — NOT from the URL query param.
+      if (internalStatusNoToken === "completed" && record.company_id) {
+        await activateCompanySubscription(record.company_id);
+      } else {
+        console.log(`[ZainCash-V2] No-token callback: status=${internalStatusNoToken} — subscription NOT activated`);
+      }
+
+      // Step 7: Show the correct result page
+      let resultKindNoToken: CallbackResultKind;
+      if (internalStatusNoToken === "completed") {
+        resultKindNoToken = "success";
+      } else if (internalStatusNoToken === "failed" || internalStatusNoToken === "expired") {
+        resultKindNoToken = "failed";
+      } else {
+        resultKindNoToken = "unverified";
+      }
       return res.status(200).type("text/html; charset=utf-8").send(
-        callbackResultHtml("cancelled", null)
+        callbackResultHtml(resultKindNoToken, record.id)
       );
     }
 
