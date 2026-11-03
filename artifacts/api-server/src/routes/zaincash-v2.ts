@@ -945,8 +945,17 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       });
     }
 
-    // Generate stable orderId + externalReferenceId
-    const orderId = `tt-v2-${planId}-${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // Generate ASCII-only orderId + UUID externalReferenceId.
+    // CRITICAL: orderId must NOT contain non-ASCII characters (e.g., Arabic
+    // company names). ZainCash's V2 backend replaces non-ASCII characters
+    // with literal '?' in the orderId when storing/returning it. This causes
+    // the no-token callback's orderId lookup to fail (DB has the original
+    // non-ASCII orderId, but the callback URL has '?' chars) → "unverified"
+    // page → subscription never activated despite successful payment.
+    // Fix: omit companyId from orderId entirely; use planId + timestamp +
+    // random for uniqueness. company_id is stored separately in
+    // payment_records.company_id (not sent to ZainCash as part of orderId).
+    const orderId = `tt-v2-${planId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     // externalReferenceId must be a standard UUID (36 chars, 8-4-4-4-12 format)
     // — ZainCash V2 backend deserializes it as `java.util.UUID` and rejects
     // non-UUID strings with HTTP 400. Use crypto.randomUUID() (UUIDv4).
