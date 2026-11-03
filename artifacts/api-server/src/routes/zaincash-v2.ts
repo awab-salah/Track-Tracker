@@ -1289,6 +1289,44 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       );
     }
 
+    // JWT verified — look up the payment record from OUR database by
+    // transactionId (from the verified JWT). This is the SECURE source of
+    // company_id — NOT the URL query param `companyId`, which could be
+    // tampered with by an attacker who intercepts the callback URL.
+    // Also serves as idempotency check: if already completed, skip.
+    const { url: cbSupabaseUrl, key: cbSupabaseKey } = getSupabaseCreds();
+    let dbCompanyId = "";
+    let alreadyCompleted = false;
+    if (cbSupabaseUrl && cbSupabaseKey) {
+      try {
+        const r = await fetch(`${cbSupabaseUrl}/rest/v1/rpc/get_payment_record`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: cbSupabaseKey, Authorization: `Bearer ${cbSupabaseKey}` },
+          body: JSON.stringify({ p_id: transactionId }),
+        });
+        if (r.ok) {
+          const rows = await r.json() as Array<{ status: string; company_id: string }>;
+          if (rows.length > 0) {
+            dbCompanyId = rows[0].company_id ?? "";
+            if (rows[0].status === "completed") {
+              alreadyCompleted = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] callback payment record lookup failed:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    // Idempotency: if payment_records.status is already "completed", skip
+    // re-processing (don't re-call inquiry, don't re-activate subscription).
+    if (alreadyCompleted) {
+      console.log("[ZainCash-V2] callback: payment already completed (idempotent):", transactionId);
+      return res.status(200).type("text/html; charset=utf-8").send(
+        callbackResultHtml("success", transactionId)
+      );
+    }
+
     // JWT verified successfully — safe to consult inquiry as defense-in-depth.
     // (Inquiry is authenticated via OAuth2 client_credentials, so its result
     // is authoritative — but we still require the callback JWT to be
@@ -1309,17 +1347,14 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     const internalStatus = mapV2StatusToInternal(inquiryStatus);
     // Update payment_records status (pending → failed | completed | expired | refunded | pending)
     await updatePaymentRecordStatus(transactionId, internalStatus);
-    // NOTE: The V2 callback JWT's `data.errorMessage` field contains the
-    // failure reason (e.g., "wrong OTP", "insufficient funds"). It is logged
-    // above in the diagnostic-safe log object, but is NOT stored in Supabase
-    // because the payment_records table does NOT have an error_message column.
-    // Schema change required to persist errorMessage — see V2-FULL-INVESTIGATION-REPORT.md
-    // for the exact migration SQL needed.
 
     // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
     // NEVER activate on FAILED, EXPIRED, PENDING, or any other status.
-    if (internalStatus === "completed" && companyId) {
-      await activateCompanySubscription(companyId);
+    // Uses dbCompanyId from OUR database — NOT the URL query param companyId.
+    // This prevents an attacker from tampering with the URL's companyId to
+    // activate a different company's subscription.
+    if (internalStatus === "completed" && dbCompanyId) {
+      await activateCompanySubscription(dbCompanyId);
     } else {
       console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
     }
