@@ -23,6 +23,19 @@ alter table public.companies
 create index if not exists companies_subscription_expires_at_idx
   on public.companies(subscription_expires_at);
 
+-- ── 1b. Set expiry for existing active subscriptions with NULL expiry ────────
+--
+-- Any company that already has subscription_active=true but no
+-- subscription_expires_at gets a 1-month expiry from now. This ensures
+-- NO subscription remains permanently active due to a missing expiry date.
+
+update public.companies
+  set    subscription_expires_at = now() + interval '1 month',
+         subscription_started_at = coalesce(subscription_started_at, now() - interval '1 month'),
+         updated_at = now()
+  where  subscription_active = true
+    and  subscription_expires_at is null;
+
 -- ── 2. Update activate_subscription RPC to set 1-month expiry ────────────────
 --
 -- The promo code "track1" now grants exactly 1 month of access.
