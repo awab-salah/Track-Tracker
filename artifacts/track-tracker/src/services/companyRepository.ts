@@ -18,11 +18,13 @@ type DbCompany = {
 
 function toCompanyProfile(row: DbCompany): CompanyProfile & { id: string } {
   // Check both subscription_active AND expiry date.
-  // If subscription_expires_at is in the past, treat as inactive.
-  // If subscription_expires_at is null (pre-migration), fall back to subscription_active.
+  // FAIL CLOSED: if subscription_expires_at is NULL, treat as inactive.
+  // This prevents a subscription from remaining permanently active due to
+  // a missing expiry date. After the migration, all activations set
+  // subscription_expires_at, so NULL means something went wrong.
   const now = new Date();
   const expiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
-  const isActive = row.subscription_active && (!expiresAt || expiresAt > now);
+  const isActive = row.subscription_active && expiresAt !== null && expiresAt > now;
   return {
     id: row.id,
     name: row.name,
