@@ -1,0 +1,29 @@
+[
+  {
+    "url": "https://zaincash.iq",
+    "name": "Individual Wallet Fees & Limits - ZainCash",
+    "snippet": "Cash-in from Visa or Mastercard issued in Iraq, Free, 1,500,000 IQD Per Transaction / 5,000,000 IQD Monthly ; Cash-in from National Bank of Iraq (NBI) Account ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://paystack.com",
+    "name": "Transaction API | Paystack Developer Documentation",
+    "snippet": "The Transactions API allows you create and manage payments on your integration. Initialize Transaction . Initialize a transaction from your backend. Headers. Read more",
+    "host_name": "paystack.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.tink.com",
+    "name": "api/v1/payments/requests/{id}/transfers",
+    "snippet": "The amount and currency for a mandate payment. consentId ... Amount needs to be greater than or equal to 0.01 and less than or equal to transaction amount . Read more",
+    "host_name": "docs.tink.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  }
+]

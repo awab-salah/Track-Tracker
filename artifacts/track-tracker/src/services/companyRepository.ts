@@ -11,19 +11,27 @@ type DbCompany = {
   join_code: string;
   logo_url: string | null;
   subscription_active: boolean;
+  subscription_expires_at: string | null;
+  subscription_started_at: string | null;
+  subscription_plan_id: string | null;
 };
 
 function toCompanyProfile(row: DbCompany): CompanyProfile & { id: string } {
+  // Check both subscription_active AND expiry date.
+  // If subscription_expires_at is in the past, treat as inactive.
+  // If subscription_expires_at is null (pre-migration), fall back to subscription_active.
+  const now = new Date();
+  const expiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+  const isActive = row.subscription_active && (!expiresAt || expiresAt > now);
   return {
     id: row.id,
     name: row.name,
     email: row.email,
     joinCode: row.join_code,
     logoUrl: row.logo_url,
-    // subscription_active may not exist on the DB yet (column added via migration).
-    // PostgREST omits unknown columns from `select('*')`, so the value comes as
-    // `undefined` — we coerce to `false` so the gate blocks until the migration runs.
-    subscriptionActive: (row as Record<string, unknown>).subscription_active as boolean ?? false,
+    subscriptionActive: isActive,
+    subscriptionExpiresAt: row.subscription_expires_at ?? undefined,
+    subscriptionPlanId: row.subscription_plan_id ?? undefined,
   };
 }
 

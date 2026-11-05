@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "A lightweight, easy-to-integrate Flutter SDK for PayChangu",
+    "snippet": "This SDK provides a simple and secure way to accept payments through various payment methods including Airtel Money, TNM Mpamba, and card payments in Malawi.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fluttergems.dev",
+    "name": "Top Flutter In-app Payment API/SDK packages",
+    "snippet": "List of Top Flutter In-app Payment API / SDK packages | Google Pay, Apple Pay, Stripe, Paytm, etc. Flutter Gems is a curated list of Dart & Flutter packages ...",
+    "host_name": "fluttergems.dev",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  }
+]

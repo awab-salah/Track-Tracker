@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "Set the service type for the transaction . The service type must be one of the following: Book , Food , Grocery , Pharmacy , Transportation , Other .",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq",
+    "name": "ZainCash | Terms & Conditions",
+    "snippet": "The electronic payment service via mobile that is provided by the company, zaincash . iq , ries and resolving any technical issues faced",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://forum.cs-cart.com",
+    "name": "Create Wallet Payment Method (Zain Cash) - Questions",
+    "snippet": "Jul 28, 2020 — The service Type (a string, any string from your side prefers to be your website name). this can help you track your payments and closing your ...",
+    "host_name": "forum.cs-cart.com",
+    "rank": 2,
+    "date": "Jul 28, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://stringiq.net",
+    "name": "StringIQ Developer Hub",
+    "snippet": "Explore StringIQ's Developer Hub with APIs and documentation for payment gateway and SoftPOS integrations, built for secure Tap to Pay and scalable ...",
+    "host_name": "stringiq.net",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://packagist.org",
+    "name": "thejano/zaincash-laravel",
+    "snippet": "Feb 10, 2025 — Usage ; response = ZainCashPayment::initiatePayment( orderId : '12345', amount : 1000.00, serviceType : 'purchase', redirectUrl: 'https://yourdomain ...",
+    "host_name": "packagist.org",
+    "rank": 4,
+    "date": "Feb 10, 2025",
+    "favicon": ""
+  }
+]

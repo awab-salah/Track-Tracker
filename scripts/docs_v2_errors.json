@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://forums.online-go.com",
+    "name": "401 invalid client error - API Development",
+    "snippet": "Oct 24, 2022 — I'm trying to authorise a connection to the API but I get a 401 “invalid_client” error . What could be the cause of this?",
+    "host_name": "forums.online-go.com",
+    "rank": 0,
+    "date": "Oct 24, 2022",
+    "favicon": ""
+  },
+  {
+    "url": "https://sendlayer.com",
+    "name": "401 Error: invalid_client",
+    "snippet": "To resolve the '401 error: invalid_client' issue, you'll need to make sure the Client ID value on your SMTP plugin matches the one on Google Cloud . Read more",
+    "host_name": "sendlayer.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.awork.com",
+    "name": "Error: 401 /api/v1/accounts/token {\"code\":\"invalid_client",
+    "snippet": "Sep 1, 2025 — To get a refresh token, you need to include the offline_access in the scope list so that the user knows you want continuous access. Hope this ... Read more",
+    "host_name": "community.awork.com",
+    "rank": 2,
+    "date": "Sep 1, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.auth0.com",
+    "name": "401, Bearer error=\"invalid_token\", The audience is invalid",
+    "snippet": "Jul 10, 2021 — I am facing the following issue when calling my api: “ 401 , Bearer error =“ invalid_token ”, The audience is invalid”. This tutorial demonstrates ...",
+    "host_name": "community.auth0.com",
+    "rank": 3,
+    "date": "Jul 10, 2021",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.wise.com",
+    "name": "Client credentials tokens",
+    "snippet": "Aug 14, 2026 — Cause: Client authentication failed. 401 invalid_token Cause: The token is expired, was never valid, has been revoked, or was invalidated when ...",
+    "host_name": "docs.wise.com",
+    "rank": 4,
+    "date": "Aug 14, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://repost.aws",
+    "name": "Amazon Cognito token revocation endpoint returns HTTP",
+    "snippet": "Dec 10, 2025 — When you receive an HTTP 401 error with \" invalid_client \" from the Amazon Cognito token revocation endpoint, this typically indicates an issue ... Read more",
+    "host_name": "repost.aws",
+    "rank": 5,
+    "date": "Dec 10, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://userapps.support.sap.com",
+    "name": "3557723 - Error: \"401 - Unauthorized\" and \"invalid_client\"",
+    "snippet": "3557723 - Error: \"401 - Unauthorized\" and \"invalid_client \" when calling an API from Cloud Integration. Symptom. The following response error can be seen in ... Read more",
+    "host_name": "userapps.support.sap.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.tryterra.co",
+    "name": "Why do my requests return 401 in production? - Terra Docs",
+    "snippet": "Jun 12, 2026 — Why do my requests return 401 in production? 401 / invalid-token errors almost always mean credentials are mismatched across environments. Read more",
+    "host_name": "docs.tryterra.co",
+    "rank": 7,
+    "date": "Jun 12, 2026",
+    "favicon": ""
+  }
+]

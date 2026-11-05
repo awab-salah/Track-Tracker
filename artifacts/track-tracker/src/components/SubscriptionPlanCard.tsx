@@ -1,23 +1,18 @@
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { AppButton } from '@/components/AppButton';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
 import type { SubscriptionPlan } from '@/services/subscriptionService';
 
 interface SubscriptionPlanCardProps {
   plan: SubscriptionPlan;
   onSubscribe: (planId: string) => void;
-  /** True only for the plan the user is actually subscribed to (Bug 1 fix). */
-  isActive: boolean;
-  /** ID of the plan currently loading via ZainCash, or null (Bug 2 fix). */
-  loadingPlanId: string | null;
+  loading?: boolean;
 }
 
-export function SubscriptionPlanCard({ plan, onSubscribe, isActive, loadingPlanId }: SubscriptionPlanCardProps) {
+export function SubscriptionPlanCard({ plan, onSubscribe, loading }: SubscriptionPlanCardProps) {
   const formatPrice = (price: number) =>
     price.toLocaleString('en-US');
-
-  const isLoading = loadingPlanId === plan.id;
 
   return (
     <motion.div
@@ -67,15 +62,13 @@ export function SubscriptionPlanCard({ plan, onSubscribe, isActive, loadingPlanI
       <div className="mt-4">
         <AppButton
           onClick={() => onSubscribe(plan.id)}
-          disabled={isActive || isLoading}
+          disabled={loading}
         >
-          {isLoading ? (
-            <>
-              <Loader2 size={18} className="animate-spin" />
-              جارٍ الاتصال بـ ZainCash…
-            </>
-          ) : isActive ? (
-            'مفعّل'
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              جارٍ التحويل...
+            </span>
           ) : (
             'اشترك الآن'
           )}

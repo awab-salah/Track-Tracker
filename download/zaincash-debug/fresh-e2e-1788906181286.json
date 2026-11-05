@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-09-08T22:23:42.627Z",
+  "companyName": "Smoke Test Co 2",
+  "results": [
+    {
+      "tag": "wallet1_9569",
+      "wallet": {
+        "idx": 1,
+        "phone": "9647802999569",
+        "pin": "1111",
+        "otp": "111111"
+      },
+      "create": {
+        "status": 502,
+        "body": {
+          "error": "ZainCash transaction init failed",
+          "step": "transaction_init",
+          "zaincashStatus": 503,
+          "zaincashResponse": "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head>\n<title>503 Service Unavailable</title>\n</head><body>\n<h1>Service Unavailable</h1>\n<p>The server is temporarily unable to service your\nrequest due to maintenance downtime or capacity\nproblems. Please try again later.</p>\n<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML=\"window.__CF$cv$params={r:'a3815b3b0e5f317e',t:'MTc4ODkwNjE5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);\";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document."
+        }
+      },
+      "completed": false,
+      "reason": "create_failed"
+    },
+    {
+      "tag": "wallet2_4432",
+      "wallet": {
+        "idx": 2,
+        "phone": "9647829744432",
+        "pin": "1111",
+        "otp": "111111"
+      },
+      "create": {
+        "status": 502,
+        "body": {
+          "error": "ZainCash transaction init failed",
+          "step": "transaction_init",
+          "zaincashStatus": 503,
+          "zaincashResponse": "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head>\n<title>503 Service Unavailable</title>\n</head><body>\n<h1>Service Unavailable</h1>\n<p>The server is temporarily unable to service your\nrequest due to maintenance downtime or capacity\nproblems. Please try again later.</p>\n<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML=\"window.__CF$cv$params={r:'a3815b626b2f11cc',t:'MTc4ODkwNjE5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);\";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document."
+        }
+      },
+      "completed": false,
+      "reason": "create_failed"
+    },
+    {
+      "tag": "wallet3_4464",
+      "wallet": {
+        "idx": 3,
+        "phone": "9647829744464",
+        "pin": "1111",
+        "otp": "111111"
+      },
+      "txId": "6aa08ade47420de09c064244",
+      "orderId": "tt-plan-10-Smoke Test Co 2-1788906205666-hsmb3v",
+      "processing": {
+        "success": 0,
+        "msg": "SYSTEMINVALID-MSISDN",
+        "jwtStatus": "failed"
+      },
+      "pay": {
+        "success": 0,
+        "msg": "incorrect_otp",
+        "jwtStatus": "failed"
+      },
+      "verify": {
+        "httpStatus": 200,
+        "status": "failed",
+        "due": "incorrect_otp",
+        "from": "9647829744464"
+      },
+      "paymentRecord": "pending",
+      "subscriptionActive": false,
+      "completed": false
+    }
+  ]
+}

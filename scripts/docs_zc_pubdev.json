@@ -1,0 +1,29 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "Pub publish over CI should be supported · Issue #2227",
+    "snippet": "Oct 15, 2019 — Allow service accounts to be added as members on pub . dev , then enhance pub publish to support impersonating a service account.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Oct 15, 2019",
+    "favicon": ""
+  },
+  {
+    "url": "https://dart.dev",
+    "name": "Automated publishing of packages to pub.dev",
+    "snippet": "May 15, 2026 — The following sections explain how automated publishing is configured, and how you can customize publishing flows in line with your preferences.",
+    "host_name": "dart.dev",
+    "rank": 1,
+    "date": "May 15, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev",
+    "name": "ariyanpay | Flutter package",
+    "snippet": "This is a Flutter package for ariyanpay Payment Gateway. Check the package in github and also available in flutter/dart package. Repository ( GitHub )",
+    "host_name": "pub.dev",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  }
+]

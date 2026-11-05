@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://play.google.com/store/apps/details?id=mobi.foo.zaincash&hl=en_US",
+    "name": "ZainCash Iraq - زين كاش عراق - Apps on Google Play",
+    "snippet": "Aug 10, 2026 — ZainCash is a licensed mobile wallet regulated by the Central Bank of Iraq , designed to simplify your financial transactions securely and ... Read more",
+    "host_name": "play.google.com",
+    "rank": 0,
+    "date": "Aug 10, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://zaincash.iq",
+    "name": "Payment Gateway",
+    "snippet": "It's an online payment service that can be done through your organization's website or mobile application. The company can also inform its customers when it ... Read more",
+    "host_name": "zaincash.iq",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://fatora.io",
+    "name": "Fatora Payment APIs | Integrate With ZainCash for Payments",
+    "snippet": "Start accepting payments with ZainCash by providing Fatora your live ZainCash account details for seamless integration.",
+    "host_name": "fatora.io",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://packagist.org",
+    "name": "thejano/zaincash-laravel",
+    "snippet": "Feb 10, 2025 — README. Introduction. ZainCash Laravel is a PHP SDK designed to integrate the ZainCash payment gateway with Laravel applications seamlessly. Read more",
+    "host_name": "packagist.org",
+    "rank": 3,
+    "date": "Feb 10, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://libraries.io",
+    "name": "ht3aa/zain-cash v0.0.1 on Packagist",
+    "snippet": "Jan 6, 2026 — This package provides a simple and elegant way to handle payment transactions, webhooks, and transaction tracking with ZainCash . production and ...",
+    "host_name": "libraries.io",
+    "rank": 4,
+    "date": "Jan 6, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com",
+    "name": "Payment Gateway API Documentation",
+    "snippet": "For payment gateway API documentation , check Iraq Payments for Zain Cash guides and Kora for simple integration docs . You'll also find detailed walkthroughs ... Read more",
+    "host_name": "www.facebook.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

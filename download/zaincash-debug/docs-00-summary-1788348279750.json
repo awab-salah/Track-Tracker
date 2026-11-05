@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-09-02T11:24:56.497Z",
+  "credentialsUsed": {
+    "phone": "9647802999569",
+    "pin": "1111",
+    "otp": "11111"
+  },
+  "transactionId": "6a98077a717b0f70f5eafe2c",
+  "orderId": "tt-plan-10-Smoke Test Co 2-1788348282177-9tf6p4",
+  "companyName": "Smoke Test Co 2",
+  "createStatus": 200,
+  "completeStatus": 200,
+  "finalStatus": {
+    "initialStatus": "pending",
+    "processingSuccess": 0,
+    "paySuccess": "unknown",
+    "finalStatus": "unknown"
+  },
+  "paymentRecordStatus": "pending",
+  "companySubscriptionActive": false,
+  "outcome": "PARTIAL"
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "PUB GET IS NOT WORKING (it is 10 days now) · Issue #2609",
+    "snippet": "Aug 10, 2020 — pub.dev does not work sometimes . I think it is due to firewall. I use VPN but does not work.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "Aug 10, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://pub.dev",
+    "name": "feedback_github | Flutter package",
+    "snippet": "A Flutter package that enables users to submit feedback as GitHub issues, storing images in Firebase Storage.",
+    "host_name": "pub.dev",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dart.dev",
+    "name": "Automated publishing of packages to pub.dev",
+    "snippet": "May 15, 2026 — You can automate publishing from: GitHub Actions,; Google Cloud Build or,; Anywhere else using a GCP service account. Read more",
+    "host_name": "dart.dev",
+    "rank": 2,
+    "date": "May 15, 2026",
+    "favicon": ""
+  }
+]

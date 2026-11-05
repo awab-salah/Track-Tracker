@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://docs.api7.ai",
+    "name": "JWT Auth | APISIX & API7 API Gateway Docs",
+    "snippet": "The jwt -auth plugin supports the use of JSON Web Token ( JWT ) for client authentication before accessing upstream resources, enhancing API security measures.",
+    "host_name": "docs.api7.ai",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://support.iterable.com",
+    "name": "JWT-Enabled API Keys",
+    "snippet": "Sep 22, 2020 — To authenticate an Iterable API call with a JWT -enabled API key , set an HTTP Authorization header (Bearer schema) with a valid, non-expired JWT ... Read more",
+    "host_name": "support.iterable.com",
+    "rank": 1,
+    "date": "Sep 22, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://zuplo.com",
+    "name": "Securing your API with API Keys & JSON Web Tokens (JWT)",
+    "snippet": "Jan 7, 2026 — In this article, we'll explore the benefits and challenges of using both API Keys and JWTs for authentication, and how to implement them ...",
+    "host_name": "zuplo.com",
+    "rank": 2,
+    "date": "Jan 7, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://fusionauth.io",
+    "name": "Authenticate with our APIs | FusionAuth Docs",
+    "snippet": "When an API is marked with a red key icon such as JWT Authentication it means you may call this API without an API key . Instead, provide a JSON Web Token ( JWT ).",
+    "host_name": "fusionauth.io",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://swagger.io",
+    "name": "API Keys",
+    "snippet": "An API key is a token that a client provides when making API calls. X - API - Key : This response includes the WWW-Authenticate header ,",
+    "host_name": "swagger.io",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://devforum.zoom.us",
+    "name": "Applying API Key in JWT Authentication",
+    "snippet": "Feb 8, 2022 — ApiKeyName : If the target site has a notion of an API key , this parameter can be used to specify the name (not the value) of the key parameter ... Read more",
+    "host_name": "devforum.zoom.us",
+    "rank": 5,
+    "date": "Feb 8, 2022",
+    "favicon": ""
+  },
+  {
+    "url": "https://auth0.com",
+    "name": "Using JSON Web Tokens as API Keys",
+    "snippet": "Dec 2, 2014 — Most APIs today use an API Key to authenticate legitimate clients. Add the key to an Authorization header . JWTs are digitally signed, so its ...",
+    "host_name": "auth0.com",
+    "rank": 6,
+    "date": "Dec 2, 2014",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.moneyhash.io",
+    "name": "Authentication",
+    "snippet": "The main authentication method in MoneyHash is the Server Side API keys, which are sent in each authenticated request header as. X - Api - Key . This API key is ... Read more",
+    "host_name": "docs.moneyhash.io",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]

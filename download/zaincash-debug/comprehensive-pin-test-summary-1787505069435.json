@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-08-23T17:12:47.396Z",
+  "phone": "9647802999569",
+  "results": [
+    {
+      "pin": "9999",
+      "otp": "1111",
+      "transactionId": "6a8b29c0c5678e075311c9b3",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    },
+    {
+      "pin": "12345",
+      "otp": "1111",
+      "transactionId": "6a8b29cdc5678e075311c9b4",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    },
+    {
+      "pin": "123456",
+      "otp": "1111",
+      "transactionId": "6a8b29dbc5678e075311c9b5",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    },
+    {
+      "pin": "000000",
+      "otp": "1111",
+      "transactionId": "6a8b29e8c5678e075311c9b6",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    },
+    {
+      "pin": "4321",
+      "otp": "1111",
+      "transactionId": "6a8b29f6c5678e075311c9b7",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp",
+      "finalFrom": "9647802999569"
+    }
+  ],
+  "successfulPins": [],
+  "completedFlows": []
+}

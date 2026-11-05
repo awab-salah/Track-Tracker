@@ -281,6 +281,7 @@ security definer set search_path = public
 as $$
 declare
   v_company_id uuid;
+  v_existing_started timestamptz;
 begin
   -- Validate the activation code
   if lower(trim(p_activation_code)) <> 'track1' then
@@ -296,15 +297,22 @@ begin
     return false;
   end if;
 
-  -- If already active, return true immediately (no redundant UPDATE)
-  if exists (select 1 from public.companies where id = v_company_id and subscription_active = true) then
-    return true;
+  -- First-month-only check: if subscription_started_at is already set, reject
+  select subscription_started_at into v_existing_started
+  from   public.companies
+  where  id = v_company_id;
+
+  if v_existing_started is not null then
+    return false;
   end if;
 
-  -- Activate the subscription
+  -- Activate the subscription with 1-month expiry
   update public.companies
-  set    subscription_active = true,
-         updated_at          = now()
+  set    subscription_active     = true,
+         subscription_plan_id    = 'promo-track1',
+         subscription_started_at = now(),
+         subscription_expires_at = now() + interval '1 month',
+         updated_at              = now()
   where  id = v_company_id;
 
   return true;

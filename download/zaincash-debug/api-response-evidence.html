@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ZainCash API Response Evidence</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1400px; margin: 0 auto; padding: 2rem; background: #f8fafc; color: #1e293b; }
+h1 { color: #0f172a; border-bottom: 3px solid #dc2626; padding-bottom: 0.5rem; }
+h2 { color: #b91c1c; margin-top: 2rem; }
+.card { background: white; border-radius: 8px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #3b82f6; }
+pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.85em; line-height: 1.5; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+.tag-red { background: #fee2e2; color: #991b1b; }
+.tag-green { background: #dcfce7; color: #166534; }
+.tag-blue { background: #dbeafe; color: #1e40af; }
+.timestamp { color: #64748b; font-size: 0.85em; }
+.diff { background: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>ZainCash API Response Evidence — Live Test Results</h1>
+<p class="timestamp">Generated: 2026-08-24 01:16 UTC+8 · Source: <code>https://track-tracker-app.vercel.app/api/zaincash/verify</code></p>
+
+<h2>Test 1: Documented credentials → "Wrong Credentials"</h2>
+<p>Transaction <code>6a8b2a3acb2621325abeb170</code> — Phone <code>9647802999569</code> + PIN <code>1234</code></p>
+<div class="card">
+<p><span class="tag tag-red">FAILED</span> Final inquiry response from <code>GET /api/zaincash/verify</code>:</p>
+<pre>{
+  "transactionId": "6a8b2a3acb2621325abeb170",
+  "status": "failed",
+  "details": {
+    "to": {
+      "name": "test integration en",
+      "msisdn": 9647835077893,
+      "id": "5ffacf6612b5777c6d44266f"
+    },
+    "amount": "1000",
+    "serviceType": "Other",
+    "status": "failed",
+    "due": "incorrect_otp",
+    "from": "9647802999569",
+    "id": "6a8b2a3acb2621325abeb170"
+  }
+}</pre>
+<p>Decoded JWT from <code>/transaction/processing</code> response (the <code>url</code> field's token):</p>
+<pre>{
+  "status": "failed",
+  "msg": "Wrong Credentials. Please try again.",
+  "orderid": "tt-plan-10-Smoke Test Co 2-1787505233179-q2xz6v",
+  "id": "6a8b2a3acb2621325abeb170"
+}</pre>
+</div>
+
+<h2>Test 2: Random unregistered phone → "User not found!"</h2>
+<p>Transaction <code>6a8b2a55cb2621325abeb172</code> — Phone <code>9647800000000</code> + PIN <code>1234</code></p>
+<div class="card">
+<p><span class="tag tag-red">FAILED</span> Final inquiry response from <code>GET /api/zaincash/verify</code>:</p>
+<pre>{
+  "transactionId": "6a8b2a55cb2621325abeb172",
+  "status": "failed",
+  "details": {
+    "to": {
+      "name": "test integration en",
+      "msisdn": 9647835077893,
+      "id": "5ffacf6612b5777c6d44266f"
+    },
+    "amount": "1000",
+    "serviceType": "Other",
+    "status": "failed",
+    "due": "incorrect_otp",
+    "from": "9647800000000",
+    "id": "6a8b2a55cb2621325abeb172"
+  }
+}</pre>
+<p>Decoded JWT from <code>/transaction/processing</code> response:</p>
+<pre>{
+  "status": "failed",
+  "msg": "<span class="diff">User not found!</span>",
+  "orderid": "tt-plan-10-Smoke Test Co 2-1787505237285-3amefk",
+  "id": "6a8b2a55cb2621325abeb172"
+}</pre>
+</div>
+
+<h2>Side-by-Side Comparison</h2>
+<div class="card">
+<table style="width: 100%; border-collapse: collapse;">
+<thead>
+<tr style="background: #f1f5f9;">
+<th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0;">Field</th>
+<th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0;">Documented phone (9647802999569)</th>
+<th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0;">Random phone (9647800000000)</th>
+<th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0;">Implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Phone registered?</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;"><span class="tag tag-green">YES</span> (no "User not found" error)</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;"><span class="tag tag-red">NO</span> ("User not found!")</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">9647802999569 IS a valid wallet</td>
+</tr>
+<tr>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">PIN 1234 valid?</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;"><span class="tag tag-red">NO</span> ("Wrong Credentials")</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">N/A (phone not found first)</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">PIN 1234 is WRONG for this wallet</td>
+</tr>
+<tr>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Transaction created?</td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;"><span class="tag tag-green">YES</span></td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;"><span class="tag tag-green">YES</span></td>
+<td style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">Init flow works for both</td>
+</tr>
+<tr>
+<td style="padding: 0.75rem;">from field populated?</td>
+<td style="padding: 0.75rem;"><span class="tag tag-green">YES</span> 9647802999569</td>
+<td style="padding: 0.75rem;"><span class="tag tag-green">YES</span> 9647800000000</td>
+<td style="padding: 0.75rem;">ZainCash records the attempted payer phone</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h2>Conclusion</h2>
+<div class="card" style="border-left-color: #dc2626; background: #fef2f2;">
+<p><strong>The documented test credentials (PIN 1234, OTP 1111) for wallet 9647802999569 are NO LONGER VALID in the current ZainCash UAT environment.</strong></p>
+<p>ZainCash support has confirmed via email that their UAT environment works and they have evidence of a successful transaction. This means they have <strong>updated test credentials</strong> that differ from what's published in the public Laravel README.</p>
+<p><strong>Action required:</strong> Contact ZainCash support to obtain the current PIN and OTP for the test wallet <code>9647802999569</code>. Once provided, our integration will work end-to-end without any code changes.</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "timestamp": "2026-09-02T11:32:01.359Z",
+  "phone": "9647802999569",
+  "results": [
+    {
+      "tag": "A-pin1111-otp111111",
+      "pin": "1111",
+      "otp": "111111",
+      "txId": "6a9809175029ab171981a24c",
+      "orderId": "tt-plan-10-Smoke Test Co 2-1788348694736-hssa4j",
+      "processing": {
+        "success": 0,
+        "msg": "SYSTEMINVALID-MSISDN",
+        "jwtStatus": "failed",
+        "jwt": {
+          "msg": "SYSTEMINVALID-MSISDN",
+          "status": "failed"
+        }
+      },
+      "pay": {
+        "success": 0,
+        "msg": "incorrect_otp",
+        "jwtStatus": "failed",
+        "jwt": {
+          "msg": "incorrect_otp",
+          "status": "failed"
+        }
+      },
+      "verify": {
+        "httpStatus": 200,
+        "txStatus": "failed",
+        "raw": "{\"transactionId\":\"6a9809175029ab171981a24c\",\"status\":\"failed\",\"details\":{\"to\":{\"createdAt\":\"2024-05-23T08:48:56.675Z\",\"currency\":\"IQD\",\"deleted\":false,\"msisdn\":9647835077893,\"name\":\"test integration en\",\"pay_by_reference\":\"1\",\"updatedAt\":\"2025-11-05T06:09:03.170Z\",\"sofId\":\"5185245\",\"id\":\"5ffacf6612b5777c6d44266f\"},\"source\":\"web\",\"type\":\"MERCHANT_PAYMENT\",\"amount\":\"1000\",\"serviceType\":\"Other\",\"lang\":\"ar\",\"orderId\":\"tt-plan-10-Smoke Test Co 2-1788348694736-hssa4j\",\"currencyConversion\":{},\"referenc"
+      },
+      "completed": false
+    },
+    {
+      "tag": "B-pin1111-otp11111",
+      "pin": "1111",
+      "otp": "11111",
+      "txId": "6a9809275029ab171981a24d",
+      "orderId": "tt-plan-10-Smoke Test Co 2-1788348710475-apkopk",
+      "processing": {
+        "success": 0,
+        "msg": "SYSTEMINVALID-MSISDN",
+        "jwtStatus": "failed",
+        "jwt": {
+          "msg": "SYSTEMINVALID-MSISDN",
+          "status": "failed"
+        }
+      },
+      "pay": {
+        "success": 0,
+        "msg": "incorrect_otp",
+        "jwtStatus": "failed",
+        "jwt": {
+          "msg": "incorrect_otp",
+          "status": "failed"
+        }
+      },
+      "verify": {
+        "httpStatus": 200,
+        "txStatus": "failed",
+        "raw": "{\"transactionId\":\"6a9809275029ab171981a24d\",\"status\":\"failed\",\"details\":{\"to\":{\"createdAt\":\"2024-05-23T08:48:56.675Z\",\"currency\":\"IQD\",\"deleted\":false,\"msisdn\":9647835077893,\"name\":\"test integration en\",\"pay_by_reference\":\"1\",\"updatedAt\":\"2025-11-05T06:09:03.170Z\",\"sofId\":\"5185245\",\"id\":\"5ffacf6612b5777c6d44266f\"},\"source\":\"web\",\"type\":\"MERCHANT_PAYMENT\",\"amount\":\"1000\",\"serviceType\":\"Other\",\"lang\":\"ar\",\"orderId\":\"tt-plan-10-Smoke Test Co 2-1788348710475-apkopk\",\"currencyConversion\":{},\"referenc"
+      },
+      "completed": false
+    }
+  ]
+}

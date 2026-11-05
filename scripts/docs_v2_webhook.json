@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://docs.eideasy.com",
+    "name": "Signature Webhooks",
+    "snippet": "Jul 3, 2026 — This webhook gets triggered when \"signing started\" and \"signing completed\". It will send a POST request with a 30-second timeout. If you respond ... Read more",
+    "host_name": "docs.eideasy.com",
+    "rank": 0,
+    "date": "Jul 3, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.paypal.com",
+    "name": "Verify webhook signature",
+    "snippet": "Verifies a webhook signature . The algorithm that PayPal uses to generate the signature and that you can use to verify the signature. use it to verify the  ...",
+    "host_name": "developer.paypal.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.cash.app",
+    "name": "Webhook Signature Generation",
+    "snippet": "A webhook signature is a cryptographic hash used to verify the authenticity and integrity of webhook requests. It ensures that the request comes from a ... Read more",
+    "host_name": "developers.cash.app",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.tink.com",
+    "name": "Notifications and webhooks",
+    "snippet": "When you use the Events API, Tink signs notifications that are sent to your webhook endpoint. This section describes how you can verify the signature . Read more",
+    "host_name": "docs.tink.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://iqpro.com",
+    "name": "Webhooks",
+    "snippet": "Webhook post requests are sent with a header \"Signature\" that is HMAC SHA 256 signed and then base64 url encoded. To verify webhook post signatures, retrieve \" ... Read more",
+    "host_name": "iqpro.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.circle.com",
+    "name": "How-to: Verify webhook signatures",
+    "snippet": "Confirm that a webhook notification was sent by Circle by verifying its digital signature . its digital signature . is signed with an asymmetric key. Each  ...",
+    "host_name": "developers.circle.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://configcat.com",
+    "name": "Notifications - Webhooks | ConfigCat Docs",
+    "snippet": "The signature is calculated from the content constructed by concatenating the webhook's id , timestamp , and raw body together. const contentToSign = `${ ... Read more",
+    "host_name": "configcat.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.moneygram.com",
+    "name": "Webhook Security",
+    "snippet": "Webhook notifications require a digital signature . MoneyGram signs the request using public / private keys. Signatures are generated using an RSA key and ... Read more",
+    "host_name": "developer.moneygram.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]

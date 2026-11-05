@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://www.linkedin.com/posts/purvaja-deshmukh-107962188_ai-llm-testing-activity-7399348794682781696-sXTf",
+    "name": "Purvaja Deshmukh's Post - Mastering API Testing? - LinkedIn",
+    "snippet": "Important Headers Content-Type: application/json Authorization: Bearer <token> Accept-Language: en-US 4. Key Test Assertions ...",
+    "host_name": "www.linkedin.com",
+    "rank": 0,
+    "date": "Nov 25, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/AGB.DZ/posts/%D9%83%D9%8A-%D8%AA%D8%AE%D9%84%D8%B5-%D8%A3%D9%88%D9%86%D9%84%D8%A7%D9%8A%D9%86-%D9%88%D8%A7%D8%B4-%D9%8A%D8%AF%D9%8A%D8%B1-%D8%A7%D9%84%D9%80-otp-%D9%84%D9%8A-%D9%8A%D9%88%D8%B5%D9%84%D9%83-%D8%A7%D9%84%D9%80-otp-%D9%87%D9%88-%D8%B1%D9%85%D8%B2-%D8%AA%D8%AD%D9%82%D9%82-%D9%85%D8%A4%D9%82%D8%AA-%D9%8A%D9%88%D8%B5%D9%84%D9%83-%D8%B9%D9%84%D9%89-%D9%87%D8%A7%D8%AA/1042352418492246",
+    "name": "ويساعدك على تأكيد العملية. وهذا جزء من نظام 3D Secure - Facebook",
+    "snippet": "... Authorization: Bearer sk_live_votre_cle_secrete', 'Content-Type: application/json' ]); $response = curl_exec($ch); curl_close($ch); $result ...",
+    "host_name": "www.facebook.com",
+    "rank": 1,
+    "date": "Aug 13, 2026",
+    "favicon": ""
+  }
+]

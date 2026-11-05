@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-09-08T22:27:51.352Z",
+  "source": "Official docs.zaincash.iq (search snippets via z-ai web_search, since Cloudflare blocks direct access)",
+  "test_method": "Used EXISTING deployed /api/zaincash/debug-complete-payment (no code changes, no new endpoints)",
+  "v2_official_test_wallets_tested": [
+    {
+      "idx": 1,
+      "phone": "9647802999569",
+      "pin": "1111",
+      "otp": "111111",
+      "txId": "6aa08b427d314ee2a3ccd131",
+      "result": "failed",
+      "proc": "SYSTEMINVALID-MSISDN",
+      "pay": "incorrect_otp",
+      "from": "9647802999569"
+    },
+    {
+      "idx": 2,
+      "phone": "9647829744432",
+      "pin": "1111",
+      "otp": "111111",
+      "txId": "6aa08b527d314ee2a3ccd132",
+      "result": "failed",
+      "proc": "SYSTEMINVALID-MSISDN",
+      "pay": "incorrect_otp",
+      "from": "9647829744432"
+    },
+    {
+      "idx": 3,
+      "phone": "9647829744464",
+      "pin": "1111",
+      "otp": "111111",
+      "txId": "6aa08ade47420de09c064244",
+      "result": "failed",
+      "proc": "SYSTEMINVALID-MSISDN",
+      "pay": "incorrect_otp",
+      "from": "9647829744464"
+    }
+  ],
+  "v1_laravel_readme_creds_tested": [
+    {
+      "phone": "9647802999569",
+      "pin": "1234",
+      "otp": "1111",
+      "txId": "6aa08bc97ab2c90dab02ae93",
+      "result": "failed",
+      "proc": "Wrong Credentials. Please try again.",
+      "pay": "incorrect_otp",
+      "from": "9647802999569"
+    }
+  ],
+  "supabase_state_after_tests": {
+    "payment_records_status_for_all": "pending",
+    "company_subscription_active": false
+  },
+  "key_finding": "All 3 v2-documented test wallets produce IDENTICAL error (SYSTEMINVALID-MSISDN) when used on v1 (test.zaincash.iq). PIN 1111 (v2 docs) gives unique error distinct from any other wrong PIN (which all give Wrong Credentials), proving PIN is recognized but wallet is system-blocked on v1. Old Laravel README creds (PIN 1234) also fail with Wrong Credentials — wallet 9647802999569 has NO valid PIN on v1.",
+  "conclusion": "Our v1 merchant account (5ffacf6612b5777c6d44266f) cannot authenticate any documented customer test wallet on v1. v2 migration required."
+}

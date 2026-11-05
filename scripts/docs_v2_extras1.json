@@ -1,0 +1,11 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "waadmawlood/zaincash: Zain Cash payment Integration",
+    "snippet": "checkTransaction() : Check the transaction and return the transaction details (array or stdClass). $ transactionDetails = $zainCashPayment->checkTransaction();. Read more",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  }
+]

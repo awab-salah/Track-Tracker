@@ -1,0 +1,755 @@
+     1→     1→/**
+     2→     2→ * ZainCash Payment Gateway routes for the Express API server.
+     3→     3→ *
+     4→     4→ * Endpoints:
+     5→     5→ *   POST /api/zaincash/create  — Create a payment transaction
+     6→     6→ *   POST /api/zaincash/callback — Server-to-server callback from ZainCash
+     7→     7→ *   GET  /api/zaincash/verify  — Verify payment status (client polling)
+     8→     8→ *
+     9→     9→ * Uses ZainCash v1 API (JWT-based authentication).
+    10→    10→ *
+    11→    11→ * IMPORTANT: The v2 OAuth2 API (/api/v2/oauth2/token and
+    12→    12→ * /api/v2/payment-gateway/transaction/init) is behind Cloudflare WAF
+    13→    13→ * and returns 403 Forbidden for server-to-server requests from
+    14→    14→ * serverless environments. All production ZainCash integrations
+    15→    15→ * (Laravel package, Flutter packages) use the v1 JWT flow.
+    16→    16→ *
+    17→    17→ * v1 Flow:
+    18→    18→ *   1. Create JWT payload { amount, serviceType, msisdn, orderId, redirectUrl, iat, exp }
+    19→    19→ *   2. Sign with HMAC-SHA256 using the merchant secret key
+    20→    20→ *   3. POST to {baseUrl}/transaction/init with { lang, merchantId, token }
+    21→    21→ *   4. Response: { id, rUrl } — redirect user to rUrl + id
+    22→    22→ *
+    23→    23→ * Inquiry (for verify/callback):
+    24→    24→ *   1. Create JWT payload { id, msisdn, iat, exp }
+    25→    25→ *   2. POST to {baseUrl}/transaction/get with { merchantId, token }
+    26→    26→ *
+    27→    27→ * Sandbox defaults: official test credentials from the ZainCash Laravel package
+    28→    28→ * (https://github.com/waadmawlood/zaincash).
+    29→    29→ */
+    30→    30→import { Router, type IRouter, type Request, type Response } from "express";
+    31→    31→import crypto from "crypto";
+    32→    32→
+    33→    33→// ── Config ────────────────────────────────────────────────────────────────────
+    34→    34→//
+    35→    35→// ZainCash v1 API uses JWT (HMAC-SHA256) signed with a secret key.
+    36→    36→// The merchant is identified by merchantId + msisdn.
+    37→    37→//
+    38→    38→// Sandbox defaults: official test credentials from the ZainCash Laravel package
+    39→    39→// (https://github.com/waadmawlood/zaincash).
+    40→    40→// These are the ONLY documented test credentials for the sandbox environment.
+    41→    41→// Switch to production by setting env vars — no code changes needed.
+    42→    42→
+    43→    43→const SANDBOX_DEFAULTS = {
+    44→    44→  baseUrl:    'https://test.zaincash.iq',
+    45→    45→  msisdn:     '9647835077893',
+    46→    46→  merchantId: '5ffacf6612b5777c6d44266f',
+    47→    47→  secret:     '$2y$10$hBbAZo2GfSSvyqAyV2SaqOfYewgYpfR1O19gIh4SqyGWdmySZYPuS',
+    48→    48→};
+    49→    49→
+    50→    50→function getConfig() {
+    51→    51→  return {
+    52→    52→    baseUrl:    process.env.ZAINCASH_BASE_URL      || SANDBOX_DEFAULTS.baseUrl,
+    53→    53→    msisdn:     process.env.ZAINCASH_MSISDN         || SANDBOX_DEFAULTS.msisdn,
+    54→    54→    merchantId: process.env.ZAINCASH_MERCHANT_ID    || SANDBOX_DEFAULTS.merchantId,
+    55→    55→    secret:     process.env.ZAINCASH_SECRET_KEY     || SANDBOX_DEFAULTS.secret,
+    56→    56→    // redirectUrl: In ZainCash v1, this serves dual purpose — redirect + callback.
+    57→    57→    // Production default: our callback endpoint that processes the token and redirects.
+    58→    58→    redirectUrl: process.env.ZAINCASH_REDIRECT_URL
+    59→    59→      ?? 'https://track-tracker-app.vercel.app/api/zaincash/callback',
+    60→    60→    lang:       process.env.ZAINCASH_LANG           ?? 'ar',
+    61→    61→  };
+    62→    62→}
+    63→    63→
+    64→    64→// ── JWT Helpers ──────────────────────────────────────────────────────────────
+    65→    65→
+    66→    66→function base64UrlEncode(data: string): string {
+    67→    67→  return Buffer.from(data, 'utf-8')
+    68→    68→    .toString('base64')
+    69→    69→    .replace(/=/g, '')
+    70→    70→    .replace(/\+/g, '-')
+    71→    71→    .replace(/\//g, '_');
+    72→    72→}
+    73→    73→
+    74→    74→/**
+    75→    75→ * Create a JWT token signed with HMAC-SHA256.
+    76→    76→ * Used for both transaction init and inquiry requests.
+    77→    77→ */
+    78→    78→function createJWT(payload: Record<string, unknown>, secret: string): string {
+    79→    79→  const header = { alg: 'HS256', typ: 'JWT' };
+    80→    80→  const headerB64 = base64UrlEncode(JSON.stringify(header));
+    81→    81→  const payloadB64 = base64UrlEncode(JSON.stringify(payload));
+    82→    82→  const signature = crypto
+    83→    83→    .createHmac('sha256', secret)
+    84→    84→    .update(`${headerB64}.${payloadB64}`)
+    85→    85→    .digest('base64')
+    86→    86→    .replace(/=/g, '')
+    87→    87→    .replace(/\+/g, '-')
+    88→    88→    .replace(/\//g, '_');
+    89→    89→  return `${headerB64}.${payloadB64}.${signature}`;
+    90→    90→}
+    91→    91→
+    92→    92→/**
+    93→    93→ * Decode a ZainCash callback JWT token (v1).
+    94→    94→ * Returns the payload if valid, throws if invalid.
+    95→    95→ */
+    96→    96→function decodeJwt(token: string, secret: string): Record<string, unknown> {
+    97→    97→  const parts = token.split('.');
+    98→    98→  if (parts.length !== 3) throw new Error('Invalid JWT format');
+    99→    99→  const payloadB64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+   100→   100→  const payloadJson = Buffer.from(payloadB64, 'base64').toString('utf-8');
+   101→   101→  const signature = crypto
+   102→   102→    .createHmac('sha256', secret)
+   103→   103→    .update(`${parts[0]}.${parts[1]}`)
+   104→   104→    .digest('base64')
+   105→   105→    .replace(/=/g, '')
+   106→   106→    .replace(/\+/g, '-')
+   107→   107→    .replace(/\//g, '_');
+   108→   108→  if (signature !== parts[2]) throw new Error('JWT signature verification failed');
+   109→   109→  return JSON.parse(payloadJson);
+   110→   110→}
+   111→   111→
+   112→   112→// ── Supabase helper ──────────────────────────────────────────────────────────
+   113→   113→
+   114→   114→function getSupabaseCreds() {
+   115→   115→  const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+   116→   116→  const key = process.env.SUPABASE_SERVICE_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+   117→   117→  return { url, key };
+   118→   118→}
+   119→   119→
+   120→   120→// ── Inquiry helper (v1 API) ──────────────────────────────────────────────────
+   121→   121→
+   122→   122→async function inquireTransaction(transactionId: string): Promise<Record<string, unknown>> {
+   123→   123→  const config = getConfig();
+   124→   124→  const now = Math.floor(Date.now() / 1000);
+   125→   125→  const jwtPayload = {
+   126→   126→    id: transactionId,
+   127→   127→    msisdn: config.msisdn,
+   128→   128→    iat: now,
+   129→   129→    exp: now + 60 * 60 * 4,
+   130→   130→  };
+   131→   131→  const token = createJWT(jwtPayload, config.secret);
+   132→   132→
+   133→   133→  const inquiryUrl = `${config.baseUrl}/transaction/get`;
+   134→   134→  console.log('[ZainCash] Inquiry request to:', inquiryUrl, 'for transaction:', transactionId);
+   135→   135→
+   136→   136→  // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+   137→   137→  const inquiryParams = new URLSearchParams();
+   138→   138→  inquiryParams.append('merchantId', config.merchantId);
+   139→   139→  inquiryParams.append('token', token);
+   140→   140→
+   141→   141→  const response = await fetch(inquiryUrl, {
+   142→   142→    method: 'POST',
+   143→   143→    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+   144→   144→    body: inquiryParams.toString(),
+   145→   145→  });
+   146→   146→
+   147→   147→  const responseText = await response.text();
+   148→   148→  console.log('[ZainCash] Inquiry response status:', response.status);
+   149→   149→  console.log('[ZainCash] Inquiry response body:', responseText);
+   150→   150→
+   151→   151→  if (!response.ok) {
+   152→   152→    throw new Error(`ZainCash inquiry failed: ${response.status} — ${responseText.slice(0, 500)}`);
+   153→   153→  }
+   154→   154→
+   155→   155→  let data: Record<string, unknown>;
+   156→   156→  try {
+   157→   157→    data = JSON.parse(responseText);
+   158→   158→  } catch {
+   159→   159→    throw new Error(`ZainCash inquiry returned invalid JSON: ${responseText.slice(0, 200)}`);
+   160→   160→  }
+   161→   161→
+   162→   162→  if (data.err) {
+   163→   163→    throw new Error(`ZainCash inquiry error: ${JSON.stringify(data.err)}`);
+   164→   164→  }
+   165→   165→
+   166→   166→  return data;
+   167→   167→}
+   168→   168→
+   169→   169→// ── Router ────────────────────────────────────────────────────────────────────
+   170→   170→
+   171→   171→const router: IRouter = Router();
+   172→   172→
+   173→   173→/**
+   174→   174→ * POST /api/zaincash/create
+   175→   175→ * Create a ZainCash payment transaction using v1 JWT API.
+   176→   176→ */
+   177→   177→router.post('/zaincash/create', async (req: Request, res: Response) => {
+   178→   178→  try {
+   179→   179→    const { planId, amount, companyId } = req.body as {
+   180→   180→      planId?: string;
+   181→   181→      amount?: number;
+   182→   182→      companyId?: string;
+   183→   183→    };
+   184→   184→
+   185→   185→    if (!planId || !amount || !companyId) {
+   186→   186→      return res.status(400).json({ error: 'Missing required fields: planId, amount, companyId' });
+   187→   187→    }
+   188→   188→
+   189→   189→    if (amount <= 0) {
+   190→   190→      return res.status(400).json({ error: 'Amount must be positive' });
+   191→   191→    }
+   192→   192→
+   193→   193→    const config = getConfig();
+   194→   194→
+   195→   195→    // v1 API requires msisdn + merchantId + secret
+   196→   196→    if (!config.msisdn || !config.merchantId || !config.secret) {
+   197→   197→      return res.status(503).json({
+   198→   198→        error: 'ZainCash payment gateway not configured',
+   199→   199→        details: 'Missing required v1 credentials: msisdn, merchantId, or secret key',
+   200→   200→      });
+   201→   201→    }
+   202→   202→
+   203→   203→    // Generate unique order ID
+   204→   204→    const orderId = `tt-${planId}-${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+   205→   205→
+   206→   206→    // Build redirectUrl for the JWT payload.
+   207→   207→    // In ZainCash v1, redirectUrl serves as BOTH user redirect and callback:
+   208→   208→    //   - After payment, ZainCash redirects the user's browser to redirectUrl?token=XXXXX
+   209→   209→    //   - The token JWT contains the payment result (status, orderId, id)
+   210→   210→    // We append orderId/planId/companyId as query params so the callback endpoint
+   211→   211→    // can use them as fallback if the token doesn't contain enough info.
+   212→   212→    const redirectUrl = `${config.redirectUrl}?orderId=${orderId}&planId=${planId}&companyId=${companyId}`;
+   213→   213→
+   214→   214→    // ── Step 1: Create JWT token ──────────────────────────────────────────
+   215→   215→    const now = Math.floor(Date.now() / 1000);
+   216→   216→    const jwtPayload = {
+   217→   217→      amount,
+   218→   218→      serviceType: 'subscription',
+   219→   219→      msisdn: config.msisdn,
+   220→   220→      orderId,
+   221→   221→      redirectUrl,  // ZainCash v1 callback: browser redirect to this URL + ?token=XXXXX
+   222→   222→      iat: now,
+   223→   223→      exp: now + 60 * 60 * 4, // 4 hours expiry
+   224→   224→    };
+   225→   225→
+   226→   226→    const token = createJWT(jwtPayload, config.secret);
+   227→   227→    console.log('[ZainCash] JWT token created for order:', orderId);
+   228→   228→
+   229→   229→    // ── Step 2: Initiate transaction via v1 API ───────────────────────────
+   230→   230→    // ZainCash v1 API requires application/x-www-form-urlencoded, NOT JSON
+   231→   231→    const initUrl = `${config.baseUrl}/transaction/init`;
+   232→   232→    const initParams = new URLSearchParams();
+   233→   233→    initParams.append('token', token);
+   234→   234→    initParams.append('merchantId', config.merchantId);
+   235→   235→    initParams.append('lang', config.lang);
+   236→   236→
+   237→   237→    console.log('[ZainCash] Initiating transaction at:', initUrl);
+   238→   238→    console.log('[ZainCash] Content-Type: application/x-www-form-urlencoded');
+   239→   239→
+   240→   240→    const initResponse = await fetch(initUrl, {
+   241→   241→      method: 'POST',
+   242→   242→      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+   243→   243→      body: initParams.toString(),
+   244→   244→    });
+   245→   245→
+   246→   246→    const initText = await initResponse.text();
+   247→   247→    console.log('[ZainCash] Init response status:', initResponse.status);
+   248→   248→    console.log('[ZainCash] Init response body:', initText);
+   249→   249→
+   250→   250→    if (!initResponse.ok) {
+   251→   251→      console.error('[ZainCash] Init failed:', initResponse.status, initText);
+   252→   252→      return res.status(502).json({
+   253→   253→        error: 'ZainCash transaction init failed',
+   254→   254→        step: 'transaction_init',
+   255→   255→        zaincashStatus: initResponse.status,
+   256→   256→        zaincashResponse: initText.slice(0, 1000),
+   257→   257→      });
+   258→   258→    }
+   259→   259→
+   260→   260→    let initData: { id?: string; rUrl?: string; err?: { msg?: string } };
+   261→   261→    try {
+   262→   262→      initData = JSON.parse(initText);
+   263→   263→    } catch {
+   264→   264→      console.error('[ZainCash] Invalid JSON response:', initText);
+   265→   265→      return res.status(502).json({
+   266→   266→        error: 'Invalid JSON from ZainCash',
+   267→   267→        step: 'transaction_init',
+   268→   268→        zaincashResponse: initText.slice(0, 500),
+   269→   269→      });
+   270→   270→    }
+   271→   271→
+   272→   272→    // Check for error in response body (ZainCash returns { err: { msg } })
+   273→   273→    if (initData.err) {
+   274→   274→      console.error('[ZainCash] ZainCash error:', initData.err);
+   275→   275→      return res.status(502).json({
+   276→   276→        error: 'ZainCash rejected the transaction',
+   277→   277→        step: 'transaction_init',
+   278→   278→        zaincashError: initData.err,
+   279→   279→      });
+   280→   280→    }
+   281→   281→
+   282→   282→    if (!initData.id) {
+   283→   283→      console.error('[ZainCash] No transaction ID in response:', initData);
+   284→   284→      return res.status(502).json({
+   285→   285→        error: 'No transaction ID from ZainCash',
+   286→   286→        step: 'transaction_init',
+   287→   287→        zaincashResponse: initData,
+   288→   288→      });
+   289→   289→    }
+   290→   290→
+   291→   291→    // v1 API returns { id, rUrl } where rUrl is the base redirect URL
+   292→   292→    // Full redirect URL = rUrl + id
+   293→   293→    const redirectUrlFull = initData.rUrl
+   294→   294→      ? `${initData.rUrl}${initData.id}`
+   295→   295→      : `${config.baseUrl}/transaction/pay?id=${initData.id}`;
+   296→   296→
+   297→   297→    console.log('[ZainCash] Transaction created:', initData.id, 'for order:', orderId);
+   298→   298→    console.log('[ZainCash] Redirect URL:', redirectUrlFull);
+   299→   299→
+   300→   300→    // Store payment record in Supabase (fire-and-forget)
+   301→   301→    try {
+   302→   302→      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   303→   303→      if (supabaseUrl && supabaseKey) {
+   304→   304→        await fetch(`${supabaseUrl}/rest/v1/payment_records`, {
+   305→   305→          method: 'POST',
+   306→   306→          headers: {
+   307→   307→            'Content-Type': 'application/json',
+   308→   308→            apikey: supabaseKey,
+   309→   309→            Authorization: `Bearer ${supabaseKey}`,
+   310→   310→            Prefer: 'return=minimal',
+   311→   311→          },
+   312→   312→          body: JSON.stringify({
+   313→   313→            id: initData.id,
+   314→   314→            order_id: orderId,
+   315→   315→            company_id: companyId,
+   316→   316→            plan_id: planId,
+   317→   317→            amount,
+   318→   318→            status: 'pending',
+   319→   319→            created_at: new Date().toISOString(),
+   320→   320→          }),
+   321→   321→        });
+   322→   322→      }
+   323→   323→    } catch (dbErr) {
+   324→   324→      console.warn('[ZainCash] Failed to store payment record:', dbErr);
+   325→   325→    }
+   326→   326→
+   327→   327→    return res.status(200).json({
+   328→   328→      transactionId: initData.id,
+   329→   329→      redirectUrl: redirectUrlFull,
+   330→   330→      orderId,
+   331→   331→    });
+   332→   332→
+   333→   333→  } catch (err) {
+   334→   334→    const message = err instanceof Error ? err.message : String(err);
+   335→   335→    const stack = err instanceof Error ? err.stack : undefined;
+   336→   336→    console.error('[ZainCash] Create payment error:', message);
+   337→   337→    console.error('[ZainCash] Stack:', stack);
+   338→   338→    // Return the REAL error so the caller knows exactly which step failed
+   339→   339→    return res.status(500).json({
+   340→   340→      error: message,
+   341→   341→      step: 'create_payment',
+   342→   342→    });
+   343→   343→  }
+   344→   344→});
+   345→   345→
+   346→   346→// ── HTML redirect page (for GET callback) ─────────────────────────────────────
+   347→   347→// After processing the GET callback, redirect the user to the subscriptions page.
+   348→   348→
+   349→   349→function redirectPage(status: string, success: boolean): string {
+   350→   350→  const targetUrl = '/subscriptions';
+   351→   351→  const icon = success ? '✓' : '✗';
+   352→   352→  const color = success ? '#16a34a' : '#dc2626';
+   353→   353→  const title = success ? 'تم الدفع بنجاح' : 'فشلت عملية الدفع';
+   354→   354→  const subtitle = success
+   355→   355→    ? 'جارٍ التحويل إلى صفحة الاشتراكات...'
+   356→   356→    : 'لم يتم الدفع، جارٍ التحويل...';
+   357→   357→
+   358→   358→  return `<!DOCTYPE html>
+   359→   359→<html lang="ar" dir="rtl">
+   360→   360→<head>
+   361→   361→  <meta charset="utf-8">
+   362→   362→  <title>${title}</title>
+   363→   363→  <style>
+   364→   364→    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+   365→   365→    .card { text-align: center; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); max-width: 320px; }
+   366→   366→    .icon { font-size: 3rem; margin-bottom: 1rem; }
+   367→   367→    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; color: ${color}; }
+   368→   368→    p { font-size: 0.875rem; color: #666; margin: 0; }
+   369→   369→  </style>
+   370→   370→  <meta http-equiv="refresh" content="3;url=${targetUrl}">
+   371→   371→</head>
+   372→   372→<body>
+   373→   373→  <div class="card">
+   374→   374→    <div class="icon" style="color:${color}">${icon}</div>
+   375→   375→    <h1>${title}</h1>
+   376→   376→    <p>${subtitle}</p>
+   377→   377→  </div>
+   378→   378→  <script>setTimeout(function(){ window.location.href="${targetUrl}"; }, 3000);</script>
+   379→   379→</body>
+   380→   380→</html>`;
+   381→   381→}
+   382→   382→
+   383→   383→// ── Core callback processing (shared by GET and POST) ─────────────────────────
+   384→   384→
+   385→   385→async function processCallback(params: {
+   386→   386→  transactionId: string;
+   387→   387→  orderId?: string;
+   388→   388→  planId?: string;
+   389→   389→  companyId?: string;
+   390→   390→}): Promise<{ success: boolean; transactionId: string; status: string; message: string }> {
+   391→   391→  const { transactionId } = params;
+   392→   392→
+   393→   393→  if (!transactionId) {
+   394→   394→    return { success: false, transactionId: '', status: 'invalid', message: 'Missing transaction ID' };
+   395→   395→  }
+   396→   396→
+   397→   397→  let companyId = params.companyId ?? '';
+   398→   398→
+   399→   399→  // ── Idempotency check: if payment already completed, skip ──────────────
+   400→   400→  try {
+   401→   401→    const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   402→   402→    if (supabaseUrl && supabaseKey) {
+   403→   403→      const recordRes = await fetch(
+   404→   404→        `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`,
+   405→   405→        { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+   406→   406→      );
+   407→   407→      if (recordRes.ok) {
+   408→   408→        const rows = await recordRes.json() as Array<{ status: string; company_id: string }>;
+   409→   409→        if (rows.length > 0) {
+   410→   410→          if (rows[0].status === 'completed') {
+   411→   411→            console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
+   412→   412→            return { success: true, transactionId, status: 'completed', message: 'Already processed' };
+   413→   413→          }
+   414→   414→          // Use company_id from payment_records (most reliable)
+   415→   415→          if (!companyId && rows[0].company_id) {
+   416→   416→            companyId = rows[0].company_id;
+   417→   417→          }
+   418→   418→        }
+   419→   419→      }
+   420→   420→    }
+   421→   421→  } catch { /* non-fatal — continue without idempotency check */ }
+   422→   422→
+   423→   423→  // Always verify via inquiry — NEVER trust the callback payload alone
+   424→   424→  console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
+   425→   425→  const details = await inquireTransaction(transactionId) as {
+   426→   426→    status: string;
+   427→   427→    orderId: string;
+   428→   428→  };
+   429→   429→
+   430→   430→  // Use companyId from payment_records (already set above) or fallback
+   431→   431→  if (!companyId) {
+   432→   432→    try {
+   433→   433→      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   434→   434→      if (supabaseUrl && supabaseKey) {
+   435→   435→        const recordRes = await fetch(
+   436→   436→          `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=company_id`,
+   437→   437→          { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+   438→   438→        );
+   439→   439→        if (recordRes.ok) {
+   440→   440→          const rows = await recordRes.json() as Array<{ company_id: string }>;
+   441→   441→          if (rows.length > 0 && rows[0].company_id) companyId = rows[0].company_id;
+   442→   442→        }
+   443→   443→      }
+   444→   444→    } catch { /* non-fatal */ }
+   445→   445→  }
+   446→   446→
+   447→   447→  console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
+   448→   448→
+   449→   449→  // Update payment record
+   450→   450→  try {
+   451→   451→    const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   452→   452→    if (supabaseUrl && supabaseKey) {
+   453→   453→      await fetch(`${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}`, {
+   454→   454→        method: 'PATCH',
+   455→   455→        headers: {
+   456→   456→          'Content-Type': 'application/json',
+   457→   457→          apikey: supabaseKey,
+   458→   458→          Authorization: `Bearer ${supabaseKey}`,
+   459→   459→          Prefer: 'return=minimal',
+   460→   460→        },
+   461→   461→        body: JSON.stringify({ status: details.status, updated_at: new Date().toISOString() }),
+   462→   462→      });
+   463→   463→    }
+   464→   464→  } catch { /* non-fatal */ }
+   465→   465→
+   466→   466→  // Only activate if payment is COMPLETED
+   467→   467→  if (details.status === 'completed' && companyId) {
+   468→   468→    try {
+   469→   469→      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   470→   470→      if (supabaseUrl && supabaseKey) {
+   471→   471→        const activateRes = await fetch(`${supabaseUrl}/rest/v1/companies?id=eq.${companyId}`, {
+   472→   472→          method: 'PATCH',
+   473→   473→          headers: {
+   474→   474→            'Content-Type': 'application/json',
+   475→   475→            apikey: supabaseKey,
+   476→   476→            Authorization: `Bearer ${supabaseKey}`,
+   477→   477→            Prefer: 'return=minimal',
+   478→   478→          },
+   479→   479→          body: JSON.stringify({ subscription_active: true }),
+   480→   480→        });
+   481→   481→        if (activateRes.ok) {
+   482→   482→          console.log('[ZainCash] Subscription activated for company:', companyId);
+   483→   483→        } else {
+   484→   484→          const text = await activateRes.text();
+   485→   485→          console.error('[ZainCash] Failed to activate subscription:', activateRes.status, text);
+   486→   486→        }
+   487→   487→      }
+   488→   488→    } catch { /* non-fatal */ }
+   489→   489→  }
+   490→   490→
+   491→   491→  return {
+   492→   492→    success: details.status === 'completed',
+   493→   493→    transactionId,
+   494→   494→    status: details.status,
+   495→   495→    message: details.status === 'completed' ? 'Payment completed' : `Payment status: ${details.status}`,
+   496→   496→  };
+   497→   497→}
+   498→   498→
+   499→   499→/**
+   500→   500→ * GET /api/zaincash/callback
+   501→   501→ *
+   502→   502→ * ZainCash v1 redirect callback. After payment, ZainCash redirects the
+   503→   503→ * user's browser to redirectUrl?token=XXXXX. The token is a JWT containing
+   504→   504→ * { status, orderid, id, iat, exp }.
+   505→   505→ *
+   506→   506→ * This is the PRIMARY callback mechanism in ZainCash v1.
+   507→   507→ * Also handles the case where user cancels (no token in URL).
+   508→   508→ */
+   509→   509→router.get('/zaincash/callback', async (req: Request, res: Response) => {
+   510→   510→  try {
+   511→   511→    const token = (req.query.token as string) ?? '';
+   512→   512→    const orderId = (req.query.orderId as string) ?? '';
+   513→   513→    const planId = (req.query.planId as string) ?? '';
+   514→   514→    const companyId = (req.query.companyId as string) ?? '';
+   515→   515→
+   516→   516→    // No token = user cancelled payment (ZainCash redirects without token on cancel)
+   517→   517→    if (!token) {
+   518→   518→      console.log('[ZainCash] GET callback without token — payment cancelled by user');
+   519→   519→      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+   520→   520→      return res.status(200).send(redirectPage('cancelled', false));
+   521→   521→    }
+   522→   522→
+   523→   523→    const config = getConfig();
+   524→   524→
+   525→   525→    // Decode the JWT token from ZainCash
+   526→   526→    let transactionId = '';
+   527→   527→    let tokenStatus = '';
+   528→   528→    try {
+   529→   529→      const payload = decodeJwt(token, config.secret);
+   530→   530→      transactionId = String(payload.id ?? '');
+   531→   531→      tokenStatus = String(payload.status ?? '');
+   532→   532→      console.log('[ZainCash] GET callback: decoded token — id:', transactionId, 'status:', tokenStatus);
+   533→   533→    } catch (jwtErr) {
+   534→   534→      console.error('[ZainCash] GET callback: JWT decode failed:', jwtErr);
+   535→   535→      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+   536→   536→      return res.status(400).send(redirectPage('invalid', false));
+   537→   537→    }
+   538→   538→
+   539→   539→    if (!transactionId) {
+   540→   540→      console.error('[ZainCash] GET callback: no transactionId in token');
+   541→   541→      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+   542→   542→      return res.status(400).send(redirectPage('invalid', false));
+   543→   543→    }
+   544→   544→
+   545→   545→    // Process the callback
+   546→   546→    const result = await processCallback({ transactionId, orderId, planId, companyId });
+   547→   547→
+   548→   548→    // Return an HTML page that auto-redirects to /subscriptions
+   549→   549→    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+   550→   550→    return res.status(200).send(redirectPage(result.status, result.success));
+   551→   551→
+   552→   552→  } catch (err) {
+   553→   553→    const message = err instanceof Error ? err.message : String(err);
+   554→   554→    console.error('[ZainCash] GET callback error:', message);
+   555→   555→    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+   556→   556→    return res.status(200).send(redirectPage('error', false));
+   557→   557→  }
+   558→   558→});
+   559→   559→
+   560→   560→/**
+   561→   561→ * POST /api/zaincash/callback
+   562→   562→ * ZainCash v1 redirect callback or potential v2 server-to-server callback.
+   563→   563→ * Handles both v1 (JWT in body.token) and v2 (JSON body) callback formats.
+   564→   564→ * Always verifies via v1 inquiry API — NEVER trusts the callback payload alone.
+   565→   565→ * Idempotent: if payment already completed, skips activation.
+   566→   566→ */
+   567→   567→router.post('/zaincash/callback', async (req: Request, res: Response) => {
+   568→   568→  try {
+   569→   569→    const body = req.body as Record<string, unknown>;
+   570→   570→    const config = getConfig();
+   571→   571→
+   572→   572→    let transactionId = '';
+   573→   573→    let orderId = '';
+   574→   574→    let companyId = '';
+   575→   575→
+   576→   576→    // Handle v1 JWT callback (ZainCash sends { token: "jwt..." })
+   577→   577→    if (body.token && typeof body.token === 'string' && config.secret) {
+   578→   578→      console.log('[ZainCash] v1 JWT callback received');
+   579→   579→      try {
+   580→   580→        const payload = decodeJwt(body.token as string, config.secret);
+   581→   581→        transactionId = (payload.id ?? payload.transactionId ?? '') as string;
+   582→   582→        orderId = (payload.orderId ?? '') as string;
+   583→   583→      } catch (jwtErr) {
+   584→   584→        console.error('[ZainCash] JWT decode failed:', jwtErr);
+   585→   585→        return res.status(400).json({ error: 'Invalid JWT token', received: false });
+   586→   586→      }
+   587→   587→    }
+   588→   588→
+   589→   589→    // Handle v2/direct JSON callback (fallback)
+   590→   590→    if (!transactionId) {
+   591→   591→      console.log('[ZainCash] JSON callback received:', JSON.stringify(body).slice(0, 500));
+   592→   592→      transactionId = (body.id ?? body.transactionId ?? '') as string;
+   593→   593→      orderId = (body.orderId ?? '') as string;
+   594→   594→      companyId = (body.companyId ?? '') as string;
+   595→   595→    }
+   596→   596→
+   597→   597→    if (!transactionId) {
+   598→   598→      return res.status(400).json({ error: 'Missing transaction ID', received: false });
+   599→   599→    }
+   600→   600→
+   601→   601→<<<<<<< HEAD
+   602→   602→    // ── Idempotency check: if payment already completed, skip ──────────────
+   603→   603→    try {
+   604→   604→      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   605→   605→      if (supabaseUrl && supabaseKey) {
+   606→   606→        const recordRes = await fetch(
+   607→   607→          `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=status,company_id`,
+   608→   608→          { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+   609→   609→        );
+   610→   610→        if (recordRes.ok) {
+   611→   611→          const rows = await recordRes.json() as Array<{ status: string; company_id: string }>;
+   612→   612→          if (rows.length > 0) {
+   613→   613→            if (rows[0].status === 'completed') {
+   614→   614→              console.log('[ZainCash] Callback: payment already completed (idempotent):', transactionId);
+   615→   615→              return res.status(200).json({ received: true, transactionId, status: 'completed', message: 'Already processed' });
+   616→   616→            }
+   617→   617→            // Use company_id from payment_records (most reliable)
+   618→   618→            if (!companyId && rows[0].company_id) {
+   619→   619→              companyId = rows[0].company_id;
+   620→   620→            }
+   621→   621→          }
+   622→   622→        }
+   623→   623→      }
+   624→   624→    } catch { /* non-fatal — continue without idempotency check */ }
+   625→   625→
+   626→   626→    // Always verify via inquiry — NEVER trust the callback payload alone
+   627→   627→    console.log('[ZainCash] Verifying transaction via inquiry:', transactionId);
+   628→   628→    const details = await inquireTransaction(transactionId) as {
+   629→   629→      status: string;
+   630→   630→      orderId: string;
+   631→   631→    };
+   632→   632→
+   633→   633→    // Use companyId from payment_records (already set above) or from body
+   634→   634→    if (!companyId) {
+   635→   635→      // Fallback: try to get from payment_records again
+   636→   636→      try {
+   637→   637→        const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   638→   638→        if (supabaseUrl && supabaseKey) {
+   639→   639→          const recordRes = await fetch(
+   640→   640→            `${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}&select=company_id`,
+   641→   641→            { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } },
+   642→   642→          );
+   643→   643→          if (recordRes.ok) {
+   644→   644→            const rows = await recordRes.json() as Array<{ company_id: string }>;
+   645→   645→            if (rows.length > 0 && rows[0].company_id) companyId = rows[0].company_id;
+   646→   646→          }
+   647→   647→        }
+   648→   648→      } catch { /* non-fatal */ }
+   649→   649→    }
+   650→   650→
+   651→   651→    console.log('[ZainCash] Transaction verified:', transactionId, 'status:', details.status, 'companyId:', companyId);
+   652→   652→
+   653→   653→    // Update payment record
+   654→   654→    try {
+   655→   655→      const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   656→   656→      if (supabaseUrl && supabaseKey) {
+   657→   657→        await fetch(`${supabaseUrl}/rest/v1/payment_records?id=eq.${transactionId}`, {
+   658→   658→          method: 'PATCH',
+   659→   659→          headers: {
+   660→   660→            'Content-Type': 'application/json',
+   661→   661→            apikey: supabaseKey,
+   662→   662→            Authorization: `Bearer ${supabaseKey}`,
+   663→   663→            Prefer: 'return=minimal',
+   664→   664→          },
+   665→   665→          body: JSON.stringify({ status: details.status, updated_at: new Date().toISOString() }),
+   666→   666→        });
+   667→   667→      }
+   668→   668→    } catch { /* non-fatal */ }
+   669→   669→
+   670→   670→    // Only activate if payment is COMPLETED
+   671→   671→    if (details.status === 'completed' && companyId) {
+   672→   672→      try {
+   673→   673→        const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+   674→   674→        if (supabaseUrl && supabaseKey) {
+   675→   675→          const activateRes = await fetch(`${supabaseUrl}/rest/v1/companies?id=eq.${companyId}`, {
+   676→   676→            method: 'PATCH',
+   677→   677→            headers: {
+   678→   678→              'Content-Type': 'application/json',
+   679→   679→              apikey: supabaseKey,
+   680→   680→              Authorization: `Bearer ${supabaseKey}`,
+   681→   681→              Prefer: 'return=minimal',
+   682→   682→            },
+   683→   683→            body: JSON.stringify({ subscription_active: true }),
+   684→   684→          });
+   685→   685→          if (activateRes.ok) {
+   686→   686→            console.log('[ZainCash] Subscription activated for company:', companyId);
+   687→   687→          } else {
+   688→   688→            const text = await activateRes.text();
+   689→   689→            console.error('[ZainCash] Failed to activate subscription:', activateRes.status, text);
+   690→   690→          }
+   691→   691→        }
+   692→   692→      } catch { /* non-fatal */ }
+   693→   693→    }
+   694→   694→
+   695→   695→    // Always return 200 to acknowledge the callback
+   696→   696→=======
+   697→   697→    // Process using shared callback logic
+   698→   698→    const result = await processCallback({ transactionId, orderId, companyId });
+   699→   699→
+   700→   700→>>>>>>> origin/main
+   701→   701→    return res.status(200).json({
+   702→   702→      received: true,
+   703→   703→      transactionId: result.transactionId,
+   704→   704→      status: result.status,
+   705→   705→    });
+   706→   706→
+   707→   707→  } catch (err) {
+   708→   708→    const message = err instanceof Error ? err.message : String(err);
+   709→   709→    console.error('[ZainCash] Callback error:', message);
+   710→   710→    // Return 200 to prevent ZainCash from retrying, but include the real error
+   711→   711→    return res.status(200).json({ received: true, error: message });
+   712→   712→  }
+   713→   713→});
+   714→   714→
+   715→   715→/**
+   716→   716→ * GET /api/zaincash/verify?transactionId=xxx
+   717→   717→ * Verify payment status using v1 JWT inquiry API.
+   718→   718→ */
+   719→   719→router.get('/zaincash/verify', async (req: Request, res: Response) => {
+   720→   720→  try {
+   721→   721→    const { transactionId } = req.query as { transactionId?: string };
+   722→   722→
+   723→   723→    if (!transactionId) {
+   724→   724→      return res.status(400).json({ error: 'Missing transactionId query parameter' });
+   725→   725→    }
+   726→   726→
+   727→   727→    const config = getConfig();
+   728→   728→
+   729→   729→    if (!config.msisdn || !config.merchantId || !config.secret) {
+   730→   730→      return res.status(503).json({
+   731→   731→        error: 'ZainCash not configured',
+   732→   732→        details: 'Missing required v1 credentials: msisdn, merchantId, or secret key',
+   733→   733→      });
+   734→   734→    }
+   735→   735→
+   736→   736→    const details = await inquireTransaction(transactionId);
+   737→   737→
+   738→   738→    return res.status(200).json({
+   739→   739→      transactionId,
+   740→   740→      status: details.status,
+   741→   741→      details,
+   742→   742→    });
+   743→   743→
+   744→   744→  } catch (err) {
+   745→   745→    const message = err instanceof Error ? err.message : String(err);
+   746→   746→    console.error('[ZainCash] Verify error:', message);
+   747→   747→    return res.status(500).json({
+   748→   748→      error: message,
+   749→   749→      step: 'verify_payment',
+   750→   750→    });
+   751→   751→  }
+   752→   752→});
+   753→   753→
+   754→   754→export default router;
+   755→   755→

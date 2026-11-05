@@ -1,0 +1,1626 @@
+/**
+ * ZainCash Payment Gateway V2 routes — ISOLATED from V1.
+ *
+ * Implements the official ZainCash Payment Gateway API v2 per
+ * https://docs.zaincash.iq/ (extracted via search snippets, since Cloudflare
+ * blocks direct browsing from our environment; cross-referenced with the
+ * official `zaincash_payment` Flutter SDK README on pub.dev and the
+ * `ShahramMebashar/parakit` PHP reference implementation).
+ *
+ * V2 spec implemented here:
+ *
+ *   Base URL (UAT):       https://pg-api-uat.zaincash.iq   (env: ZAINCASH_V2_BASE_URL)
+ *   Base URL (prod):      https://pg-api.zaincash.iq      (env: ZAINCASH_V2_BASE_URL)
+ *
+ *   OAuth2 token:         POST /oauth2/token
+ *     Content-Type: application/x-www-form-urlencoded
+ *     Body: grant_type=client_credentials&client_id=…&client_secret=…&scope=…
+ *     Response: { access_token, expires_in }    (default 600s if omitted)
+ *
+ *   Init transaction:     POST /api/v2/payment-gateway/transaction/init
+ *     Authorization: Bearer <access_token>
+ *     Content-Type: application/json
+ *     Body: {
+ *       language: "En" | "Ar" | "Ku",            // title-case per docs
+ *       externalReferenceId: "<UUIDv5>",
+ *       orderId: "<string>",
+ *       serviceType: "<merchant-defined string>", // V2 has no fixed list
+ *       amount: { value: "<stringified int>", currency: "IQD" },
+ *       redirectUrls: { successUrl, failureUrl },
+ *       customer?: { phone: "<msisdn>" }         // optional
+ *     }
+ *     Response: {
+ *       status: "SUCCESS",
+ *       transactionDetails: { transactionId, orderId, amount: { currency, value } },
+ *       redirectUrl: "https://pg-api-uat.zaincash.iq/transaction/pay?id=…&token=…",
+ *       expiryTime: "<ISO 8601>"
+ *     }
+ *
+ *   Inquiry:              GET /api/v2/payment-gateway/transaction/inquiry/{transactionId}
+ *     Authorization: Bearer <access_token>
+ *     Response: {
+ *       status: "SUCCESS" | "FAILED" | "PENDING" | "OTP_SENT"
+ *              | "CUSTOMER_AUTHENTICATION_REQUIRED" | "EXPIRED" | "REFUNDED",
+ *       transactionDetails: { transactionId, orderId, amount }
+ *     }
+ *
+ *   Reverse (refund):     POST /api/v2/payment-gateway/transaction/reverse
+ *     Authorization: Bearer <access_token>
+ *     Body: { transactionId, reason }
+ *     Response: { status: "COMPLETED", reversalReferenceId }
+ *
+ *   Redirect callback:    ZainCash redirects browser to redirectUrls.successUrl
+ *                         (or failureUrl) with ?token=<HS256 JWT signed with api_key>.
+ *                         Claims: { eventId, eventType, timestamp,
+ *                                   data: { currentStatus, transactionId, orderId, amount } }
+ *
+ *   Webhook callback:     POST to merchant-configured notificationUrl with
+ *                         { webhook_token: "<HS256 JWT signed with api_key>" }
+ *                         (same claim shape as redirect callback)
+ *
+ *   Two distinct secrets: client_secret  → OAuth2 token endpoint
+ *                         api_key        → HS256 JWT verification of callbacks
+ *
+ * Endpoints (this router):
+ *   POST /api/zaincash/v2/create       — Create a V2 payment (returns redirectUrl)
+ *   GET  /api/zaincash/v2/callback     — Handle success/failure redirect with ?token=
+ *   POST /api/zaincash/v2/webhook       — Handle webhook with webhook_token in body
+ *   GET  /api/zaincash/v2/verify        — Inquiry by transactionId
+ *   GET  /api/zaincash/v2/debug/probe   — DEBUG-ONLY: probe OAuth2 endpoint reachability
+ *
+ * The /debug/probe endpoint is a DEBUG-only reachability probe; it does NOT
+ * expose credentials. It is the only safe way to inspect whether our
+ * environment can reach pg-api-uat.zaincash.iq without writing test scripts
+ * that bake in credentials.
+ *
+ * Environment variables (NO hardcoded secrets anywhere):
+ *   ZAINCASH_V2_BASE_URL      — e.g. https://pg-api-uat.zaincash.iq
+ *   ZAINCASH_V2_CLIENT_ID     — V2 OAuth2 client_id (issued by ZainCash onboarding)
+ *   ZAINCASH_V2_CLIENT_SECRET — V2 OAuth2 client_secret
+ *   ZAINCASH_V2_API_KEY       — V2 api_key (used to verify HS256 callback JWTs)
+ *   ZAINCASH_V2_SCOPE         — default: "payment:read payment:write reverse:write"
+ *   ZAINCASH_V2_SUCCESS_URL   — successUrl sent to init
+ *   ZAINCASH_V2_FAILURE_URL   — failureUrl sent to init
+ *   ZAINCASH_V2_LANG          — default: "en" (lowercase — values: en, ar, ku)
+ *   ZAINCASH_V2_SERVICE_TYPE  — default: "Delivery"
+ *   ZAINCASH_V2_TIMEOUT_MS    — default: 15000
+ *
+ * V1 env vars are NOT reused. V2 needs its own.
+ */
+import { Router, type IRouter, type Request, type Response } from "express";
+import crypto from "crypto";
+
+// ── V2 Config ────────────────────────────────────────────────────────────────
+
+interface V2Config {
+  baseUrl: string;
+  clientId: string;
+  clientSecret: string;
+  apiKey: string;
+  scope: string;
+  successUrl: string;
+  failureUrl: string;
+  lang: "en" | "ar" | "ku";
+  serviceType: string;
+  timeoutMs: number;
+}
+
+function getV2Config(): V2Config {
+  // Per official Flutter SDK zaincash_config.dart:
+  //   ZainCashLang.arabic('ar'), ZainCashLang.english('en'), ZainCashLang.kurdish('ku')
+  // The ZainCash V2 backend rejects title-case ("En"/"Ar"/"Ku") with HTTP 200
+  // and err.msg = "Invalid Language Code". Codes must be lowercase.
+  const langRaw = (process.env.ZAINCASH_V2_LANG ?? "en").toLowerCase();
+  const lang: "en" | "ar" | "ku" = langRaw === "ar" ? "ar" : langRaw === "ku" ? "ku" : "en";
+  // Per ZainCash support (2026-10-XX): For V2 UAT, the api_key used for JWT
+  // signature verification is the SAME value as the client_secret used for
+  // OAuth2 authentication. Production may issue a separate api_key.
+  // We do NOT hardcode the secret here — we read it from env vars.
+  // Precedence: explicit ZAINCASH_V2_API_KEY > fallback to ZAINCASH_V2_CLIENT_SECRET.
+  const explicitApiKey = process.env.ZAINCASH_V2_API_KEY ?? "";
+  const clientSecret = process.env.ZAINCASH_V2_CLIENT_SECRET ?? "";
+  // If ZAINCASH_V2_API_KEY is unset OR is the well-known placeholder
+  // sentinel, fall back to the client_secret value. This matches the
+  // official Flutter SDK pattern (try apiKey, then client_secret).
+  const apiKey = isApiKeyPlaceholder(explicitApiKey) ? clientSecret : explicitApiKey;
+  return {
+    baseUrl: (process.env.ZAINCASH_V2_BASE_URL ?? "").replace(/\/$/, ""),
+    clientId: process.env.ZAINCASH_V2_CLIENT_ID ?? "",
+    clientSecret,
+    apiKey,
+    scope: process.env.ZAINCASH_V2_SCOPE ?? "payment:read payment:write reverse:write",
+    successUrl: process.env.ZAINCASH_V2_SUCCESS_URL ?? "",
+    failureUrl: process.env.ZAINCASH_V2_FAILURE_URL ?? "",
+    lang,
+    serviceType: process.env.ZAINCASH_V2_SERVICE_TYPE ?? "Delivery",
+    timeoutMs: parseInt(process.env.ZAINCASH_V2_TIMEOUT_MS ?? "15000", 10),
+  };
+}
+
+function v2Configured(): { ok: boolean; missing: string[] } {
+  const cfg = getV2Config();
+  const missing: string[] = [];
+  if (!cfg.baseUrl) missing.push("ZAINCASH_V2_BASE_URL");
+  if (!cfg.clientId) missing.push("ZAINCASH_V2_CLIENT_ID");
+  if (!cfg.clientSecret) missing.push("ZAINCASH_V2_CLIENT_SECRET");
+  // apiKey is required for callback JWT verification, but not for init/inquiry
+  if (!cfg.successUrl) missing.push("ZAINCASH_V2_SUCCESS_URL");
+  if (!cfg.failureUrl) missing.push("ZAINCASH_V2_FAILURE_URL");
+  return { ok: missing.length === 0, missing };
+}
+
+// ── Supabase helper (same pattern as V1, isolated) ──────────────────────────
+
+function getSupabaseCreds() {
+  const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+  return { url, key };
+}
+
+// ── OAuth2 token cache ───────────────────────────────────────────────────────
+//
+// In-memory per-process token cache. Cache key includes baseUrl + clientId +
+// scope so two configs never share a token. TTL = expires_in - 60s safety.
+
+interface CachedToken {
+  token: string;
+  expiresAt: number; // epoch ms
+}
+
+const tokenCache = new Map<string, CachedToken>();
+
+function tokenCacheKey(cfg: V2Config): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${cfg.baseUrl}|${cfg.clientId}|${cfg.scope}`)
+    .digest("hex");
+}
+
+function getCachedToken(cfg: V2Config): string | null {
+  const key = tokenCacheKey(cfg);
+  const entry = tokenCache.get(key);
+  if (!entry) return null;
+  if (Date.now() >= entry.expiresAt) {
+    tokenCache.delete(key);
+    return null;
+  }
+  return entry.token;
+}
+
+function setCachedToken(cfg: V2Config, token: string, expiresInSeconds: number): void {
+  const key = tokenCacheKey(cfg);
+  const safetyMarginMs = 60 * 1000;
+  const ttlMs = Math.max(1, expiresInSeconds * 1000 - safetyMarginMs);
+  tokenCache.set(key, { token, expiresAt: Date.now() + ttlMs });
+}
+
+function forgetCachedToken(cfg: V2Config): void {
+  tokenCache.delete(tokenCacheKey(cfg));
+}
+
+/**
+ * Fetch an OAuth2 access token via client_credentials grant.
+ * Throws on hard failures (network, 5xx, non-token response).
+ * Returns the access_token string on success.
+ */
+async function fetchAccessToken(cfg: V2Config): Promise<string> {
+  const url = `${cfg.baseUrl}/oauth2/token`;
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    scope: cfg.scope,
+  }).toString();
+
+  console.log("[ZainCash-V2] OAuth2 token request to:", url);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body,
+    signal: AbortSignal.timeout(cfg.timeoutMs),
+  });
+
+  const text = await res.text();
+  const isCloudflareBlock =
+    text.includes("Cloudflare") ||
+    text.includes("Just a moment") ||
+    text.toLowerCase().includes("attention required");
+
+  if (res.status === 403 && isCloudflareBlock) {
+    throw new Error(
+      `V2 OAuth2 endpoint blocked by Cloudflare WAF (HTTP 403). ` +
+      `The local environment IP cannot reach ${cfg.baseUrl}. ` +
+      `Must test from Vercel serverless or allowlist the IP with ZainCash.`
+    );
+  }
+
+  if (res.status >= 500) {
+    throw new Error(`V2 OAuth2 endpoint returned HTTP ${res.status} (ZainCash server error). Body: ${text.slice(0, 300)}`);
+  }
+
+  if (!res.ok) {
+    // Likely 401 invalid_client or 400 invalid_grant
+    let parsed: { error?: string; error_description?: string; message?: string; code?: string } = {};
+    try { parsed = JSON.parse(text); } catch { /* keep empty */ }
+    const e = parsed.error ?? parsed.code ?? `HTTP_${res.status}`;
+    const desc = parsed.error_description ?? parsed.message ?? text.slice(0, 300);
+    throw new Error(`V2 OAuth2 rejected: ${e} — ${desc}`);
+  }
+
+  let json: { access_token?: string; expires_in?: number };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`V2 OAuth2 returned non-JSON response: ${text.slice(0, 300)}`);
+  }
+
+  if (!json.access_token || typeof json.access_token !== "string") {
+    throw new Error(`V2 OAuth2 response missing access_token: ${text.slice(0, 300)}`);
+  }
+
+  const expiresIn = typeof json.expires_in === "number" ? json.expires_in : 600;
+  setCachedToken(cfg, json.access_token, expiresIn);
+  console.log(`[ZainCash-V2] OAuth2 token cached (expires in ${expiresIn}s)`);
+  return json.access_token;
+}
+
+/**
+ * Get a valid access token, fetching fresh if cache is cold or expired.
+ */
+async function getAccessToken(cfg: V2Config): Promise<string> {
+  const cached = getCachedToken(cfg);
+  if (cached) return cached;
+  return await fetchAccessToken(cfg);
+}
+
+// ── V2 API client (JSON + Bearer) ────────────────────────────────────────────
+
+interface V2ApiResponse {
+  status: number;
+  body: unknown;
+  rawText: string;
+}
+
+async function v2Request(
+  cfg: V2Config,
+  method: "GET" | "POST",
+  path: string,
+  payload?: Record<string, unknown>
+): Promise<V2ApiResponse> {
+  const url = `${cfg.baseUrl}${path}`;
+  let token: string;
+  try {
+    token = await getAccessToken(cfg);
+  } catch (e) {
+    // OAuth2 failed — propagate as a structured error
+    throw e;
+  }
+
+  const doFetch = (tok: string) => {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${tok}`,
+      Accept: "application/json",
+    };
+    if (method === "POST" && payload) {
+      headers["Content-Type"] = "application/json";
+    }
+    return fetch(url, {
+      method,
+      headers,
+      body: method === "POST" && payload ? JSON.stringify(payload) : undefined,
+      signal: AbortSignal.timeout(cfg.timeoutMs),
+    });
+  };
+
+  let res = await doFetch(token);
+  // 401 → refresh token once, retry once
+  if (res.status === 401) {
+    console.log("[ZainCash-V2] 401 on", path, "— refreshing token");
+    forgetCachedToken(cfg);
+    token = await getAccessToken(cfg);
+    res = await doFetch(token);
+  }
+
+  const text = await res.text();
+  let body: unknown = text;
+  try { body = JSON.parse(text); } catch { /* keep as text */ }
+  return { status: res.status, body, rawText: text };
+}
+
+// ── HS256 JWT verification (for redirect + webhook callbacks) ───────────────
+
+interface JwtClaims {
+  eventId?: string;
+  eventType?: string;
+  timestamp?: string;
+  data?: {
+    currentStatus?: string;
+    previousStatus?: string;
+    transactionId?: string;
+    orderId?: string;
+    customerMsisdn?: string;      // V2 callback uses 'customerMsisdn' (NOT 'phone')
+    operationId?: string;
+    serviceType?: string;
+    errorMessage?: string;        // FAILURE REASON — only present on failed callbacks
+    amount?: { value?: number | string; currency?: string; feeValue?: number | string };
+  };
+  [key: string]: unknown;
+}
+
+function verifyV2CallbackJwt(token: string, apiKey: string): JwtClaims {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Invalid JWT format (expected 3 parts)");
+
+  const headerJson = Buffer.from(parts[0].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+  let header: { alg?: string; typ?: string };
+  try { header = JSON.parse(headerJson); } catch { throw new Error("Invalid JWT header JSON"); }
+
+  // Algorithm-pinning defense: only HS256 is acceptable. Reject "none" and
+  // asymmetric algorithms to prevent alg-confusion attacks.
+  if (header.alg !== "HS256") {
+    throw new Error(`Unsupported JWT algorithm "${header.alg}" — only HS256 is accepted`);
+  }
+
+  const payloadJson = Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+  let claims: JwtClaims;
+  try { claims = JSON.parse(payloadJson); } catch { throw new Error("Invalid JWT payload JSON"); }
+
+  const expectedSig = crypto
+    .createHmac("sha256", apiKey)
+    .update(`${parts[0]}.${parts[1]}`)
+    .digest("base64")
+    .replace(/=+$/, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  // Constant-time compare
+  if (expectedSig.length !== parts[2].length || !crypto.timingSafeEqual(
+    Buffer.from(expectedSig),
+    Buffer.from(parts[2])
+  )) {
+    throw new Error("JWT signature verification failed");
+  }
+
+  return claims;
+}
+
+/**
+ * Decode a JWT without verifying the signature — INSPECTION ONLY.
+ *
+ * This is only used for diagnostics when the merchant's real api_key is not
+ * configured (so we cannot verify the HS256 signature). The decoded claims
+ * MUST NEVER be used to update payment_records, activate a subscription,
+ * or otherwise mutate state. The result is only returned to the caller for
+ * human inspection.
+ *
+ * Algorithm pinning does NOT apply here (we're not verifying, just
+ * decoding), but we still parse the header so the caller can see what alg
+ * ZainCash actually used.
+ */
+function decodeV2CallbackJwtWithoutVerification(token: string): { claims: JwtClaims; header: { alg?: string; typ?: string }; signatureLengthBits: number } {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Invalid JWT format (expected 3 parts)");
+
+  const headerJson = Buffer.from(parts[0].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+  let header: { alg?: string; typ?: string };
+  try { header = JSON.parse(headerJson); } catch { throw new Error("Invalid JWT header JSON"); }
+
+  const payloadJson = Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+  let claims: JwtClaims;
+  try { claims = JSON.parse(payloadJson); } catch { throw new Error("Invalid JWT payload JSON"); }
+
+  // Approximate signature length in bits (base64url-encoded, 6 bits per char).
+  // Useful for diagnosing whether the JWT is HS256 (typically 256-512 bits)
+  // vs RS256 (typically 2048+ bits).
+  const signatureLengthBits = parts[2].length * 6;
+
+  return { claims, header, signatureLengthBits };
+}
+
+/**
+ * Returns true if the api_key value is the well-known "placeholder" sentinel
+ * or empty. Used to decide whether to fall back to client_secret (which, per
+ * ZainCash support, is the same value as api_key on V2 UAT).
+ */
+function isApiKeyPlaceholder(apiKey: string): boolean {
+  if (!apiKey) return true;
+  if (apiKey === "placeholder-not-yet-issued") return true;
+  return false;
+}
+
+/**
+ * Returns true if the configured api_key is a real-looking secret (not empty,
+ * not the well-known "placeholder-not-yet-issued" sentinel, ≥ 16 chars).
+ * This is the gate that decides whether JWT verification can be trusted.
+ *
+ * If this returns false, the callback handler will:
+ *   - Decode the JWT WITHOUT verification (for inspection only)
+ *   - Return a 200 with the decoded claims + a clear `verified: false` flag
+ *   - NOT update payment_records
+ *   - NOT activate the company subscription
+ *
+ * Per ZainCash support (2026-10-XX): For V2 UAT, the api_key is the SAME
+ * value as the client_secret. The getV2Config() function falls back to
+ * client_secret when ZAINCASH_V2_API_KEY is missing/placeholder, so this
+ * function will return true whenever client_secret is set to a real value.
+ */
+function isApiKeyReal(apiKey: string): boolean {
+  if (isApiKeyPlaceholder(apiKey)) return false;
+  if (apiKey.length < 16) return false;
+  return true;
+}
+
+/**
+ * Mask a customer MSISDN for safe logging. Returns "***NNNN" (last 4 digits)
+ * or "***" if the value is too short. NEVER log the full MSISDN — it is PII.
+ */
+function maskMsisdn(msisdn: string | undefined): string {
+  if (!msisdn) return "(none)";
+  if (msisdn.length <= 4) return "***";
+  return "***" + msisdn.slice(-4);
+}
+
+/**
+ * Build a diagnostic-safe log object from a VERIFIED V2 callback JWT.
+ * Only includes fields that are safe to log (no secrets, masked PII).
+ * The full JWT, signature, api_key, and client_secret are NEVER included.
+ */
+interface CallbackDiagnostics {
+  eventId: string | null;
+  eventType: string | null;
+  timestamp: string | null;
+  currentStatus: string | null;
+  previousStatus: string | null;
+  transactionId: string | null;
+  orderId: string | null;
+  customerMsisdnMasked: string;       // masked — last 4 only
+  operationId: string | null;
+  serviceType: string | null;
+  errorMessage: string | null;        // FAILURE REASON (only on failed callbacks)
+  amount: { value: number | string | null; currency: string | null; feeValue: number | string | null } | null;
+}
+
+function extractCallbackDiagnostics(claims: JwtClaims): CallbackDiagnostics {
+  const data = claims.data ?? {};
+  const amount = data.amount ?? {};
+  return {
+    eventId: claims.eventId ?? null,
+    eventType: claims.eventType ?? null,
+    timestamp: claims.timestamp ?? null,
+    currentStatus: data.currentStatus ?? null,
+    previousStatus: data.previousStatus ?? null,
+    transactionId: data.transactionId ?? null,
+    orderId: data.orderId ?? null,
+    customerMsisdnMasked: maskMsisdn(data.customerMsisdn),
+    operationId: data.operationId ?? null,
+    serviceType: data.serviceType ?? null,
+    errorMessage: data.errorMessage ?? null,
+    amount: {
+      value: amount.value ?? null,
+      currency: amount.currency ?? null,
+      feeValue: amount.feeValue ?? null,
+    },
+  };
+}
+
+/**
+ * Safe structural diagnostics for a callback token that could NOT be
+ * verified or decoded. Returns ONLY non-sensitive properties — NEVER
+ * the full token, NEVER the signature, NEVER secrets.
+ *
+ * The first 10 and last 10 characters of a JWT are safe to log because:
+ * - First 10 chars of a standard JWT are always "eyJhbGciOi" (base64url
+ *   encoding of `{"alg":"` — a universal JWT prefix, reveals nothing)
+ * - Last 10 chars are part of the signature hash — also not sensitive
+ *   (the signature is a derived value, not a secret key)
+ *
+ * This is used ONLY when verification AND decode-without-verify BOTH fail,
+ * to help diagnose what format ZainCash actually sent.
+ */
+interface SafeTokenDiagnostics {
+  tokenLength: number;
+  dotCount: number;           // parts.length - 1 (0 = opaque, 2 = standard JWT, 4 = JWE, etc.)
+  partCount: number;          // dotCount + 1
+  first10: string;            // first 10 chars — safe (universal JWT prefix or opaque start)
+  last10: string;             // last 10 chars — safe (part of signature or opaque end)
+  containsPlus: boolean;     // standard base64 (not base64url) — may indicate URL encoding issue
+  containsSlash: boolean;
+  containsEquals: boolean;   // base64 padding — may indicate standard base64 instead of base64url
+  containsUnderscore: boolean;
+  containsHyphen: boolean;
+  headerAlg: string | null;   // algorithm from JWT header (if first part is decodable)
+  headerKid: string | null;   // key ID from JWT header (if present and decodable)
+  headerDecodable: boolean;   // whether first part could be base64-decoded + JSON-parsed
+  payloadDecodable: boolean;  // whether second part could be base64-decoded + JSON-parsed
+}
+
+function safeTokenDiagnostics(token: string): SafeTokenDiagnostics {
+  const parts = token.split(".");
+  const dotCount = parts.length - 1;
+  const first10 = token.slice(0, 10);
+  const last10 = token.length >= 10 ? token.slice(-10) : token;
+
+  let headerAlg: string | null = null;
+  let headerKid: string | null = null;
+  let headerDecodable = false;
+  let payloadDecodable = false;
+
+  // Try to decode the header (first part) — INSPECTION ONLY, no verification.
+  // This tells us what algorithm ZainCash used, which is critical for
+  // diagnosing HS256 vs RS256 vs other format issues.
+  if (parts.length >= 1 && parts[0].length > 0) {
+    try {
+      const headerJson = Buffer.from(
+        parts[0].replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+      ).toString("utf-8");
+      const header = JSON.parse(headerJson) as { alg?: string; kid?: string };
+      headerAlg = header.alg ?? null;
+      headerKid = header.kid ?? null;
+      headerDecodable = true;
+    } catch { /* not decodable — not a JWT or malformed base64 */ }
+  }
+
+  // Try to decode the payload (second part) — INSPECTION ONLY.
+  if (parts.length >= 2 && parts[1].length > 0) {
+    try {
+      const payloadJson = Buffer.from(
+        parts[1].replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+      ).toString("utf-8");
+      JSON.parse(payloadJson);
+      payloadDecodable = true;
+    } catch { /* not decodable */ }
+  }
+
+  return {
+    tokenLength: token.length,
+    dotCount,
+    partCount: parts.length,
+    first10,
+    last10,
+    containsPlus: token.includes("+"),
+    containsSlash: token.includes("/"),
+    containsEquals: token.includes("="),
+    containsUnderscore: token.includes("_"),
+    containsHyphen: token.includes("-"),
+    headerAlg,
+    headerKid,
+    headerDecodable,
+    payloadDecodable,
+  };
+}
+
+// ── Callback HTML helper ─────────────────────────────────────────────────────
+//
+// Generates a payment-result HTML page with:
+// - Clear Arabic RTL result (success/failed/cancelled/unverified)
+// - Escaped transaction ID (never raw user-controlled values)
+// - Manual link to /subscriptions (NO auto-redirect — avoids auth session loss)
+// - No secrets, no internal errors, no sensitive customer data
+//
+// The callback handler MUST NOT assume success/failure from the URL alone.
+// Status is only shown as "verified" when confirmed by V2 inquiry or
+// verified JWT. Otherwise a neutral "needs verification" message is shown.
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+type CallbackResultKind = "success" | "failed" | "cancelled" | "unverified" | "error";
+
+function callbackResultHtml(
+  kind: CallbackResultKind,
+  transactionId: string | null,
+  extraMessage: string | null = null,
+): string {
+  const icons: Record<CallbackResultKind, string> = {
+    success: "✅",
+    failed: "❌",
+    cancelled: "⚪",
+    unverified: "⚠️",
+    error: "⚠️",
+  };
+  const titles: Record<CallbackResultKind, string> = {
+    success: "تم الدفع بنجاح",
+    failed: "فشلت عملية الدفع",
+    cancelled: "تم إلغاء الدفع",
+    unverified: "يجب التحقق من حالة الدفع",
+    error: "حدث خطأ في معالجة الدفع",
+  };
+  const messages: Record<CallbackResultKind, string> = {
+    success: "تم تفعيل اشتراكك بنجاح.",
+    failed: "لم يتم تفعيل الاشتراك. يمكنك المحاولة مرة أخرى.",
+    cancelled: "لم يتم إكمال عملية الدفع. لم يتم خصم أي مبلغ.",
+    unverified: "تعذر التحقق من حالة الدفع تلقائياً. يرجى التحقق من صفحة الاشتراكات أو التواصل مع الدعم.",
+    error: "يرجى التحقق من صفحة الاشتراكات أو المحاولة مرة أخرى.",
+  };
+
+  const icon = icons[kind];
+  const title = titles[kind];
+  const message = messages[kind];
+  const txIdHtml = transactionId
+    ? `<p>رقم العملية: <code>${escapeHtml(transactionId)}</code></p>`
+    : "";
+  const extraHtml = extraMessage
+    ? `<p>${escapeHtml(extraMessage)}</p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نتيجة الدفع</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .card { text-align: center; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); max-width: 400px; width: 90%; }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; color: #0D3B4A; }
+    p { font-size: 0.875rem; color: #666; margin: 0.25rem 0; }
+    code { font-size: 0.75rem; color: #999; word-break: break-all; }
+    a { display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: #0D3B4A; color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">${icon}</div>
+    <h1>${title}</h1>
+    <p>${message}</p>
+    ${txIdHtml}
+    ${extraHtml}
+    <a href="/subscriptions">العودة إلى الاشتراكات</a>
+  </div>
+</body>
+</html>`;
+}
+
+// ── V2 status mapping ────────────────────────────────────────────────────────
+//
+// V2 statuses (per parakit ZainCashStatusMap.php + docs):
+//   SUCCESS → completed
+//   FAILED → failed
+//   PENDING, OTP_SENT, CUSTOMER_AUTHENTICATION_REQUIRED → pending
+//   EXPIRED → expired
+//   REFUNDED → refunded
+
+function mapV2StatusToInternal(raw: string | undefined): string {
+  if (!raw) return "pending";
+  const upper = raw.toUpperCase();
+  switch (upper) {
+    case "SUCCESS": return "completed";
+    case "FAILED": return "failed";
+    case "PENDING":
+    case "OTP_SENT":
+    case "CUSTOMER_AUTHENTICATION_REQUIRED":
+      return "pending";
+    case "EXPIRED": return "expired";
+    case "REFUNDED": return "refunded";
+    default: return "pending";
+  }
+}
+
+// ── Supabase persistence (mirrors V1 flow) ──────────────────────────────────
+
+async function insertPaymentRecord(tx: {
+  id: string;
+  orderId: string;
+  companyId: string;
+  planId: string;
+  amount: number;
+}): Promise<void> {
+  const { url, key } = getSupabaseCreds();
+  if (!url || !key) {
+    console.warn("[ZainCash-V2] Supabase not configured — skipping payment_records insert");
+    return;
+  }
+  try {
+    await fetch(`${url}/rest/v1/payment_records`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        id: tx.id,
+        order_id: tx.orderId,
+        company_id: tx.companyId,
+        plan_id: tx.planId,
+        amount: tx.amount,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      }),
+    });
+  } catch (e) {
+    console.warn("[ZainCash-V2] Failed to insert payment_records:", e);
+  }
+}
+
+async function updatePaymentRecordStatus(txId: string, status: string): Promise<void> {
+  const { url, key } = getSupabaseCreds();
+  if (!url || !key) return;
+  try {
+    await fetch(`${url}/rest/v1/rpc/update_payment_record`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ p_id: txId, p_status: status }),
+    });
+  } catch (e) {
+    console.warn("[ZainCash-V2] Failed to update payment_records:", e);
+  }
+}
+
+async function activateCompanySubscription(companyName: string, planId?: string): Promise<boolean> {
+  const { url, key } = getSupabaseCreds();
+  if (!url || !key) return false;
+  try {
+    const encoded = encodeURIComponent(companyName);
+    // Set subscription_active = true + 1-month expiry + plan_id.
+    // subscription_expires_at = now + 30 days (exactly one month).
+    // If the subscription_expires_at column doesn't exist yet (pre-migration),
+    // the PATCH will still succeed for subscription_active — PostgREST
+    // silently ignores unknown columns in the UPDATE body when using
+    // Prefer: return=minimal. The migration in supabase/migrations/ adds
+    // the column; once applied, the expiry is enforced.
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days = ~1 month
+    const patchBody: Record<string, unknown> = {
+      subscription_active: true,
+      subscription_started_at: now.toISOString(),
+      subscription_expires_at: expiresAt.toISOString(),
+      updated_at: now.toISOString(),
+    };
+    if (planId) {
+      patchBody.subscription_plan_id = planId;
+    }
+    const res = await fetch(`${url}/rest/v1/companies?name=eq.${encoded}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(patchBody),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Look up a payment record by order_id using a direct PostgREST query.
+ *
+ * This requires the Supabase service role key (SUPABASE_SERVICE_KEY env var)
+ * to bypass RLS — the anon/publishable key cannot SELECT from
+ * payment_records (RLS blocks it, returns empty results).
+ *
+ * The service role key is stored ONLY in Vercel server-side env vars
+ * (NOT prefixed with VITE_ — never exposed to the frontend bundle).
+ *
+ * Returns only the fields needed for callback verification.
+ * No timestamps, no sensitive data.
+ */
+async function getPaymentRecordByOrderId(orderId: string): Promise<{
+  id: string;
+  order_id: string;
+  company_id: string;
+  plan_id: string;
+  amount: number;
+  status: string;
+} | null> {
+  const { url, key } = getSupabaseCreds();
+  if (!url || !key || !orderId) return null;
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/payment_records?order_id=eq.${encodeURIComponent(orderId)}&select=id,order_id,company_id,plan_id,amount,status&limit=1`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const rows = await res.json() as Array<{
+      id: string;
+      order_id: string;
+      company_id: string;
+      plan_id: string;
+      amount: number;
+      status: string;
+    }>;
+    return rows.length > 0 ? rows[0] : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
+
+const router: IRouter = Router();
+
+/**
+ * GET /api/zaincash/v2/debug/probe
+ *
+ * DEBUG-ONLY reachability probe. Does NOT expose credentials. Reports whether
+ * the local environment can reach pg-api-uat.zaincash.iq's /oauth2/token
+ * endpoint, and whether V2 env vars are configured. No credentials are sent.
+ *
+ * This endpoint is the ONLY debug endpoint added for V2 — it does not create
+ * transactions or send credentials. It will be removed before V2 goes live.
+ */
+router.get("/zaincash/v2/debug/probe", async (_req: Request, res: Response) => {
+  const cfg = getV2Config();
+  const configStatus = v2Configured();
+
+  // Try a HEAD / GET on the OAuth2 token endpoint with empty body — we
+  // expect either 405 (method not allowed, indicating reachability) or 401
+  // (indicating the endpoint exists and requires auth) or 403 (Cloudflare
+  // block). We do NOT send credentials here.
+  let reachability: { httpStatus: number; bodyPreview: string; isCloudflareBlock: boolean; elapsedMs: number } | null = null;
+  if (cfg.baseUrl) {
+    const start = Date.now();
+    try {
+      const r = await fetch(`${cfg.baseUrl}/oauth2/token`, {
+        method: "GET",
+        signal: AbortSignal.timeout(cfg.timeoutMs),
+      });
+      const text = await r.text();
+      reachability = {
+        httpStatus: r.status,
+        bodyPreview: text.slice(0, 200),
+        isCloudflareBlock: text.includes("Cloudflare") || text.includes("Just a moment") || text.toLowerCase().includes("attention required"),
+        elapsedMs: Date.now() - start,
+      };
+    } catch (e) {
+      reachability = {
+        httpStatus: -1,
+        bodyPreview: e instanceof Error ? e.message.slice(0, 200) : String(e),
+        isCloudflareBlock: false,
+        elapsedMs: Date.now() - start,
+      };
+    }
+  }
+
+  return res.status(200).json({
+    timestamp: new Date().toISOString(),
+    version: "v2-debug-probe",
+    configStatus: {
+      baseUrlConfigured: !!cfg.baseUrl,
+      clientIdConfigured: !!cfg.clientId,
+      clientSecretConfigured: !!cfg.clientSecret,
+      apiKeyConfigured: !!cfg.apiKey,
+      successUrlConfigured: !!cfg.successUrl,
+      failureUrlConfigured: !!cfg.failureUrl,
+      scope: cfg.scope,
+      lang: cfg.lang,
+      serviceType: cfg.serviceType,
+      missingRequired: configStatus.missing,
+    },
+    reachability,
+    canAttempt: configStatus.ok && reachability !== null && !reachability.isCloudflareBlock,
+  });
+});
+
+/**
+ * POST /api/zaincash/v2/create
+ *
+ * Create a V2 payment transaction. Returns the redirectUrl the customer must
+ * be sent to in a browser to complete payment on ZainCash's hosted page.
+ *
+ * Body:
+ *   { planId: string, amount: number, companyId: string }
+ *
+ * Response:
+ *   200: { transactionId, redirectUrl, orderId, expiresAt }
+ *   400: { error, missing: [...] }
+ *   502: { error, step, zaincashStatus, zaincashResponse }
+ *   503: { error, blocker: "CLOUDFLARE_403" | "MISSING_ENV" | "V2_UNCONFIGURED" }
+ */
+router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
+  try {
+    const { planId, amount, companyId } = req.body as {
+      planId?: string;
+      amount?: number;
+      companyId?: string;
+    };
+
+    if (!planId || !amount || !companyId) {
+      return res.status(400).json({
+        error: "Missing required fields: planId, amount, companyId",
+      });
+    }
+    if (amount <= 0) {
+      return res.status(400).json({ error: "Amount must be positive" });
+    }
+
+    const cfg = getV2Config();
+    const cfgStatus = v2Configured();
+    if (!cfgStatus.ok) {
+      return res.status(503).json({
+        error: "V2 not configured",
+        blocker: "MISSING_ENV",
+        missing: cfgStatus.missing,
+      });
+    }
+
+    // Generate ASCII-only orderId + UUID externalReferenceId.
+    // CRITICAL: orderId must NOT contain non-ASCII characters (e.g., Arabic
+    // company names). ZainCash's V2 backend replaces non-ASCII characters
+    // with literal '?' in the orderId when storing/returning it. This causes
+    // the no-token callback's orderId lookup to fail (DB has the original
+    // non-ASCII orderId, but the callback URL has '?' chars) → "unverified"
+    // page → subscription never activated despite successful payment.
+    // Fix: omit companyId from orderId entirely; use planId + timestamp +
+    // random for uniqueness. company_id is stored separately in
+    // payment_records.company_id (not sent to ZainCash as part of orderId).
+    const orderId = `tt-v2-${planId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    // externalReferenceId must be a standard UUID (36 chars, 8-4-4-4-12 format)
+    // — ZainCash V2 backend deserializes it as `java.util.UUID` and rejects
+    // non-UUID strings with HTTP 400. Use crypto.randomUUID() (UUIDv4).
+    // Note: this is NOT stable across retries, but V2's externalReferenceId
+    // is the dedup key — if a retry must collapse to the same transaction, we
+    // would need to derive a deterministic UUIDv5. For now, fresh UUID per
+    // request is correct (each /api/zaincash/v2/create is a new transaction).
+    const externalReferenceId = crypto.randomUUID();
+
+    // Build successUrl / failureUrl with our callback endpoint and context
+    // encoded as query params so we can fall back if the JWT doesn't carry them
+    const ctx = new URLSearchParams({ orderId, planId, companyId });
+    const successUrl = `${cfg.successUrl}?${ctx.toString()}`;
+    const failureUrl = `${cfg.failureUrl}?${ctx.toString()}`;
+
+    const payload = {
+      language: cfg.lang,
+      externalReferenceId,
+      orderId,
+      serviceType: cfg.serviceType,
+      amount: { value: String(amount), currency: "IQD" },
+      redirectUrls: { successUrl, failureUrl },
+    };
+
+    console.log("[ZainCash-V2] init payload:", JSON.stringify(payload).slice(0, 500));
+
+    let response: V2ApiResponse;
+    try {
+      response = await v2Request(cfg, "POST", "/api/v2/payment-gateway/transaction/init", payload);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isCloudflare = msg.includes("Cloudflare");
+      return res.status(503).json({
+        error: "V2 init failed at OAuth2 step",
+        blocker: isCloudflare ? "CLOUDFLARE_403" : "OAUTH2_FAILED",
+        details: msg,
+      });
+    }
+
+    if (response.status === 403 && typeof response.rawText === "string" && response.rawText.includes("Cloudflare")) {
+      return res.status(503).json({
+        error: "V2 init blocked by Cloudflare WAF",
+        blocker: "CLOUDFLARE_403",
+        httpStatus: response.status,
+        bodyPreview: response.rawText.slice(0, 300),
+      });
+    }
+
+    if (response.status >= 500) {
+      return res.status(502).json({
+        error: "V2 init failed (ZainCash server error)",
+        step: "transaction_init",
+        zaincashStatus: response.status,
+        zaincashResponse: response.rawText.slice(0, 500),
+      });
+    }
+
+    if (response.status >= 400) {
+      return res.status(502).json({
+        error: "V2 init rejected by ZainCash",
+        step: "transaction_init",
+        zaincashStatus: response.status,
+        zaincashResponse: response.body,
+      });
+    }
+
+    const body = response.body as {
+      status?: string;
+      transactionDetails?: { transactionId?: string; orderId?: string };
+      redirectUrl?: string;
+      expiryTime?: string;
+    };
+
+    const transactionId = body.transactionDetails?.transactionId;
+    const redirectUrl = body.redirectUrl;
+
+    if (!transactionId || !redirectUrl) {
+      return res.status(502).json({
+        error: "V2 init response missing transactionId/redirectUrl",
+        step: "transaction_init",
+        zaincashResponse: response.body,
+      });
+    }
+
+    // Persist to Supabase (fire-and-forget; non-fatal)
+    await insertPaymentRecord({
+      id: transactionId,
+      orderId,
+      companyId,
+      planId,
+      amount,
+    });
+
+    return res.status(200).json({
+      transactionId,
+      redirectUrl,
+      orderId,
+      expiresAt: body.expiryTime ?? null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ZainCash-V2] create error:", msg);
+    return res.status(500).json({ error: msg, step: "create_payment_v2" });
+  }
+});
+
+/**
+ * GET /api/zaincash/v2/callback
+ *
+ * V2 redirect callback. ZainCash redirects the customer's browser to
+ * redirectUrls.successUrl (or failureUrl) with ?token=<HS256 JWT signed with
+ * the V2 api_key>. We verify the JWT, extract the transactionId + status,
+ * update Supabase, and (on success) activate the company subscription.
+ *
+ * If the JWT cannot be verified (e.g. api_key not configured), we fall back
+ * to calling the V2 inquiry endpoint to get the authoritative status.
+ */
+router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
+  try {
+    const token = (req.query.token as string) ?? "";
+    const orderId = (req.query.orderId as string) ?? "";
+    const planId = (req.query.planId as string) ?? "";
+    const companyId = (req.query.companyId as string) ?? "";
+
+    if (!token) {
+      // No JWT token in the callback URL. ZainCash sometimes redirects without
+      // a token — even on SUCCESSFUL payments. Do NOT assume "cancelled".
+      // Instead, look up the payment record by orderId (from query params) and
+      // verify the authoritative status via V2 inquiry.
+      console.log("[ZainCash-V2] GET callback without token — checking via inquiry");
+
+      // Step 1: Need an orderId to look up the payment record
+      if (!orderId) {
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("cancelled", null)
+        );
+      }
+
+      // Step 2: Look up payment_records by orderId via direct PostgREST query
+      // (requires SUPABASE_SERVICE_KEY to bypass RLS)
+      const record = await getPaymentRecordByOrderId(orderId);
+      if (!record) {
+        console.warn("[ZainCash-V2] No payment record found for orderId:", orderId);
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", null)
+        );
+      }
+
+      // Step 3: Idempotency — if already completed, skip re-processing
+      if (record.status === "completed") {
+        console.log("[ZainCash-V2] Payment already completed (idempotent):", record.id);
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("success", record.id)
+        );
+      }
+
+      // Step 4: Call V2 inquiry with the transactionId from OUR DB
+      // (NOT from the URL — from our own payment_records row)
+      const cfgNoToken = getV2Config();
+      let inquiryStatusNoToken = "PENDING";
+      let inquiryDetails: {
+        amount?: { value?: number; currency?: string };
+        orderId?: string;
+      } | null = null;
+      try {
+        const inquiry = await v2Request(cfgNoToken, "GET",
+          `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(record.id)}`);
+        if (inquiry.status === 200 && typeof inquiry.body === "object") {
+          const b = inquiry.body as { status?: string; transactionDetails?: { orderId?: string; amount?: { value?: number; currency?: string } } };
+          if (b.status) inquiryStatusNoToken = b.status;
+          inquiryDetails = {
+            amount: b.transactionDetails?.amount,
+            orderId: b.transactionDetails?.orderId,
+          };
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] Inquiry failed in no-token callback:", e instanceof Error ? e.message : String(e));
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", record.id)
+        );
+      }
+
+      // Step 5: Consistency checks — verify inquiry result matches OUR stored record.
+      // This prevents an attacker from using a fake orderId to trigger
+      // subscription activation for a different transaction.
+      // We check: orderId, amount, and currency (IQD is the only supported currency).
+      const inquiryAmount = inquiryDetails?.amount?.value;
+      const inquiryCurrency = inquiryDetails?.amount?.currency;
+      const inquiryOrderId = inquiryDetails?.orderId;
+      const amountMatches = inquiryAmount !== undefined && inquiryAmount === record.amount;
+      const currencyMatches = inquiryCurrency === "IQD";
+      const orderIdMatches = inquiryOrderId === record.order_id;
+
+      if (!amountMatches || !orderIdMatches || !currencyMatches) {
+        console.error(
+          "[ZainCash-V2] Consistency check FAILED in no-token callback. " +
+          "DB: {amount:", record.amount, ", orderId:", record.order_id, "} | " +
+          "Inquiry: {amount:", inquiryAmount, ", currency:", inquiryCurrency, ", orderId:", inquiryOrderId, "}"
+        );
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", record.id)
+        );
+      }
+
+      // Step 6: Process the verified inquiry status
+      const internalStatusNoToken = mapV2StatusToInternal(inquiryStatusNoToken);
+      console.log("[ZainCash-V2] No-token callback inquiry result:", inquiryStatusNoToken, "->", internalStatusNoToken, "for tx:", record.id);
+
+      await updatePaymentRecordStatus(record.id, internalStatusNoToken);
+
+      // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
+      // Uses record.company_id from OUR database — NOT from the URL query param.
+      if (internalStatusNoToken === "completed" && record.company_id) {
+        await activateCompanySubscription(record.company_id, record.plan_id);
+      } else {
+        console.log(`[ZainCash-V2] No-token callback: status=${internalStatusNoToken} — subscription NOT activated`);
+      }
+
+      // Step 7: Show the correct result page
+      let resultKindNoToken: CallbackResultKind;
+      if (internalStatusNoToken === "completed") {
+        resultKindNoToken = "success";
+      } else if (internalStatusNoToken === "failed" || internalStatusNoToken === "expired") {
+        resultKindNoToken = "failed";
+      } else {
+        resultKindNoToken = "unverified";
+      }
+      return res.status(200).type("text/html; charset=utf-8").send(
+        callbackResultHtml(resultKindNoToken, record.id)
+      );
+    }
+
+    const cfg = getV2Config();
+    // SAFE-BY-DEFAULT policy: a callback JWT is only trusted to mutate state
+    // (update payment_records / activate subscription) if:
+    //   (a) the api_key (or its client_secret fallback) is set to a REAL value
+    //       (not empty, not the well-known placeholder sentinel), AND
+    //   (b) the JWT HS256 signature verifies successfully against that real key.
+    //
+    // Per ZainCash support (2026-10-XX): the V2 UAT api_key is the SAME value
+    // as the client_secret. getV2Config() handles this fallback transparently.
+    //
+    // If verification fails, we DECODE (without verify) for human inspection
+    // only and explicitly DO NOT call inquiry, DO NOT update payment_records,
+    // and DO NOT activate the subscription. This means an attacker cannot
+    // activate a subscription by sending a forged callback JWT — we only ever
+    // trust callbacks signed with the real merchant key.
+    const apiKeyIsReal = isApiKeyReal(cfg.apiKey);
+    let verified = false;
+    let verifiedClaims: JwtClaims | null = null;
+    let transactionId = "";
+    let status = "";
+    let decodedClaims: JwtClaims | null = null;
+    let decodedHeader: { alg?: string; typ?: string } | null = null;
+    let decodedSigBits = 0;
+
+    if (apiKeyIsReal) {
+      try {
+        verifiedClaims = verifyV2CallbackJwt(token, cfg.apiKey);
+        verified = true;
+        transactionId = verifiedClaims.data?.transactionId ?? "";
+        status = verifiedClaims.data?.currentStatus ?? "";
+        // Log ONLY diagnostic-safe fields (mask customerMsisdn, no secrets)
+        const diag = extractCallbackDiagnostics(verifiedClaims);
+        console.log("[ZainCash-V2] callback JWT VERIFIED. Diagnostics:", JSON.stringify(diag));
+      } catch (e) {
+        const verifyError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] callback JWT verification FAILED. " +
+          "Error:", verifyError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
+        // Fall through to inspection-only decode for human review
+      }
+    }
+
+    if (!verified) {
+      // Decode WITHOUT verifying — INSPECTION ONLY.
+      try {
+        const decoded = decodeV2CallbackJwtWithoutVerification(token);
+        decodedClaims = decoded.claims;
+        decodedHeader = decoded.header;
+        decodedSigBits = decoded.signatureLengthBits;
+        // Surface the transactionId/status from the decoded claims for
+        // display only. Do NOT use these values to update any state.
+        transactionId = decoded.claims.data?.transactionId ?? "";
+        status = decoded.claims.data?.currentStatus ?? "";
+        // Log diagnostic-safe fields only (mask customerMsisdn, no secrets)
+        const diag = extractCallbackDiagnostics(decoded.claims);
+        console.warn(
+          "[ZainCash-V2] callback JWT NOT verified — decoded for inspection only. " +
+          "Payment_records and subscription_active will NOT be updated. " +
+          "Diagnostics:", JSON.stringify(diag),
+          "header.alg=", decodedHeader.alg, "signatureBits=", decodedSigBits
+        );
+      } catch (e) {
+        const decodeError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] callback token could not be decoded as JWT. " +
+          "Error:", decodeError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", null)
+        );
+      }
+    }
+
+    // If verification FAILED (or api_key missing) — return a NEUTRAL
+    // result page WITHOUT touching Supabase. Do NOT claim success or
+    // failure based on the unverified JWT claims.
+    if (!verified) {
+      // Build a diagnostic-safe display object (no secrets, masked PII)
+      const diagForDisplay = decodedClaims ? extractCallbackDiagnostics(decodedClaims) : null;
+      const claimsForDisplay = diagForDisplay
+        ? JSON.stringify(diagForDisplay, null, 2)
+          .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        : "";
+      const headerForDisplay = decodedHeader
+        ? JSON.stringify(decodedHeader, null, 2)
+          .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        : "";
+      const diagHtml = (claimsForDisplay || headerForDisplay)
+        ? `<details style="margin-top:1rem;text-align:right;font-size:0.75rem;color:#999;">
+             <summary>تفاصيل تقنية</summary>
+             ${headerForDisplay ? `<pre style="text-align:left;overflow-x:auto;">${headerForDisplay}</pre>` : ""}
+             ${claimsForDisplay ? `<pre style="text-align:left;overflow-x:auto;">${claimsForDisplay}</pre>` : ""}
+           </details>`
+        : "";
+      return res.status(200).type("text/html; charset=utf-8").send(
+        callbackResultHtml("unverified", transactionId || null) + diagHtml
+      );
+    }
+
+    if (!transactionId) {
+      return res.status(400).type("text/html; charset=utf-8").send(
+        callbackResultHtml("unverified", null, "لم يتم العثور على رقم العملية")
+      );
+    }
+
+    // JWT verified — look up the payment record from OUR database by
+    // transactionId (from the verified JWT). This is the SECURE source of
+    // company_id — NOT the URL query param `companyId`, which could be
+    // tampered with by an attacker who intercepts the callback URL.
+    // Also serves as idempotency check: if already completed, skip.
+    const { url: cbSupabaseUrl, key: cbSupabaseKey } = getSupabaseCreds();
+    let dbCompanyId = "";
+    let dbPlanId = "";
+    let alreadyCompleted = false;
+    if (cbSupabaseUrl && cbSupabaseKey) {
+      try {
+        const r = await fetch(`${cbSupabaseUrl}/rest/v1/rpc/get_payment_record`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: cbSupabaseKey, Authorization: `Bearer ${cbSupabaseKey}` },
+          body: JSON.stringify({ p_id: transactionId }),
+        });
+        if (r.ok) {
+          const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
+          if (rows.length > 0) {
+            dbCompanyId = rows[0].company_id ?? "";
+            dbPlanId = rows[0].plan_id ?? "";
+            if (rows[0].status === "completed") {
+              alreadyCompleted = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] callback payment record lookup failed:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    // Idempotency: if payment_records.status is already "completed", skip
+    // re-processing (don't re-call inquiry, don't re-activate subscription).
+    if (alreadyCompleted) {
+      console.log("[ZainCash-V2] callback: payment already completed (idempotent):", transactionId);
+      return res.status(200).type("text/html; charset=utf-8").send(
+        callbackResultHtml("success", transactionId)
+      );
+    }
+
+    // JWT verified successfully — safe to consult inquiry as defense-in-depth.
+    // (Inquiry is authenticated via OAuth2 client_credentials, so its result
+    // is authoritative — but we still require the callback JWT to be
+    // verified first, so a forged callback cannot trigger an inquiry on a
+    // transaction the merchant didn't initiate.)
+    let inquiryStatus = status;
+    try {
+      const inquiry = await v2Request(cfg, "GET", `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(transactionId)}`);
+      if (inquiry.status === 200 && typeof inquiry.body === "object") {
+        const b = inquiry.body as { status?: string };
+        if (b.status) inquiryStatus = b.status;
+      }
+    } catch (e) {
+      console.warn("[ZainCash-V2] inquiry failed in callback:", e instanceof Error ? e.message : String(e));
+      // Continue with the JWT-claimed status as fallback (JWT is verified)
+    }
+
+    const internalStatus = mapV2StatusToInternal(inquiryStatus);
+    // Update payment_records status (pending → failed | completed | expired | refunded | pending)
+    await updatePaymentRecordStatus(transactionId, internalStatus);
+
+    // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
+    // NEVER activate on FAILED, EXPIRED, PENDING, or any other status.
+    // Uses dbCompanyId from OUR database — NOT the URL query param companyId.
+    // This prevents an attacker from tampering with the URL's companyId to
+    // activate a different company's subscription.
+    if (internalStatus === "completed" && dbCompanyId) {
+      await activateCompanySubscription(dbCompanyId, dbPlanId);
+    } else {
+      console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
+    }
+
+    // Determine the callback result kind based on the VERIFIED inquiry status.
+    // Do NOT assume success/failure from the callback URL alone — the status
+    // above was confirmed by V2 inquiry (authenticated, authoritative).
+    let resultKind: CallbackResultKind;
+    if (internalStatus === "completed") {
+      resultKind = "success";
+    } else if (internalStatus === "failed" || internalStatus === "expired") {
+      resultKind = "failed";
+    } else {
+      // pending, refunded, or unknown — can't confirm success or failure
+      resultKind = "unverified";
+    }
+    return res.status(200).type("text/html; charset=utf-8").send(
+      callbackResultHtml(resultKind, transactionId)
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ZainCash-V2] callback error:", msg);
+    // Do NOT expose the raw error message (may contain internal details)
+    return res.status(200).type("text/html; charset=utf-8").send(
+      callbackResultHtml("error", null)
+    );
+  }
+});
+
+/**
+ * POST /api/zaincash/v2/webhook
+ *
+ * V2 server-to-server webhook. ZainCash POSTs a JSON body containing
+ * { webhook_token: "<HS256 JWT signed with api_key>" } to the merchant's
+ * configured notificationUrl.
+ *
+ * We verify the JWT, extract the transactionId + currentStatus, update
+ * Supabase, and (on success) activate the company subscription. Idempotent:
+ * if payment_records.status is already 'completed', we skip activation.
+ */
+router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
+  try {
+    const body = req.body as { webhook_token?: string; token?: string };
+    const token = body.webhook_token ?? body.token ?? "";
+
+    if (!token) {
+      return res.status(400).json({ error: "Missing webhook_token", received: false });
+    }
+
+    const cfg = getV2Config();
+    // SAFE-BY-DEFAULT (same policy as the GET /callback handler):
+    // Only mutate state (payment_records / subscription_active) if the
+    // webhook JWT signature verifies against a REAL api_key. Otherwise
+    // respond 200 with decoded-for-inspection claims and DO NOT touch
+    // Supabase. Returning 200 (not 400) prevents ZainCash from retrying
+    // the webhook indefinitely for a configuration issue on our side.
+    const apiKeyIsReal = isApiKeyReal(cfg.apiKey);
+    let verified = false;
+    let claims: JwtClaims | null = null;
+
+    if (apiKeyIsReal) {
+      try {
+        claims = verifyV2CallbackJwt(token, cfg.apiKey);
+        verified = true;
+      } catch (e) {
+        const verifyError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] webhook JWT verification FAILED. " +
+          "Error:", verifyError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
+      }
+    }
+
+    if (!verified) {
+      try {
+        const decoded = decodeV2CallbackJwtWithoutVerification(token);
+        claims = decoded.claims;
+        console.warn(
+          "[ZainCash-V2] webhook JWT NOT verified — decoded for inspection only. " +
+          "Payment_records and subscription_active will NOT be updated. " +
+          "transactionId=", decoded.claims.data?.transactionId ?? "(none)",
+          "claimed status=", decoded.claims.data?.currentStatus ?? "(none)",
+          "header.alg=", decoded.header.alg
+        );
+      } catch (e) {
+        const decodeError = e instanceof Error ? e.message : String(e);
+        const tokenDiag = safeTokenDiagnostics(token);
+        console.error(
+          "[ZainCash-V2] webhook token could not be decoded as JWT. " +
+          "Error:", decodeError,
+          "| Token structure:", JSON.stringify(tokenDiag)
+        );
+        return res.status(200).json({
+          received: true,
+          verified: false,
+          error: "Webhook token could not be parsed as a JWT",
+        });
+      }
+      return res.status(200).json({
+        received: true,
+        verified: false,
+        reason: apiKeyIsReal
+          ? "JWT signature verification failed — the configured api_key does not match the signature on this token."
+          : "ZAINCASH_V2_API_KEY is not configured with a real value (placeholder or empty). Cannot verify the JWT signature.",
+        claims,
+        // State mutation explicitly did NOT happen — payment_records and
+        // subscription_active are unchanged.
+        stateMutated: false,
+      });
+    }
+
+    // JWT verified — safe to use claims
+    const transactionId = claims!.data?.transactionId ?? "";
+    const currentStatus = claims!.data?.currentStatus ?? "";
+    const orderId = claims!.data?.orderId ?? "";
+
+    if (!transactionId) {
+      return res.status(400).json({ error: "Missing transactionId in webhook", received: false });
+    }
+
+    // Idempotency check via RPC
+    const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
+    let companyName = "";
+    let webhookPlanId = "";
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_payment_record`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+          body: JSON.stringify({ p_id: transactionId }),
+        });
+        if (r.ok) {
+          const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
+          if (rows.length > 0) {
+            if (rows[0].status === "completed") {
+              return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
+            }
+            companyName = rows[0].company_id ?? "";
+            webhookPlanId = rows[0].plan_id ?? "";
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] webhook idempotency check failed:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    const internalStatus = mapV2StatusToInternal(currentStatus);
+    await updatePaymentRecordStatus(transactionId, internalStatus);
+
+    if (internalStatus === "completed" && companyName) {
+      await activateCompanySubscription(companyName, webhookPlanId);
+    }
+
+    return res.status(200).json({
+      received: true,
+      verified: true,
+      transactionId,
+      status: internalStatus,
+      orderId,
+      eventId: claims!.eventId,
+      eventType: claims!.eventType,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ZainCash-V2] webhook error:", msg);
+    return res.status(200).json({ received: true, verified: false, error: msg });
+  }
+});
+
+/**
+ * GET /api/zaincash/v2/verify?transactionId=xxx
+ *
+ * V2 inquiry. Returns the raw status from ZainCash and the mapped internal status.
+ */
+router.get("/zaincash/v2/verify", async (req: Request, res: Response) => {
+  try {
+    const { transactionId } = req.query as { transactionId?: string };
+    if (!transactionId) {
+      return res.status(400).json({ error: "Missing transactionId query parameter" });
+    }
+
+    const cfg = getV2Config();
+    const cfgStatus = v2Configured();
+    if (!cfgStatus.ok) {
+      return res.status(503).json({
+        error: "V2 not configured",
+        blocker: "MISSING_ENV",
+        missing: cfgStatus.missing,
+      });
+    }
+
+    let response: V2ApiResponse;
+    try {
+      response = await v2Request(cfg, "GET", `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(transactionId)}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isCloudflare = msg.includes("Cloudflare");
+      return res.status(503).json({
+        error: "V2 inquiry failed at OAuth2 step",
+        blocker: isCloudflare ? "CLOUDFLARE_403" : "OAUTH2_FAILED",
+        details: msg,
+      });
+    }
+
+    if (response.status === 403 && typeof response.rawText === "string" && response.rawText.includes("Cloudflare")) {
+      return res.status(503).json({
+        error: "V2 inquiry blocked by Cloudflare WAF",
+        blocker: "CLOUDFLARE_403",
+        httpStatus: response.status,
+      });
+    }
+
+    if (response.status >= 400) {
+      return res.status(502).json({
+        error: "V2 inquiry rejected by ZainCash",
+        zaincashStatus: response.status,
+        zaincashResponse: response.body,
+      });
+    }
+
+    const body = response.body as { status?: string; transactionDetails?: { transactionId?: string; orderId?: string } };
+    const v2Status = body.status ?? "unknown";
+    const internalStatus = mapV2StatusToInternal(v2Status);
+
+    return res.status(200).json({
+      transactionId,
+      v2Status,
+      status: internalStatus,
+      details: response.body,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ZainCash-V2] verify error:", msg);
+    return res.status(500).json({ error: msg, step: "verify_payment_v2" });
+  }
+});
+
+export default router;

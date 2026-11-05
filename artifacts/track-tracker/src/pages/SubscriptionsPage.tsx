@@ -1,75 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { ArrowRight, Loader2, CreditCard, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MobileLayout } from '@/layouts/MobileLayout';
 import { AppInput } from '@/components/AppInput';
 import { AppButton } from '@/components/AppButton';
 import { SubscriptionPlanCard } from '@/components/SubscriptionPlanCard';
-import { SUBSCRIPTION_PLANS } from '@/services/subscriptionService';
+import { SUBSCRIPTION_PLANS, subscribeToPlan } from '@/services/subscriptionService';
 import { useApp } from '@/store/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { useZainCashPayment } from '@/hooks/useZainCashPayment';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /**
  * SubscriptionsPage — Company Owner only.
  *
- * Displays subscription plan cards connected to ZainCash payment flow,
- * plus an activation code input for manual activation.
- *
- * Bug 1 fix: Only the plan the user actually paid for shows "Active".
- *   We query payment_records for the latest completed payment's plan_id.
- *   If subscription was activated via discount code (no payment record),
- *   no plan shows "Active" — all remain clickable.
- *
- * Bug 2 fix: Only the clicked plan shows loading state.
- *   loadingPlanId tracks which plan is in-flight via ZainCash.
+ * Displays a single activation code input and subscription plan cards.
+ * The activation code input is the ONLY place where the owner can enter
+ * a code to activate their subscription.
  */
 export default function SubscriptionsPage() {
   const [, setLocation] = useLocation();
   const { activateSubscription, companySubscriptionActive, company } = useApp();
   const { toast } = useToast();
-  const { loadingPlanId, initiatePayment, verifyPendingPayment } = useZainCashPayment();
-
-  // ── Active plan ID (Bug 1 fix) ──
-  // Determined by querying payment_records for the latest completed payment.
-  // null = no specific plan paid (discount code activation, or not active).
-  const [activePlanId, setActivePlanId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!companySubscriptionActive || !isSupabaseConfigured) {
-      setActivePlanId(null);
-      return;
-    }
-
-    // Query payment_records for the latest completed payment to find which plan is active.
-    // This is a read-only query — no payment flow modification.
-    const fetchActivePlanId = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('payment_records')
-          .select('plan_id')
-          .eq('company_id', company.name)  // company.name used as companyId in current flow
-          .eq('status', 'completed')
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (!error && data && data.length > 0 && data[0].plan_id) {
-          setActivePlanId(data[0].plan_id);
-        } else {
-          // Subscription is active but no completed payment record found.
-          // This means it was activated via discount code — no plan should show as "Active".
-          setActivePlanId(null);
-        }
-      } catch {
-        // Non-critical — fall back to no active plan shown
-        setActivePlanId(null);
-      }
-    };
-
-    fetchActivePlanId();
-  }, [companySubscriptionActive, company.name]);
 
   // ── Activation code state ──
   const [activationCode, setActivationCode] = useState('');
@@ -77,47 +28,8 @@ export default function SubscriptionsPage() {
   const [activationError, setActivationError] = useState('');
   const [activationSuccess, setActivationSuccess] = useState('');
 
-  // ── Verify pending ZainCash payment on mount ──
-  // Uses a module-level guard to survive component remounts.
-  // Previously, a useRef was used, but it resets on unmount. If
-  // AuthContext's isLoading flips to true (e.g., on SIGNED_IN event),
-  // ProtectedRoute unmounts SubscriptionsPage, the ref resets, and
-  // the verification re-runs on remount — causing an infinite loop.
-  // The module-level flag persists across remounts within the same
-  // session, so the verification only runs once per page load.
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const verifyPendingPaymentRef = useRef(verifyPendingPayment);
-  verifyPendingPaymentRef.current = verifyPendingPayment;
-
-  useEffect(() => {
-    // Skip if there's no pending payment in sessionStorage —
-    // this is the primary guard: if a previous verification already
-    // cleared sessionStorage, there's nothing to re-verify.
-    const raw = sessionStorage.getItem('tt_zaincash_pending');
-    if (!raw) return;
-
-    try {
-      const pending = JSON.parse(raw);
-      if (!pending?.transactionId) return;
-      // Only check if recently redirected (< 5 minutes ago)
-      if (!(pending.timestamp && Date.now() - pending.timestamp < 5 * 60 * 1000)) return;
-    } catch {
-      return;
-    }
-
-    // Run verification (sessionStorage presence is the guard;
-    // verifyPendingPayment clears it on completion/error).
-    const check = async () => {
-      try {
-        setVerifyingPayment(true);
-        await verifyPendingPaymentRef.current();
-        setVerifyingPayment(false);
-      } catch {
-        setVerifyingPayment(false);
-      }
-    };
-    check();
-  }, []);
+  // ── Payment state ──
+  const [paymentLoadingPlan, setPaymentLoadingPlan] = useState<string | null>(null);
 
   const handleActivate = async () => {
     const code = activationCode.trim();
@@ -126,6 +38,7 @@ export default function SubscriptionsPage() {
       return;
     }
 
+    // If already active, show a message and do NOT activate again
     if (companySubscriptionActive) {
       setActivationError('');
       setActivationSuccess('هذا الحساب مفعّل بالفعل، لا حاجة لإدخال الكود مرة أخرى');
@@ -151,28 +64,25 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const handleSubscribe = async (planId: string, amount: number) => {
-    if (companySubscriptionActive) {
-      toast({ title: 'الاشتراك مفعّل بالفعل' });
+  const handleSubscribe = async (planId: string) => {
+    const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
+    if (!plan || !company?.name) {
+      toast({ title: 'خطأ', description: 'بيانات الاشتراك غير مكتملة', variant: 'destructive' });
       return;
     }
-    await initiatePayment(planId, amount);
-  };
 
-  // ── Payment verification overlay ──
-  if (verifyingPayment) {
-    return (
-      <MobileLayout>
-        <div className="flex flex-col items-center justify-center h-[100dvh] gap-4 px-6">
-          <Loader2 size={40} className="animate-spin text-primary" />
-          <p className="font-bold text-foreground text-lg">جارٍ التحقق من حالة الدفع…</p>
-          <p className="text-sm text-muted-foreground text-center">
-            يرجى الانتظار بينما نتأكد من حالة عملية الدفع
-          </p>
-        </div>
-      </MobileLayout>
-    );
-  }
+    setPaymentLoadingPlan(planId);
+    const result = await subscribeToPlan(planId, {
+      amount: plan.price,
+      companyId: company.name,
+    });
+
+    if (!result.success) {
+      toast({ title: 'فشل الدفع', description: result.message, variant: 'destructive' });
+    }
+    // If success, the browser is already redirecting to ZainCash — no cleanup needed
+    setPaymentLoadingPlan(null);
+  };
 
   return (
     <MobileLayout>
@@ -180,7 +90,7 @@ export default function SubscriptionsPage() {
 
         {/* ── Header ── */}
         <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background shrink-0">
-          <div className="w-10" />
+          <div className="w-10" /> {/* Spacer for centering */}
           <span className="font-bold text-base text-foreground">الاشتراكات</span>
           <button
             onClick={() => setLocation('/profile')}
@@ -203,7 +113,7 @@ export default function SubscriptionsPage() {
 
               {companySubscriptionActive ? (
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-green-500 shrink-0" />
+                  <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" />
                   <p className="font-bold text-sm text-green-600">الاشتراك مفعّل</p>
                 </div>
               ) : (
@@ -261,22 +171,7 @@ export default function SubscriptionsPage() {
               )}
             </div>
 
-            {/* ── ZainCash payment info ── */}
-            {!companySubscriptionActive && (
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4
-                              shadow-[0_2px_12px_rgba(0,0,0,0.06)]
-                              border border-black/[0.04] dark:border-white/[0.06]">
-                <div className="flex items-center gap-2 mb-2">
-                  <CreditCard size={16} className="text-primary shrink-0" />
-                  <p className="text-xs text-muted-foreground font-semibold">الدفع عبر ZainCash</p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  اختر خطة الاشتراك واضغط "اشترك الآن" للدفع عبر ZainCash
-                </p>
-              </div>
-            )}
-
-            {/* Subscription plan cards — Bug 1 & 2 fixes */}
+            {/* Subscription plan cards */}
             {SUBSCRIPTION_PLANS.map((plan, index) => (
               <motion.div
                 key={plan.id}
@@ -286,9 +181,8 @@ export default function SubscriptionsPage() {
               >
                 <SubscriptionPlanCard
                   plan={plan}
-                  onSubscribe={(planId) => handleSubscribe(planId, plan.price)}
-                  isActive={activePlanId === plan.id}
-                  loadingPlanId={loadingPlanId}
+                  onSubscribe={handleSubscribe}
+                  loading={paymentLoadingPlan === plan.id}
                 />
               </motion.div>
             ))}

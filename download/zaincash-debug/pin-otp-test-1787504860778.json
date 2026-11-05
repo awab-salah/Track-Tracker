@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-08-23T17:08:14.719Z",
+  "phone": "9647802999569",
+  "otp": "1111",
+  "pinResults": [
+    {
+      "pin": "1234",
+      "transactionId": "6a8b28ddb1d97b9d3db89d5d",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp"
+    },
+    {
+      "pin": "0000",
+      "transactionId": "6a8b28e6b1d97b9d3db89d5e",
+      "processingSuccess": 0,
+      "processingMsg": "Wrong Credentials. Please try again.",
+      "paySuccess": 0,
+      "payMsg": "incorrect_otp",
+      "finalStatus": "failed",
+      "finalDue": "incorrect_otp"
+    },
+    {
+      "pin": "1111",
+      "transactionId": "6a8b28eeb1d97b9d3db89d5f",
+      "processingMsg": null,
+      "payMsg": null
+    }
+  ],
+  "successfulPins": [],
+  "completedFlows": []
+}

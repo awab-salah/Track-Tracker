@@ -1,0 +1,74 @@
+[
+  {
+    "url": "https://swagger.io",
+    "name": "Bearer Authentication",
+    "snippet": "Bearer authentication (also called token authentication) is an HTTP authentication scheme that involves security tokens called bearer tokens. Read more",
+    "host_name": "swagger.io",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://blog.postman.com",
+    "name": "What is a Bearer Token? Understanding API Authentication",
+    "snippet": "Jan 5, 2026 — Bearer tokens authenticate API requests by granting access to whoever possesses the token, passed in the Authorization header as Authorization: ... Read more",
+    "host_name": "blog.postman.com",
+    "rank": 1,
+    "date": "Jan 5, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://help.gorollick.com",
+    "name": "Authentication - Bearer Token",
+    "snippet": "An authenticate header must be included in all API calls to authorize the caller. The authenticate header uses a public and private key alo.",
+    "host_name": "help.gorollick.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developer.cisco.com",
+    "name": "Authentication - Cisco Edge Intelligence 2.2 API",
+    "snippet": "The bearer token allows you to authenticate API requests. To use your bearer token for authentication , include it in the Authorization header of your requests. ...",
+    "host_name": "developer.cisco.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://contentful.com",
+    "name": "Authentication | Documentation | Contentful Docs",
+    "snippet": "You can include it as a query parameter, as an HTTP header Authorization : Bearer $token . The header method is recommended.",
+    "host_name": "contentful.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://ccbill.com",
+    "name": "Bearer Authentication Explained",
+    "snippet": "Oct 20, 2022 — Find out what bearer tokens and bearer authentication are, how the authentication process works, and how to make the data flow secure.",
+    "host_name": "ccbill.com",
+    "rank": 5,
+    "date": "Oct 20, 2022",
+    "favicon": ""
+  },
+  {
+    "url": "https://better-auth.com",
+    "name": "Bearer Token Authentication",
+    "snippet": "The Bearer plugin enables authentication using Bearer tokens as an alternative to browser cookies. It intercepts requests, adding the Bearer token to the ... Read more",
+    "host_name": "better-auth.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://yaak.app",
+    "name": "Bearer Token Authentication",
+    "snippet": "“ Bearer token” describes how a credential is sent (the Authorization header with a scheme). “API key” describes what the credential is (a long-lived key issued ... Read more",
+    "host_name": "yaak.app",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  }
+]
