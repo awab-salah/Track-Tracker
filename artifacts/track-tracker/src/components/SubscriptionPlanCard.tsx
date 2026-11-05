@@ -70,7 +70,7 @@ export function SubscriptionPlanCard({ plan, onSubscribe, loading }: Subscriptio
               جارٍ التحويل...
             </span>
           ) : (
-            'ادفع مع زين كاش'
+            'اشترك الآن'
           )}
         </AppButton>
       </div>

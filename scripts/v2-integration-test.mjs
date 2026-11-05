@@ -104,6 +104,14 @@ describe('Source pattern verification', () => {
       assert.ok(!planCard.includes('isActive: boolean'),
         'SubscriptionPlanCard.tsx must NOT use V1 isActive prop');
     });
+
+    test('SubscriptionPlanCard.tsx button text is اشترك الآن (not ادفع مع زين كاش)', () => {
+      assert.ok(planCard, 'SubscriptionPlanCard.tsx must exist');
+      assert.ok(planCard.includes('اشترك الآن'),
+        'SubscriptionPlanCard.tsx button text must be اشترك الآن');
+      assert.ok(!planCard.includes('ادفع مع زين كاش'),
+        'SubscriptionPlanCard.tsx must NOT have old button text ادفع مع زين كاش');
+    });
   });
 
   describe('Backend V2 router', () => {
@@ -366,13 +374,126 @@ describe('Deployed bundle verification', () => {
       'Deployed bundle must NOT contain V1 hostname test.zaincash.iq');
   });
 
-  test('Frontend bundle has V2 button text (ادفع مع زين كاش)', async () => {
+  test('Frontend bundle has subscription button text (اشترك الآن)', async () => {
     const indexHtml = await (await fetch(`${PREVIEW_URL}/`)).text();
     const bundleMatch = indexHtml.match(/\/assets\/index-[A-Za-z0-9_-]+\.js/);
     const bundleUrl = `${PREVIEW_URL}${bundleMatch[0]}`;
     const bundleText = await (await fetch(bundleUrl)).text();
-    assert.ok(bundleText.includes('ادفع مع زين كاش'),
-      'Deployed bundle must contain V2 button text');
+    assert.ok(bundleText.includes('اشترك الآن'),
+      'Deployed bundle must contain button text اشترك الآن');
+    assert.ok(!bundleText.includes('ادفع مع زين كاش'),
+      'Deployed bundle must NOT contain old button text ادفع مع زين كاش');
+  });
+});
+
+// ─── 4. Subscription Duration + Driver Limits + Promo Code ─────────────────
+
+describe('Subscription duration + driver limits + promo code', () => {
+  const v2 = readSrc('artifacts/api-server/src/routes/zaincash-v2.ts');
+  const schema = readSrc('artifacts/track-tracker/src/db/schema.sql');
+  const migration = readSrc('supabase/migrations/subscription_expiry_and_driver_limits.sql');
+  const types = readSrc('artifacts/track-tracker/src/types.ts');
+  const companyRepo = readSrc('artifacts/track-tracker/src/services/companyRepository.ts');
+
+  test('activateCompanySubscription sets subscription_expires_at (1-month expiry)', () => {
+    assert.ok(v2.includes('subscription_expires_at'),
+      'activateCompanySubscription must set subscription_expires_at');
+    assert.ok(v2.includes('30 * 24 * 60 * 60 * 1000'),
+      'Expiry must be 30 days (~1 month) from activation time');
+  });
+
+  test('activateCompanySubscription accepts planId parameter', () => {
+    assert.ok(v2.includes('companyName: string, planId?: string'),
+      'activateCompanySubscription must accept planId parameter');
+  });
+
+  test('All 3 callback paths pass planId to activateCompanySubscription', () => {
+    // No-token path
+    assert.ok(v2.includes('activateCompanySubscription(record.company_id, record.plan_id)'),
+      'No-token callback must pass record.plan_id');
+    // With-token path
+    assert.ok(v2.includes('activateCompanySubscription(dbCompanyId, dbPlanId)'),
+      'With-token callback must pass dbPlanId');
+    // Webhook path
+    assert.ok(v2.includes('activateCompanySubscription(companyName, webhookPlanId)'),
+      'Webhook must pass webhookPlanId');
+  });
+
+  test('Migration SQL adds subscription_expires_at column', () => {
+    assert.ok(migration, 'Migration SQL file must exist');
+    assert.ok(migration.includes('subscription_expires_at'),
+      'Migration must add subscription_expires_at column');
+    assert.ok(migration.includes('subscription_started_at'),
+      'Migration must add subscription_started_at column');
+    assert.ok(migration.includes('subscription_plan_id'),
+      'Migration must add subscription_plan_id column');
+  });
+
+  test('Migration SQL creates driver limit trigger', () => {
+    assert.ok(migration.includes('check_driver_limit'),
+      'Migration must create check_driver_limit function');
+    assert.ok(migration.includes('drivers_check_limit_trigger'),
+      'Migration must create drivers_check_limit_trigger');
+    assert.ok(migration.includes('plan-10'),
+      'Driver limit trigger must handle plan-10 (10 drivers)');
+    assert.ok(migration.includes('plan-25'),
+      'Driver limit trigger must handle plan-25 (25 drivers)');
+    assert.ok(migration.includes('plan-50'),
+      'Driver limit trigger must handle plan-50 (50 drivers)');
+    assert.ok(migration.includes('plan-unlimited'),
+      'Driver limit trigger must handle plan-unlimited (unlimited)');
+  });
+
+  test('Migration SQL: unlimited plan has NULL limit (not restricted)', () => {
+    assert.ok(migration.includes("when 'plan-unlimited' then null"),
+      'plan-unlimited must map to NULL (no limit) — must NOT be restricted');
+  });
+
+  test('Migration SQL: activate_subscription RPC sets 1-month expiry', () => {
+    assert.ok(migration.includes("interval '1 month'"),
+      'activate_subscription RPC must set 1-month expiry');
+    assert.ok(migration.includes('subscription_started_at'),
+      'activate_subscription RPC must set subscription_started_at');
+  });
+
+  test('Migration SQL: promo code "track1" is first-month only', () => {
+    assert.ok(migration.includes('v_existing_started'),
+      'activate_subscription must check if subscription_started_at already exists');
+    assert.ok(migration.includes('if v_existing_started is not null then'),
+      'activate_subscription must reject if already used (first-month only)');
+  });
+
+  test('Migration SQL: is_subscription_active checks expiry', () => {
+    assert.ok(migration.includes('is_subscription_active'),
+      'Migration must create is_subscription_active function');
+    assert.ok(migration.includes('subscription_expires_at > now()'),
+      'is_subscription_active must check expiry date');
+  });
+
+  test('Migration SQL: deactivate_expired_subscriptions function exists', () => {
+    assert.ok(migration.includes('deactivate_expired_subscriptions'),
+      'Migration must create deactivate_expired_subscriptions function');
+  });
+
+  test('schema.sql activate_subscription has expiry + first-month-only', () => {
+    assert.ok(schema.includes("interval '1 month'"),
+      'schema.sql activate_subscription must set 1-month expiry');
+    assert.ok(schema.includes('v_existing_started'),
+      'schema.sql activate_subscription must have first-month-only check');
+  });
+
+  test('CompanyProfile type includes subscriptionExpiresAt + subscriptionPlanId', () => {
+    assert.ok(types.includes('subscriptionExpiresAt'),
+      'CompanyProfile type must include subscriptionExpiresAt');
+    assert.ok(types.includes('subscriptionPlanId'),
+      'CompanyProfile type must include subscriptionPlanId');
+  });
+
+  test('companyRepository checks expiry date (not just subscription_active)', () => {
+    assert.ok(companyRepo.includes('subscription_expires_at'),
+      'companyRepository must read subscription_expires_at');
+    assert.ok(companyRepo.includes('expiresAt > now'),
+      'companyRepository must check if expiry date is in the future');
   });
 });
 

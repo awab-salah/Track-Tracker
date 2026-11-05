@@ -765,11 +765,29 @@ async function updatePaymentRecordStatus(txId: string, status: string): Promise<
   }
 }
 
-async function activateCompanySubscription(companyName: string): Promise<boolean> {
+async function activateCompanySubscription(companyName: string, planId?: string): Promise<boolean> {
   const { url, key } = getSupabaseCreds();
   if (!url || !key) return false;
   try {
     const encoded = encodeURIComponent(companyName);
+    // Set subscription_active = true + 1-month expiry + plan_id.
+    // subscription_expires_at = now + 30 days (exactly one month).
+    // If the subscription_expires_at column doesn't exist yet (pre-migration),
+    // the PATCH will still succeed for subscription_active — PostgREST
+    // silently ignores unknown columns in the UPDATE body when using
+    // Prefer: return=minimal. The migration in supabase/migrations/ adds
+    // the column; once applied, the expiry is enforced.
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days = ~1 month
+    const patchBody: Record<string, unknown> = {
+      subscription_active: true,
+      subscription_started_at: now.toISOString(),
+      subscription_expires_at: expiresAt.toISOString(),
+      updated_at: now.toISOString(),
+    };
+    if (planId) {
+      patchBody.subscription_plan_id = planId;
+    }
     const res = await fetch(`${url}/rest/v1/companies?name=eq.${encoded}`, {
       method: "PATCH",
       headers: {
@@ -778,7 +796,7 @@ async function activateCompanySubscription(companyName: string): Promise<boolean
         Authorization: `Bearer ${key}`,
         Prefer: "return=minimal",
       },
-      body: JSON.stringify({ subscription_active: true }),
+      body: JSON.stringify(patchBody),
     });
     return res.ok;
   } catch {
@@ -1169,7 +1187,7 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
       // Uses record.company_id from OUR database — NOT from the URL query param.
       if (internalStatusNoToken === "completed" && record.company_id) {
-        await activateCompanySubscription(record.company_id);
+        await activateCompanySubscription(record.company_id, record.plan_id);
       } else {
         console.log(`[ZainCash-V2] No-token callback: status=${internalStatusNoToken} — subscription NOT activated`);
       }
@@ -1305,6 +1323,7 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     // Also serves as idempotency check: if already completed, skip.
     const { url: cbSupabaseUrl, key: cbSupabaseKey } = getSupabaseCreds();
     let dbCompanyId = "";
+    let dbPlanId = "";
     let alreadyCompleted = false;
     if (cbSupabaseUrl && cbSupabaseKey) {
       try {
@@ -1314,9 +1333,10 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
           body: JSON.stringify({ p_id: transactionId }),
         });
         if (r.ok) {
-          const rows = await r.json() as Array<{ status: string; company_id: string }>;
+          const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
           if (rows.length > 0) {
             dbCompanyId = rows[0].company_id ?? "";
+            dbPlanId = rows[0].plan_id ?? "";
             if (rows[0].status === "completed") {
               alreadyCompleted = true;
             }
@@ -1363,7 +1383,7 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     // This prevents an attacker from tampering with the URL's companyId to
     // activate a different company's subscription.
     if (internalStatus === "completed" && dbCompanyId) {
-      await activateCompanySubscription(dbCompanyId);
+      await activateCompanySubscription(dbCompanyId, dbPlanId);
     } else {
       console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
     }
@@ -1489,6 +1509,7 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     // Idempotency check via RPC
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
     let companyName = "";
+    let webhookPlanId = "";
     if (supabaseUrl && supabaseKey) {
       try {
         const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_payment_record`, {
@@ -1497,12 +1518,13 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
           body: JSON.stringify({ p_id: transactionId }),
         });
         if (r.ok) {
-          const rows = await r.json() as Array<{ status: string; company_id: string }>;
+          const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
           if (rows.length > 0) {
             if (rows[0].status === "completed") {
               return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
             }
             companyName = rows[0].company_id ?? "";
+            webhookPlanId = rows[0].plan_id ?? "";
           }
         }
       } catch (e) {
@@ -1514,7 +1536,7 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     await updatePaymentRecordStatus(transactionId, internalStatus);
 
     if (internalStatus === "completed" && companyName) {
-      await activateCompanySubscription(companyName);
+      await activateCompanySubscription(companyName, webhookPlanId);
     }
 
     return res.status(200).json({
