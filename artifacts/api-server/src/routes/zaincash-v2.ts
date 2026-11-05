@@ -777,8 +777,20 @@ async function activateCompanySubscription(companyName: string, planId?: string)
     // silently ignores unknown columns in the UPDATE body when using
     // Prefer: return=minimal. The migration in supabase/migrations/ adds
     // the column; once applied, the expiry is enforced.
+    //
+    // Duration: use CALENDAR MONTH arithmetic (not fixed 30 days) to match
+    // PostgreSQL's `interval '1 month'`. This handles month-end correctly:
+    //   Jan 31 + 1 month = Feb 28/29 (clamped, not Mar 2/3)
+    //   Mar 31 + 1 month = Apr 30 (clamped, not May 1)
+    // JS Date.setMonth overflows (Jan 31 → Mar 3); we detect and clamp.
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days = ~1 month
+    const expiresAt = new Date(now);
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    // Clamp: if the day overflowed (e.g., Jan 31 → Mar 3), move back to
+    // the last day of the target month.
+    if (expiresAt.getDate() < now.getDate()) {
+      expiresAt.setDate(0); // day 0 = last day of previous month
+    }
     const patchBody: Record<string, unknown> = {
       subscription_active: true,
       subscription_started_at: now.toISOString(),

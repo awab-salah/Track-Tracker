@@ -398,8 +398,10 @@ describe('Subscription duration + driver limits + promo code', () => {
   test('activateCompanySubscription sets subscription_expires_at (1-month expiry)', () => {
     assert.ok(v2.includes('subscription_expires_at'),
       'activateCompanySubscription must set subscription_expires_at');
-    assert.ok(v2.includes('30 * 24 * 60 * 60 * 1000'),
-      'Expiry must be 30 days (~1 month) from activation time');
+    assert.ok(v2.includes('setMonth'),
+      'activateCompanySubscription must use calendar-month arithmetic (setMonth)');
+    assert.ok(v2.includes('expiresAt.getDate() < now.getDate()'),
+      'activateCompanySubscription must clamp day overflow (month-end handling)');
   });
 
   test('activateCompanySubscription accepts planId parameter', () => {
