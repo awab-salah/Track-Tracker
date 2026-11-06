@@ -770,6 +770,31 @@ async function activateCompanySubscription(companyName: string, planId?: string)
   if (!url || !key) return false;
   try {
     const encoded = encodeURIComponent(companyName);
+
+    // CROSS-TRANSACTION DUPLICATE ACTIVATION PREVENTION:
+    // Check if the company already has an active subscription.
+    // If active → do NOT extend or overwrite (return true = success, but no-op).
+    // This prevents a second transaction from extending an already-active sub.
+    try {
+      const checkRes = await fetch(
+        `${url}/rest/v1/companies?name=eq.${encoded}&select=subscription_active,subscription_expires_at&limit=1`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(5000) }
+      );
+      if (checkRes.ok) {
+        const rows = await checkRes.json() as Array<{
+          subscription_active: boolean; subscription_expires_at: string | null;
+        }>;
+        if (rows.length > 0) {
+          const exp = rows[0].subscription_expires_at ? new Date(rows[0].subscription_expires_at) : null;
+          if (rows[0].subscription_active && exp && exp > new Date()) {
+            console.log("[ZainCash-V2] Company already has active subscription — not extending (cross-transaction prevention)");
+            return true; // Success (no-op) — don't extend or overwrite
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[ZainCash-V2] Cross-transaction check failed (non-fatal):", e instanceof Error ? e.message : String(e));
+    }
     // Set subscription_active = true + 1-month expiry + plan_id.
     // subscription_expires_at = now + 30 days (exactly one month).
     // If the subscription_expires_at column doesn't exist yet (pre-migration),
@@ -975,108 +1000,119 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       });
     }
 
-    // ── DUPLICATE SUBSCRIPTION PREVENTION (server-side enforcement) ──
-    // Before creating a payment, verify the company does NOT already have
-    // an active subscription. This is CRITICAL — hiding the button in the
-    // frontend is NOT sufficient; a user can call this endpoint directly.
-    //
-    // Also checks for pending payment_records (concurrency defense: if two
-    // simultaneous requests come in, the second one finds the first's
-    // pending record and is rejected).
-    const { url: dupCheckUrl, key: dupCheckKey } = getSupabaseCreds();
-    if (dupCheckUrl && dupCheckKey) {
-      const encodedCompanyId = encodeURIComponent(companyId);
-      // Check 1: Is the company's subscription currently active?
-      try {
-        const companyRes = await fetch(
-          `${dupCheckUrl}/rest/v1/companies?name=eq.${encodedCompanyId}&select=subscription_active,subscription_expires_at&limit=1`,
-          { headers: { apikey: dupCheckKey, Authorization: `Bearer ${dupCheckKey}` } }
-        );
-        if (companyRes.ok) {
-          const companyRows = await companyRes.json() as Array<{
-            subscription_active: boolean;
-            subscription_expires_at: string | null;
-          }>;
-          if (companyRows.length > 0) {
-            const row = companyRows[0];
-            const expiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
-            // Fail-closed: NULL expiry = NOT active (must have explicit future expiry)
-            const isActive = row.subscription_active && expiresAt !== null && expiresAt > new Date();
-            if (isActive) {
-              return res.status(409).json({
-                error: "Company already has an active subscription",
-                code: "SUBSCRIPTION_ALREADY_ACTIVE",
-                expiresAt: row.subscription_expires_at,
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("[ZainCash-V2] Duplicate subscription check (company) failed:", e instanceof Error ? e.message : String(e));
-      }
-
-      // Check 2: Is there a pending payment_record for this company?
-      // (Concurrency defense — prevents two simultaneous payment requests)
-      try {
-        const pendingRes = await fetch(
-          `${dupCheckUrl}/rest/v1/payment_records?company_id=eq.${encodedCompanyId}&status=eq.pending&select=id&limit=1`,
-          { headers: { apikey: dupCheckKey, Authorization: `Bearer ${dupCheckKey}` } }
-        );
-        if (pendingRes.ok) {
-          const pendingRows = await pendingRes.json() as Array<{ id: string }>;
-          if (pendingRows.length > 0) {
-            return res.status(409).json({
-              error: "A payment is already in progress for this company",
-              code: "PAYMENT_ALREADY_PENDING",
-            });
-          }
-        }
-      } catch (e) {
-        console.warn("[ZainCash-V2] Pending payment check failed:", e instanceof Error ? e.message : String(e));
-      }
+    // ── AUTHENTICATION + OWNERSHIP VERIFICATION ──
+    // The caller must have a valid Supabase auth session AND own the company
+    // they are trying to subscribe. This prevents a user from initiating
+    // payments for another company.
+    const authHeader = req.headers.authorization ?? "";
+    const authToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!authToken) {
+      return res.status(401).json({ error: "Authentication required", code: "NO_AUTH_TOKEN" });
     }
 
-    // Generate ASCII-only orderId + UUID externalReferenceId.
-    // CRITICAL: orderId must NOT contain non-ASCII characters (e.g., Arabic
-    // company names). ZainCash's V2 backend replaces non-ASCII characters
-    // with literal '?' in the orderId when storing/returning it. This causes
-    // the no-token callback's orderId lookup to fail (DB has the original
-    // non-ASCII orderId, but the callback URL has '?' chars) → "unverified"
-    // page → subscription never activated despite successful payment.
-    // Fix: omit companyId from orderId entirely; use planId + timestamp +
-    // random for uniqueness. company_id is stored separately in
-    // payment_records.company_id (not sent to ZainCash as part of orderId).
+    const { url: authSupaUrl, key: authSupaAnonKey } = getSupabaseCreds();
+    if (!authSupaUrl || !authSupaAnonKey) {
+      return res.status(503).json({ error: "Cannot verify authentication", code: "AUTH_VERIFY_UNAVAILABLE" });
+    }
+
+    // Verify auth token + company ownership + subscription status.
+    // FAIL CLOSED: any error → 503 (never proceed when status cannot be verified).
+    try {
+      const userRes = await fetch(`${authSupaUrl}/auth/v1/user`, {
+        headers: { Authorization: `Bearer ${authToken}`, apikey: authSupaAnonKey },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!userRes.ok) {
+        return res.status(401).json({ error: "Invalid or expired auth token", code: "AUTH_INVALID" });
+      }
+      const userData = await userRes.json() as { id?: string };
+      if (!userData.id) {
+        return res.status(401).json({ error: "Auth token has no user ID", code: "AUTH_NO_USER" });
+      }
+
+      const companyRes = await fetch(
+        `${authSupaUrl}/rest/v1/companies?auth_user_id=eq.${userData.id}&select=name,subscription_active,subscription_expires_at&limit=1`,
+        { headers: { apikey: authSupaAnonKey, Authorization: `Bearer ${authSupaAnonKey}` }, signal: AbortSignal.timeout(5000) }
+      );
+      if (!companyRes.ok) {
+        return res.status(503).json({ error: "Cannot verify company ownership", code: "OWNERSHIP_VERIFY_FAILED" });
+      }
+      const companyRows = await companyRes.json() as Array<{
+        name: string; subscription_active: boolean; subscription_expires_at: string | null;
+      }>;
+      if (companyRows.length === 0) {
+        return res.status(403).json({ error: "User does not own a company", code: "NO_COMPANY" });
+      }
+      const companyRow = companyRows[0];
+      if (companyRow.name !== companyId) {
+        return res.status(403).json({ error: "Company ID mismatch", code: "COMPANY_MISMATCH" });
+      }
+
+      // DUPLICATE SUBSCRIPTION CHECK (fail-closed)
+      const expiresAt = companyRow.subscription_expires_at ? new Date(companyRow.subscription_expires_at) : null;
+      const isActive = companyRow.subscription_active && expiresAt !== null && expiresAt > new Date();
+      if (isActive) {
+        return res.status(409).json({
+          error: "Company already has an active subscription",
+          code: "SUBSCRIPTION_ALREADY_ACTIVE",
+          expiresAt: companyRow.subscription_expires_at,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[ZainCash-V2] Auth/subscription verification failed (fail-closed):", msg);
+      return res.status(503).json({ error: "Cannot verify subscription status", code: "VERIFICATION_FAILED" });
+    }
+
+    // Generate ASCII-only orderId
     const orderId = `tt-v2-${planId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    // externalReferenceId must be a standard UUID (36 chars, 8-4-4-4-12 format)
-    // — ZainCash V2 backend deserializes it as `java.util.UUID` and rejects
-    // non-UUID strings with HTTP 400. Use crypto.randomUUID() (UUIDv4).
-    // Note: this is NOT stable across retries, but V2's externalReferenceId
-    // is the dedup key — if a retry must collapse to the same transaction, we
-    // would need to derive a deterministic UUIDv5. For now, fresh UUID per
-    // request is correct (each /api/zaincash/v2/create is a new transaction).
     const externalReferenceId = crypto.randomUUID();
 
-    // Build successUrl / failureUrl with our callback endpoint and context
-    // encoded as query params so we can fall back if the JWT doesn't carry them
+    // ── ATOMIC PAYMENT RESERVATION ──
+    // Insert a pending payment_records row BEFORE ZainCash init.
+    // The unique partial index ensures only ONE pending record per company.
+    const { url: resvUrl, key: resvKey } = getSupabaseCreds();
+    if (!resvUrl || !resvKey) {
+      return res.status(503).json({ error: "Cannot create reservation", code: "RESERVATION_UNAVAILABLE" });
+    }
+    try {
+      const insertRes = await fetch(`${resvUrl}/rest/v1/payment_records`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: resvKey, Authorization: `Bearer ${resvKey}`, Prefer: "return=minimal" },
+        body: JSON.stringify({ id: orderId, order_id: orderId, company_id: companyId, plan_id: planId, amount, status: "pending", created_at: new Date().toISOString() }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!insertRes.ok) {
+        const errBody = await insertRes.text();
+        if (insertRes.status === 409 || errBody.includes("unique") || errBody.includes("duplicate")) {
+          return res.status(409).json({ error: "A payment is already in progress", code: "PAYMENT_ALREADY_PENDING" });
+        }
+        console.error("[ZainCash-V2] Reservation INSERT failed:", insertRes.status, errBody.slice(0, 200));
+        return res.status(503).json({ error: "Cannot create payment reservation", code: "RESERVATION_INSERT_FAILED" });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[ZainCash-V2] Reservation failed (fail-closed):", msg);
+      return res.status(503).json({ error: "Cannot create payment reservation", code: "RESERVATION_FAILED" });
+    }
+
     const ctx = new URLSearchParams({ orderId, planId, companyId });
     const successUrl = `${cfg.successUrl}?${ctx.toString()}`;
     const failureUrl = `${cfg.failureUrl}?${ctx.toString()}`;
-
     const payload = {
-      language: cfg.lang,
-      externalReferenceId,
-      orderId,
+      language: cfg.lang, externalReferenceId, orderId,
       serviceType: cfg.serviceType,
       amount: { value: String(amount), currency: "IQD" },
       redirectUrls: { successUrl, failureUrl },
     };
-
     console.log("[ZainCash-V2] init payload:", JSON.stringify(payload).slice(0, 500));
 
     let response: V2ApiResponse;
     try {
       response = await v2Request(cfg, "POST", "/api/v2/payment-gateway/transaction/init", payload);
     } catch (e) {
+      // ZainCash init failed — RELEASE the reservation
+      await updatePaymentRecordStatus(orderId, "failed");
       const msg = e instanceof Error ? e.message : String(e);
       const isCloudflare = msg.includes("Cloudflare");
       return res.status(503).json({
@@ -1085,7 +1121,6 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
         details: msg,
       });
     }
-
     if (response.status === 403 && typeof response.rawText === "string" && response.rawText.includes("Cloudflare")) {
       return res.status(503).json({
         error: "V2 init blocked by Cloudflare WAF",
@@ -1108,9 +1143,7 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       return res.status(502).json({
         error: "V2 init rejected by ZainCash",
         step: "transaction_init",
-        zaincashStatus: response.status,
-        zaincashResponse: response.body,
-      });
+        zai    // Payment record already created as reservation above (id = orderId)
     }
 
     const body = response.body as {
@@ -1400,10 +1433,11 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     let alreadyCompleted = false;
     if (cbSupabaseUrl && cbSupabaseKey) {
       try {
+        // Use orderId for lookup (payment_records.id = orderId after reservation)
         const r = await fetch(`${cbSupabaseUrl}/rest/v1/rpc/get_payment_record`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: cbSupabaseKey, Authorization: `Bearer ${cbSupabaseKey}` },
-          body: JSON.stringify({ p_id: transactionId }),
+          body: JSON.stringify({ p_id: orderId }),
         });
         if (r.ok) {
           const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
@@ -1585,10 +1619,11 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     let webhookPlanId = "";
     if (supabaseUrl && supabaseKey) {
       try {
+        // Use orderId for lookup (payment_records.id = orderId after reservation)
         const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_payment_record`, {
           method: "POST",
           headers: { "Content-Type": "application/json", apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-          body: JSON.stringify({ p_id: transactionId }),
+          body: JSON.stringify({ p_id: orderId }),
         });
         if (r.ok) {
           const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;

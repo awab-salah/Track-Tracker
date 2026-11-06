@@ -106,9 +106,15 @@ export async function subscribeToPlan(
   }
 
   try {
+    // Include the Supabase auth token so the backend can verify ownership
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
     const response = await fetch('/api/zaincash/v2/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ planId, amount, companyId }),
     });
 
