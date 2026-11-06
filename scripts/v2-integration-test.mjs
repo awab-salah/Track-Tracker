@@ -573,11 +573,13 @@ describe('Duplicate subscription prevention', () => {
     );
     assert.ok(dupBlock.includes('return res.status(409)'),
       'Duplicate check must return 409 BEFORE orderId generation');
-    // Verify insertPaymentRecord is AFTER the duplicate check
-    const insertPos = v2.indexOf('insertPaymentRecord');
+    // Verify the insertPaymentRecord CALL is AFTER the duplicate check.
+    // Search for 'await insertPaymentRecord(' (the call site), not the
+    // function definition which appears earlier in the file.
+    const callPos = v2.indexOf('await insertPaymentRecord(');
     const dupPos = v2.indexOf('DUPLICATE SUBSCRIPTION PREVENTION');
-    assert.ok(insertPos > dupPos,
-      'insertPaymentRecord must be AFTER the duplicate subscription check');
+    assert.ok(callPos > dupPos,
+      'insertPaymentRecord CALL must be AFTER the duplicate subscription check');
   });
 
   test('Callback: idempotency prevents duplicate activation (existing)', () => {
