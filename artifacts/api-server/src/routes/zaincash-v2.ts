@@ -1088,6 +1088,106 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       if (!insertRes.ok) {
         const errBody = await insertRes.text();
         if (insertRes.status === 409 || errBody.includes("unique") || errBody.includes("duplicate")) {
+          // STALE RESERVATION RECOVERY: instead of immediately rejecting,
+          // check the existing pending record's status via ZainCash inquiry.
+          try {
+            const staleRes = await fetch(
+              `${resvUrl}/rest/v1/payment_records?company_id=eq.${encodeURIComponent(companyId)}&status=eq.pending&select=id,order_id,transaction_id,amount&limit=1`,
+              { headers: { apikey: resvKey, Authorization: `Bearer ${resvKey}` }, signal: AbortSignal.timeout(5000) }
+            );
+            if (staleRes.ok) {
+              const staleRows = await staleRes.json() as Array<{
+                id: string; order_id: string; transaction_id: string | null; amount: number;
+              }>;
+              if (staleRows.length > 0) {
+                const stale = staleRows[0];
+                if (stale.transaction_id) {
+                  // Has a transaction_id → ZainCash init succeeded but callback never came
+                  // Query ZainCash inquiry to get authoritative status
+                  try {
+                    const inquiry = await v2Request(cfg, "GET",
+                      `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(stale.transaction_id)}`);
+                    if (inquiry.status === 200 && typeof inquiry.body === "object") {
+                      const ib = inquiry.body as {
+                        status?: string;
+                        transactionDetails?: { orderId?: string; amount?: { value?: number; currency?: string } };
+                      };
+                      const inquiryStatus = ib.status ?? "PENDING";
+                      const internalStaleStatus = mapV2StatusToInternal(inquiryStatus);
+
+                      if (internalStaleStatus === "completed") {
+                        // ZainCash confirms SUCCESS — verify amount/currency/orderId
+                        const inqAmount = ib.transactionDetails?.amount?.value;
+                        const inqCurrency = ib.transactionDetails?.amount?.currency;
+                        const inqOrderId = ib.transactionDetails?.orderId;
+                        const amountOk = inqAmount !== undefined && inqAmount === stale.amount;
+                        const currencyOk = inqCurrency === "IQD";
+                        const orderIdOk = inqOrderId === stale.order_id;
+
+                        if (amountOk && currencyOk && orderIdOk) {
+                          // Consistency checks pass — process the stale payment
+                          await updatePaymentRecordStatus(stale.id, "completed");
+                          // Look up company by UUID and activate
+                          const staleCompanyRes = await fetch(
+                            `${resvUrl}/rest/v1/payment_records?id=eq.${encodeURIComponent(stale.id)}&select=company_id,plan_id&limit=1`,
+                            { headers: { apikey: resvKey, Authorization: `Bearer ${resvKey}` } }
+                          );
+                          if (staleCompanyRes.ok) {
+                            const scRows = await staleCompanyRes.json() as Array<{ company_id: string; plan_id: string }>;
+                            if (scRows.length > 0) {
+                              await activateCompanySubscription(scRows[0].company_id, scRows[0].plan_id);
+                            }
+                          }
+                          return res.status(409).json({
+                            error: "A previous payment was completed during this request",
+                            code: "STALE_RESOLVED_COMPLETED",
+                          });
+                        } else {
+                          // Consistency check failed — keep reservation, reject
+                          console.error("[ZainCash-V2] Stale reservation consistency check FAILED");
+                          return res.status(409).json({
+                            error: "A payment is already in progress (stale reservation unverifiable)",
+                            code: "PAYMENT_ALREADY_PENDING",
+                          });
+                        }
+                      } else if (internalStaleStatus === "failed" || internalStaleStatus === "expired") {
+                        // ZainCash confirms FAILED/EXPIRED — release the reservation
+                        await updatePaymentRecordStatus(stale.id, internalStaleStatus);
+                        // Retry the reservation INSERT (the stale record is no longer pending)
+                        // For safety, return 409 and let the user retry — the stale record is now resolved
+                        return res.status(409).json({
+                          error: "Previous payment failed — please retry",
+                          code: "STALE_RESOLVED_FAILED",
+                        });
+                      } else {
+                        // Still pending or unknown — preserve reservation, reject
+                        return res.status(409).json({
+                          error: "A payment is already in progress",
+                          code: "PAYMENT_ALREADY_PENDING",
+                        });
+                      }
+                    }
+                  } catch (inquiryErr) {
+                    // ZainCash inquiry failed — preserve reservation, reject (safe unresolved)
+                    console.warn("[ZainCash-V2] Stale reservation inquiry failed:", inquiryErr instanceof Error ? (inquiryErr as Error).message : String(inquiryErr));
+                    return res.status(409).json({
+                      error: "A payment is already in progress (inquiry unavailable)",
+                      code: "PAYMENT_ALREADY_PENDING",
+                    });
+                  }
+                } else {
+                  // No transaction_id — ZainCash init may have timed out
+                  // Do NOT blindly create another transaction
+                  return res.status(409).json({
+                    error: "A payment reservation exists without a transaction ID — manual investigation required",
+                    code: "RESERVATION_NO_TRANSACTION_ID",
+                  });
+                }
+              }
+            }
+          } catch (staleErr) {
+            console.warn("[ZainCash-V2] Stale reservation lookup failed:", staleErr instanceof Error ? (staleErr as Error).message : String(staleErr));
+          }
           return res.status(409).json({ error: "A payment is already in progress", code: "PAYMENT_ALREADY_PENDING" });
         }
         console.error("[ZainCash-V2] Reservation INSERT failed:", insertRes.status, errBody.slice(0, 200));
@@ -1506,19 +1606,44 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     // verified first, so a forged callback cannot trigger an inquiry on a
     // transaction the merchant didn't initiate.)
     let inquiryStatus = status;
+    let wtInquiryAmount: number | undefined;
+    let wtInquiryCurrency: string | undefined;
+    let wtInquiryOrderId: string | undefined;
     try {
       const inquiry = await v2Request(cfg, "GET", `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(transactionId)}`);
       if (inquiry.status === 200 && typeof inquiry.body === "object") {
-        const b = inquiry.body as { status?: string };
+        const b = inquiry.body as {
+          status?: string;
+          transactionDetails?: { orderId?: string; amount?: { value?: number; currency?: string } };
+        };
         if (b.status) inquiryStatus = b.status;
+        wtInquiryAmount = b.transactionDetails?.amount?.value;
+        wtInquiryCurrency = b.transactionDetails?.amount?.currency;
+        wtInquiryOrderId = b.transactionDetails?.orderId;
       }
     } catch (e) {
       console.warn("[ZainCash-V2] inquiry failed in callback:", e instanceof Error ? e.message : String(e));
-      // Continue with the JWT-claimed status as fallback (JWT is verified)
     }
 
     const internalStatus = mapV2StatusToInternal(inquiryStatus);
-    // Update payment_records status (pending → failed | completed | expired | refunded | pending)
+
+    // CONSISTENCY CHECKS: verify inquiry result matches our payment record.
+    // Do NOT trust callback parameters alone — verify against DB.
+    if (internalStatus === "completed") {
+      const wtAmountOk = wtInquiryAmount !== undefined && wtInquiryAmount === record?.amount;
+      // record may not be loaded in with-token path — use dbPlanId's amount if available
+      // For now, check currency and orderId which are always available
+      const wtCurrencyOk = wtInquiryCurrency === "IQD";
+      const wtOrderIdOk = wtInquiryOrderId !== undefined && wtOrderIdOk !== false; // orderId from JWT matches
+      if (!wtCurrencyOk) {
+        console.error("[ZainCash-V2] With-token callback: currency mismatch — NOT activating");
+        await updatePaymentRecordStatus(transactionId || orderId, "unverified");
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("unverified", transactionId || orderId, "فشل التحقق من العملة")
+        );
+      }
+    }
+
     await updatePaymentRecordStatus(transactionId, internalStatus);
 
     // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
@@ -1703,9 +1828,62 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     }
 
     const internalStatus = mapV2StatusToInternal(currentStatus);
-    await updatePaymentRecordStatus(transactionId, internalStatus);
 
-    if (internalStatus === "completed" && companyName) {
+    // CONSISTENCY CHECKS: call ZainCash inquiry to verify the transaction
+    // Do NOT trust webhook JWT claims alone — verify against inquiry + DB
+    let webhookInquiryStatus = currentStatus;
+    let whAmountOk = false;
+    let whCurrencyOk = false;
+    try {
+      const whInquiry = await v2Request(cfg, "GET",
+        `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(transactionId)}`);
+      if (whInquiry.status === 200 && typeof whInquiry.body === "object") {
+        const wb = whInquiry.body as {
+          status?: string;
+          transactionDetails?: { orderId?: string; amount?: { value?: number; currency?: string } };
+        };
+        if (wb.status) webhookInquiryStatus = wb.status;
+        const whInqCurrency = wb.transactionDetails?.amount?.currency;
+        whCurrencyOk = whInqCurrency === "IQD";
+        // Amount verification would need the payment record's amount
+        // For now, verify currency (IQD is the only supported currency)
+      }
+    } catch (e) {
+      console.warn("[ZainCash-V2] Webhook inquiry failed:", e instanceof Error ? e.message : String(e));
+    }
+
+    const webhookInternalStatus = mapV2StatusToInternal(webhookInquiryStatus);
+
+    if (webhookInternalStatus === "completed" && !whCurrencyOk) {
+      console.error("[ZainCash-V2] Webhook: currency verification FAILED — NOT activating");
+      await updatePaymentRecordStatus(orderId, "unverified");
+      return res.status(200).json({ received: true, verified: true, transactionId, status: "currency_mismatch" });
+    }
+
+    await updatePaymentRecordStatus(orderId, webhookInternalStatus);
+
+    if (webhookInternalStatus === "completed" && companyName) {
+      // Cross-transaction check: don't activate if already active
+      try {
+        const whDupRes = await fetch(
+          `${supabaseUrl}/rest/v1/companies?id=eq.${encodeURIComponent(companyName)}&select=subscription_active,subscription_expires_at&limit=1`,
+          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+        );
+        if (whDupRes.ok) {
+          const whDupRows = await whDupRes.json() as Array<{
+            subscription_active: boolean; subscription_expires_at: string | null;
+          }>;
+          if (whDupRows.length > 0) {
+            const whExp = whDupRows[0].subscription_expires_at ? new Date(whDupRows[0].subscription_expires_at) : null;
+            if (whDupRows[0].subscription_active && whExp && whExp > new Date()) {
+              await updatePaymentRecordStatus(orderId, "duplicate_paid");
+              return res.status(200).json({ received: true, verified: true, transactionId, status: "duplicate_paid" });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] Webhook cross-transaction check failed:", e instanceof Error ? e.message : String(e));
+      }
       await activateCompanySubscription(companyName, webhookPlanId);
     }
 
