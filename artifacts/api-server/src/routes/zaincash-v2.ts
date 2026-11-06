@@ -1143,7 +1143,9 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       return res.status(502).json({
         error: "V2 init rejected by ZainCash",
         step: "transaction_init",
-        zai    // Payment record already created as reservation above (id = orderId)
+        zaincashStatus: response.status,
+        zaincashResponse: response.body,
+      });
     }
 
     const body = response.body as {
@@ -1164,14 +1166,8 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       });
     }
 
-    // Persist to Supabase (fire-and-forget; non-fatal)
-    await insertPaymentRecord({
-      id: transactionId,
-      orderId,
-      companyId,
-      planId,
-      amount,
-    });
+    // Payment record was already created as the atomic reservation above
+    // (id = orderId, status = 'pending'). No need to insert again.
 
     return res.status(200).json({
       transactionId,

@@ -506,12 +506,14 @@ describe('Duplicate subscription prevention', () => {
   const subPage = readSrc('artifacts/track-tracker/src/pages/SubscriptionsPage.tsx');
 
   test('Backend: V2 create endpoint checks for active subscription before payment', () => {
-    assert.ok(v2.includes('DUPLICATE SUBSCRIPTION PREVENTION'),
-      'V2 create must have duplicate subscription prevention block');
+    assert.ok(v2.includes('AUTHENTICATION + OWNERSHIP VERIFICATION'),
+      'V2 create must have auth + ownership verification block');
     assert.ok(v2.includes('SUBSCRIPTION_ALREADY_ACTIVE'),
       'V2 create must return SUBSCRIPTION_ALREADY_ACTIVE error code');
     assert.ok(v2.includes('subscription_active') && v2.includes('subscription_expires_at'),
       'V2 create must check subscription_active AND subscription_expires_at');
+    assert.ok(v2.includes('VERIFICATION_FAILED'),
+      'V2 create must fail-closed with VERIFICATION_FAILED on errors');
   });
 
   test('Backend: rejects with 409 when subscription is active', () => {
@@ -519,11 +521,13 @@ describe('Duplicate subscription prevention', () => {
       'V2 create must return HTTP 409 Conflict when subscription is active');
   });
 
-  test('Backend: checks for pending payment_records (concurrency defense)', () => {
+  test('Backend: atomic reservation prevents concurrent payments', () => {
+    assert.ok(v2.includes('ATOMIC PAYMENT RESERVATION'),
+      'V2 create must have atomic payment reservation block');
     assert.ok(v2.includes('PAYMENT_ALREADY_PENDING'),
-      'V2 create must check for pending payment_records');
-    assert.ok(v2.includes('status=eq.pending'),
-      'V2 create must query payment_records with status=pending');
+      'V2 create must return PAYMENT_ALREADY_PENDING on unique violation');
+    assert.ok(v2.includes('RESERVATION_FAILED'),
+      'V2 create must fail-closed with RESERVATION_FAILED on insert error');
   });
 
   test('Backend: fail-closed on NULL expiry (treats as inactive, allows payment)', () => {
@@ -566,20 +570,18 @@ describe('Duplicate subscription prevention', () => {
   });
 
   test('Backend: no payment record created when subscription is active', () => {
-    // The 409 return happens BEFORE orderId generation and BEFORE insertPaymentRecord
-    const dupBlock = v2.substring(
-      v2.indexOf('DUPLICATE SUBSCRIPTION PREVENTION'),
+    // The 409 return happens BEFORE orderId generation and BEFORE reservation INSERT
+    const authBlock = v2.substring(
+      v2.indexOf('AUTHENTICATION + OWNERSHIP VERIFICATION'),
       v2.indexOf('Generate ASCII-only orderId')
     );
-    assert.ok(dupBlock.includes('return res.status(409)'),
+    assert.ok(authBlock.includes('return res.status(409)'),
       'Duplicate check must return 409 BEFORE orderId generation');
-    // Verify the insertPaymentRecord CALL is AFTER the duplicate check.
-    // Search for 'await insertPaymentRecord(' (the call site), not the
-    // function definition which appears earlier in the file.
-    const callPos = v2.indexOf('await insertPaymentRecord(');
-    const dupPos = v2.indexOf('DUPLICATE SUBSCRIPTION PREVENTION');
-    assert.ok(callPos > dupPos,
-      'insertPaymentRecord CALL must be AFTER the duplicate subscription check');
+    // Verify the reservation INSERT is AFTER the auth/duplicate check
+    const resvPos = v2.indexOf('ATOMIC PAYMENT RESERVATION');
+    const authPos = v2.indexOf('AUTHENTICATION + OWNERSHIP VERIFICATION');
+    assert.ok(resvPos > authPos,
+      'Reservation INSERT must be AFTER the auth/duplicate check');
   });
 
   test('Callback: idempotency prevents duplicate activation (existing)', () => {
@@ -587,6 +589,37 @@ describe('Duplicate subscription prevention', () => {
       'Callback must have idempotency check (alreadyCompleted)');
     assert.ok(v2.includes('payment already completed'),
       'Callback must skip re-processing when already completed');
+  });
+
+  test('Cross-transaction: activateCompanySubscription checks for existing active sub', () => {
+    assert.ok(v2.includes('CROSS-TRANSACTION DUPLICATE ACTIVATION PREVENTION'),
+      'activateCompanySubscription must have cross-transaction prevention check');
+    assert.ok(v2.includes('not extending'),
+      'activateCompanySubscription must skip activation when already active');
+  });
+
+  test('Auth: V2 create endpoint requires authentication', () => {
+    assert.ok(v2.includes('NO_AUTH_TOKEN'),
+      'V2 create must reject with NO_AUTH_TOKEN when no auth header');
+    assert.ok(v2.includes('AUTH_INVALID'),
+      'V2 create must reject with AUTH_INVALID for invalid tokens');
+  });
+
+  test('Auth: V2 create endpoint verifies company ownership', () => {
+    assert.ok(v2.includes('COMPANY_MISMATCH'),
+      'V2 create must reject with COMPANY_MISMATCH when company ID doesnt match');
+    assert.ok(v2.includes('auth_user_id'),
+      'V2 create must query by auth_user_id to verify ownership');
+    assert.ok(v2.includes('auth/v1/user'),
+      'V2 create must call Supabase auth to verify the token');
+  });
+
+  test('Frontend: auth token included in subscribeToPlan request', () => {
+    const subSvc = readSrc('artifacts/track-tracker/src/services/subscriptionService.ts');
+    assert.ok(subSvc.includes('access_token'),
+      'subscribeToPlan must include the auth token in the request');
+    assert.ok(subSvc.includes("Authorization"),
+      'subscribeToPlan must set Authorization header');
   });
 });
 
