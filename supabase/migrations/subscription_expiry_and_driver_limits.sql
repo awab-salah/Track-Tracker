@@ -170,7 +170,8 @@ stable
 as $$
   select coalesce(
     (select subscription_active
-       and (subscription_expires_at is null or subscription_expires_at > now())
+       and subscription_expires_at is not null
+       and subscription_expires_at > now()
      from public.companies
      where id = p_company_id),
     false
