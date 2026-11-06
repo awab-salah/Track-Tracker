@@ -499,6 +499,95 @@ describe('Subscription duration + driver limits + promo code', () => {
   });
 });
 
+// ─── 5. Duplicate Subscription Prevention ──────────────────────────────────
+
+describe('Duplicate subscription prevention', () => {
+  const v2 = readSrc('artifacts/api-server/src/routes/zaincash-v2.ts');
+  const subPage = readSrc('artifacts/track-tracker/src/pages/SubscriptionsPage.tsx');
+
+  test('Backend: V2 create endpoint checks for active subscription before payment', () => {
+    assert.ok(v2.includes('DUPLICATE SUBSCRIPTION PREVENTION'),
+      'V2 create must have duplicate subscription prevention block');
+    assert.ok(v2.includes('SUBSCRIPTION_ALREADY_ACTIVE'),
+      'V2 create must return SUBSCRIPTION_ALREADY_ACTIVE error code');
+    assert.ok(v2.includes('subscription_active') && v2.includes('subscription_expires_at'),
+      'V2 create must check subscription_active AND subscription_expires_at');
+  });
+
+  test('Backend: rejects with 409 when subscription is active', () => {
+    assert.ok(v2.includes('res.status(409)'),
+      'V2 create must return HTTP 409 Conflict when subscription is active');
+  });
+
+  test('Backend: checks for pending payment_records (concurrency defense)', () => {
+    assert.ok(v2.includes('PAYMENT_ALREADY_PENDING'),
+      'V2 create must check for pending payment_records');
+    assert.ok(v2.includes('status=eq.pending'),
+      'V2 create must query payment_records with status=pending');
+  });
+
+  test('Backend: fail-closed on NULL expiry (treats as inactive, allows payment)', () => {
+    assert.ok(v2.includes('expiresAt !== null'),
+      'V2 create must treat NULL expiry as NOT active (fail-closed)');
+  });
+
+  test('Frontend: handleSubscribe guards against active subscription', () => {
+    assert.ok(subPage.includes('companySubscriptionActive'),
+      'SubscriptionsPage must check companySubscriptionActive in handleSubscribe');
+    assert.ok(subPage.includes('اشتراكك مفعل بالفعل'),
+      'SubscriptionsPage must show Arabic message for active subscription');
+  });
+
+  test('Frontend: plan cards hidden when subscription is active', () => {
+    assert.ok(subPage.includes('companySubscriptionActive ?'),
+      'SubscriptionsPage must conditionally render based on companySubscriptionActive');
+    assert.ok(subPage.includes('اشتراكك مفعل بالفعل'),
+      'SubscriptionsPage must show active subscription panel');
+  });
+
+  test('Frontend: shows plan + expiry date when active', () => {
+    assert.ok(subPage.includes('subscriptionPlanId'),
+      'SubscriptionsPage must display subscription plan ID');
+    assert.ok(subPage.includes('subscriptionExpiresAt'),
+      'SubscriptionsPage must display subscription expiry date');
+  });
+
+  test('Frontend: does not redirect to ZainCash when active', () => {
+    // The handleSubscribe guard returns BEFORE calling subscribeToPlan
+    // which contains the window.location.href redirect
+    const guardSection = subPage.substring(
+      subPage.indexOf('const handleSubscribe'),
+      subPage.indexOf('const plan = SUBSCRIPTION_PLANS')
+    );
+    assert.ok(guardSection.includes('companySubscriptionActive'),
+      'handleSubscribe must check companySubscriptionActive BEFORE calling subscribeToPlan');
+    assert.ok(guardSection.includes('return;'),
+      'handleSubscribe must return early when subscription is active');
+  });
+
+  test('Backend: no payment record created when subscription is active', () => {
+    // The 409 return happens BEFORE orderId generation and BEFORE insertPaymentRecord
+    const dupBlock = v2.substring(
+      v2.indexOf('DUPLICATE SUBSCRIPTION PREVENTION'),
+      v2.indexOf('Generate ASCII-only orderId')
+    );
+    assert.ok(dupBlock.includes('return res.status(409)'),
+      'Duplicate check must return 409 BEFORE orderId generation');
+    // Verify insertPaymentRecord is AFTER the duplicate check
+    const insertPos = v2.indexOf('insertPaymentRecord');
+    const dupPos = v2.indexOf('DUPLICATE SUBSCRIPTION PREVENTION');
+    assert.ok(insertPos > dupPos,
+      'insertPaymentRecord must be AFTER the duplicate subscription check');
+  });
+
+  test('Callback: idempotency prevents duplicate activation (existing)', () => {
+    assert.ok(v2.includes('alreadyCompleted'),
+      'Callback must have idempotency check (alreadyCompleted)');
+    assert.ok(v2.includes('payment already completed'),
+      'Callback must skip re-processing when already completed');
+  });
+});
+
 // ─── Summary ──────────────────────────────────────────────────────────────
 
 test('Test suite summary', () => {

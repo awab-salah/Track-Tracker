@@ -975,6 +975,67 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
       });
     }
 
+    // ── DUPLICATE SUBSCRIPTION PREVENTION (server-side enforcement) ──
+    // Before creating a payment, verify the company does NOT already have
+    // an active subscription. This is CRITICAL — hiding the button in the
+    // frontend is NOT sufficient; a user can call this endpoint directly.
+    //
+    // Also checks for pending payment_records (concurrency defense: if two
+    // simultaneous requests come in, the second one finds the first's
+    // pending record and is rejected).
+    const { url: dupCheckUrl, key: dupCheckKey } = getSupabaseCreds();
+    if (dupCheckUrl && dupCheckKey) {
+      const encodedCompanyId = encodeURIComponent(companyId);
+      // Check 1: Is the company's subscription currently active?
+      try {
+        const companyRes = await fetch(
+          `${dupCheckUrl}/rest/v1/companies?name=eq.${encodedCompanyId}&select=subscription_active,subscription_expires_at&limit=1`,
+          { headers: { apikey: dupCheckKey, Authorization: `Bearer ${dupCheckKey}` } }
+        );
+        if (companyRes.ok) {
+          const companyRows = await companyRes.json() as Array<{
+            subscription_active: boolean;
+            subscription_expires_at: string | null;
+          }>;
+          if (companyRows.length > 0) {
+            const row = companyRows[0];
+            const expiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+            // Fail-closed: NULL expiry = NOT active (must have explicit future expiry)
+            const isActive = row.subscription_active && expiresAt !== null && expiresAt > new Date();
+            if (isActive) {
+              return res.status(409).json({
+                error: "Company already has an active subscription",
+                code: "SUBSCRIPTION_ALREADY_ACTIVE",
+                expiresAt: row.subscription_expires_at,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] Duplicate subscription check (company) failed:", e instanceof Error ? e.message : String(e));
+      }
+
+      // Check 2: Is there a pending payment_record for this company?
+      // (Concurrency defense — prevents two simultaneous payment requests)
+      try {
+        const pendingRes = await fetch(
+          `${dupCheckUrl}/rest/v1/payment_records?company_id=eq.${encodedCompanyId}&status=eq.pending&select=id&limit=1`,
+          { headers: { apikey: dupCheckKey, Authorization: `Bearer ${dupCheckKey}` } }
+        );
+        if (pendingRes.ok) {
+          const pendingRows = await pendingRes.json() as Array<{ id: string }>;
+          if (pendingRows.length > 0) {
+            return res.status(409).json({
+              error: "A payment is already in progress for this company",
+              code: "PAYMENT_ALREADY_PENDING",
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] Pending payment check failed:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
     // Generate ASCII-only orderId + UUID externalReferenceId.
     // CRITICAL: orderId must NOT contain non-ASCII characters (e.g., Arabic
     // company names). ZainCash's V2 backend replaces non-ASCII characters

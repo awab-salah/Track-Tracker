@@ -65,6 +65,12 @@ export default function SubscriptionsPage() {
   };
 
   const handleSubscribe = async (planId: string) => {
+    // Prevent duplicate subscription purchases — if the company already has
+    // an active subscription, reject immediately without calling the API.
+    if (companySubscriptionActive) {
+      toast({ title: 'اشتراكك مفعل بالفعل', description: 'لا يمكن شراء اشتراك جديد', variant: 'destructive' });
+      return;
+    }
     const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
     if (!plan || !company?.name) {
       toast({ title: 'خطأ', description: 'بيانات الاشتراك غير مكتملة', variant: 'destructive' });
@@ -171,21 +177,44 @@ export default function SubscriptionsPage() {
               )}
             </div>
 
-            {/* Subscription plan cards */}
-            {SUBSCRIPTION_PLANS.map((plan, index) => (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08, duration: 0.3 }}
-              >
-                <SubscriptionPlanCard
-                  plan={plan}
-                  onSubscribe={handleSubscribe}
-                  loading={paymentLoadingPlan === plan.id}
-                />
-              </motion.div>
-            ))}
+            {/* Subscription plan cards — hidden when subscription is active */}
+            {companySubscriptionActive ? (
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4
+                              shadow-[0_2px_12px_rgba(0,0,0,0.06)]
+                              border border-black/[0.04] dark:border-white/[0.06]">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" />
+                  <p className="font-bold text-sm text-green-600">اشتراكك مفعل بالفعل</p>
+                </div>
+                {company?.subscriptionPlanId && (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    الخطة: {company.subscriptionPlanId}
+                  </p>
+                )}
+                {company?.subscriptionExpiresAt && (
+                  <p className="text-xs text-muted-foreground">
+                    تاريخ الانتهاء: {new Date(company.subscriptionExpiresAt).toLocaleDateString('ar')}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                {SUBSCRIPTION_PLANS.map((plan, index) => (
+                  <motion.div
+                    key={plan.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.08, duration: 0.3 }}
+                  >
+                    <SubscriptionPlanCard
+                      plan={plan}
+                      onSubscribe={handleSubscribe}
+                      loading={paymentLoadingPlan === plan.id}
+                    />
+                  </motion.div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </div>
