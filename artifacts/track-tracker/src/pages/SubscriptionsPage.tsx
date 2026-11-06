@@ -80,7 +80,7 @@ export default function SubscriptionsPage() {
     setPaymentLoadingPlan(planId);
     const result = await subscribeToPlan(planId, {
       amount: plan.price,
-      companyId: company.name,
+      companyId: company.id,
     });
 
     if (!result.success) {

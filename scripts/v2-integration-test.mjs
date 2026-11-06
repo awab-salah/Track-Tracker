@@ -605,13 +605,29 @@ describe('Duplicate subscription prevention', () => {
       'V2 create must reject with AUTH_INVALID for invalid tokens');
   });
 
-  test('Auth: V2 create endpoint verifies company ownership', () => {
+  test('Auth: V2 create endpoint verifies company ownership by UUID', () => {
     assert.ok(v2.includes('COMPANY_MISMATCH'),
-      'V2 create must reject with COMPANY_MISMATCH when company ID doesnt match');
+      'V2 create must reject with COMPANY_MISMATCH');
     assert.ok(v2.includes('auth_user_id'),
       'V2 create must query by auth_user_id to verify ownership');
     assert.ok(v2.includes('auth/v1/user'),
       'V2 create must call Supabase auth to verify the token');
+    assert.ok(v2.includes('id=eq'),
+      'V2 create must query by companies.id (UUID), NOT by name');
+    assert.ok(!v2.includes('name=eq'),
+      'V2 create must NOT use name=eq for ownership check');
+  });
+
+  test('Backend: transaction_id stored after ZainCash init', () => {
+    assert.ok(v2.includes('transaction_id'),
+      'V2 create must store transaction_id after ZainCash init');
+  });
+
+  test('Backend: duplicate_paid status for cross-transaction', () => {
+    assert.ok(v2.includes('duplicate_paid'),
+      'Callback must mark second transaction as duplicate_paid');
+    assert.ok(v2.includes('CROSS-TRANSACTION CHECK'),
+      'Callback must have cross-transaction check before activation');
   });
 
   test('Frontend: auth token included in subscribeToPlan request', () => {

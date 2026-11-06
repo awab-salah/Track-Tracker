@@ -136,6 +136,7 @@ function generateId(): string {
 }
 
 const DEFAULT_COMPANY: CompanyProfile = {
+  id: '',
   name: '',
   email: '',
   joinCode: '',

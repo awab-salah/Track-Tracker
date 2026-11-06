@@ -4,6 +4,7 @@
  */
 
 export interface CompanyProfile {
+  id: string;
   name: string;
   email: string;
   joinCode: string;
