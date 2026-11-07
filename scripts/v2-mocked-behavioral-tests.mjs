@@ -30,9 +30,8 @@ function mockInquiryResponse(status, amount, currency, orderId) {
 
 /** Mock a payment record from DB */
 function mockPaymentRecord(id, orderId, companyId, planId, amount, status) {
-  return { id, order_id: orderId, company_id: companyId, plan_id, amount, status };
+  return { id, order_id: orderId, company_id: companyId, plan_id: planId, amount, status };
 }
-
 /** Mock a company record */
 function mockCompany(id, name, active, expiresAt) {
   return { id, name, subscription_active: active, subscription_expires_at: expiresAt };

@@ -671,9 +671,11 @@ describe('Stale recovery + callback verification', () => {
       'With-token callback must extract amount from inquiry');
   });
 
-  test('With-token callback: rejects on currency mismatch', () => {
-    assert.ok(v2.includes('currency mismatch') && v2.includes('NOT activating'),
-      'With-token callback must reject on currency mismatch');
+  test('With-token callback: rejects on verification failure', () => {
+    assert.ok(v2.includes('verification FAILED'),
+      'With-token callback must log verification FAILED on mismatch');
+    assert.ok(v2.includes('NOT activated'),
+      'With-token callback must NOT activate on verification failure');
   });
 
   test('Webhook: calls ZainCash inquiry before activation', () => {
