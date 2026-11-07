@@ -84,7 +84,12 @@ begin
     return 'transaction_id_mismatch';
   end if;
 
-  -- ── 5. Verify company_id is a valid UUID (reject old name-based records) ──
+  -- ── 5. Verify company_id is NOT NULL and is a valid UUID ──
+  -- Explicitly reject NULL company_id before any further processing.
+  if v_record_company_id is null then
+    return 'invalid_company_id';
+  end if;
+
   -- Old records may store company names as text. Do NOT cast names to UUID.
   -- Regex: 8-4-4-4-12 hexadecimal characters.
   if v_record_company_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
@@ -94,12 +99,22 @@ begin
       using errcode = 'data_exception';
   end if;
 
-  -- ── 6. Verify amount is positive ──
+  -- ── 6. Verify amount is NOT NULL and positive ──
+  -- Explicitly reject NULL amount before comparison (NULL <= 0 yields NULL, not false).
+  if v_record_amount is null then
+    return 'invalid_amount';
+  end if;
+
   if v_record_amount <= 0 then
     return 'invalid_amount';
   end if;
 
-  -- ── 7. Verify plan_id is a supported plan ──
+  -- ── 7. Verify plan_id is NOT NULL and belongs to the approved list ──
+  -- Explicitly reject NULL plan_id before the IN check (NULL NOT IN (...) yields NULL, not true).
+  if v_record_plan_id is null then
+    return 'unsupported_plan';
+  end if;
+
   if v_record_plan_id not in ('plan-10', 'plan-25', 'plan-50', 'plan-unlimited', 'promo-track1') then
     return 'unsupported_plan';
   end if;
