@@ -844,6 +844,58 @@ async function activateCompanySubscription(companyName: string, planId?: string)
 }
 
 /**
+ * Atomically complete a payment and activate the subscription in a single
+ * PostgreSQL transaction. Replaces the non-atomic two-step process
+ * (updatePaymentRecordStatus + activateCompanySubscription).
+ *
+ * Calls the `complete_payment_and_activate` SECURITY DEFINER RPC which:
+ * 1. Updates payment_records.status to 'completed' (only if 'pending')
+ * 2. Checks cross-transaction (is subscription already active?)
+ * 3. If active → marks payment as 'duplicate_paid', does NOT extend
+ * 4. If not active → activates subscription with 1-month expiry
+ *
+ * Returns: 'activated' | 'duplicate_paid' | 'already_completed' | 'already_duplicate_paid' | 'payment_not_found' | 'rpc_failed'
+ */
+async function completePaymentAndActivate(
+  paymentId: string,
+  companyId: string,
+  planId?: string,
+): Promise<string> {
+  const { url, key } = getSupabaseCreds();
+  if (!url || !key) return "rpc_failed";
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/complete_payment_and_activate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        p_payment_id: paymentId,
+        p_company_id: companyId,
+        p_plan_id: planId ?? null,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      console.warn("[ZainCash-V2] complete_payment_and_activate RPC failed:", res.status);
+      return "rpc_failed";
+    }
+    const result = await res.text();
+    // PostgREST returns the result as a JSON string
+    try {
+      return JSON.parse(result) as string;
+    } catch {
+      return result;
+    }
+  } catch (e) {
+    console.warn("[ZainCash-V2] complete_payment_and_activate error:", e instanceof Error ? e.message : String(e));
+    return "rpc_failed";
+  }
+}
+
+/**
  * Look up a payment record by order_id using a direct PostgREST query.
  *
  * This requires the Supabase service role key (SUPABASE_SERVICE_KEY env var)
@@ -1399,39 +1451,26 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       const internalStatusNoToken = mapV2StatusToInternal(inquiryStatusNoToken);
       console.log("[ZainCash-V2] No-token callback inquiry result:", inquiryStatusNoToken, "->", internalStatusNoToken, "for tx:", record.id);
 
-      await updatePaymentRecordStatus(record.id, internalStatusNoToken);
-
-      // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
-      // Uses record.company_id from OUR database — NOT from the URL query param.
       if (internalStatusNoToken === "completed" && record.company_id) {
-        // CROSS-TRANSACTION CHECK: if company already has active subscription,
-        // mark as duplicate_paid instead of activating.
-        try {
-          const ntDupRes = await fetch(
-            `${cfgNoToken.baseUrl ? '' : ''}${getSupabaseCreds().url}/rest/v1/companies?id=eq.${encodeURIComponent(record.company_id)}&select=subscription_active,subscription_expires_at&limit=1`,
-            { headers: { apikey: getSupabaseCreds().key, Authorization: `Bearer ${getSupabaseCreds().key}` } }
+        // ATOMIC: complete payment + activate subscription in a single transaction
+        const ntResult = await completePaymentAndActivate(record.id, record.company_id, record.plan_id);
+        if (ntResult === "duplicate_paid") {
+          console.log("[ZainCash-V2] No-token: duplicate_paid (subscription already active)");
+          return res.status(200).type("text/html; charset=utf-8").send(
+            callbackResultHtml("success", record.id,
+              "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
           );
-          if (ntDupRes.ok) {
-            const ntDupRows = await ntDupRes.json() as Array<{
-              subscription_active: boolean; subscription_expires_at: string | null;
-            }>;
-            if (ntDupRows.length > 0) {
-              const ntExp = ntDupRows[0].subscription_expires_at ? new Date(ntDupRows[0].subscription_expires_at) : null;
-              if (ntDupRows[0].subscription_active && ntExp && ntExp > new Date()) {
-                console.log("[ZainCash-V2] No-token cross-transaction: already active — duplicate_paid");
-                await updatePaymentRecordStatus(record.id, "duplicate_paid");
-                return res.status(200).type("text/html; charset=utf-8").send(
-                  callbackResultHtml("success", record.id,
-                    "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
-                );
-              }
-            }
-          }
-        } catch (e) {
-          console.warn("[ZainCash-V2] No-token cross-transaction check failed:", e instanceof Error ? e.message : String(e));
+        } else if (ntResult === "already_completed") {
+          console.log("[ZainCash-V2] No-token: already_completed (idempotent)");
+        } else if (ntResult === "activated") {
+          console.log("[ZainCash-V2] No-token: payment completed + subscription activated");
+        } else {
+          console.error("[ZainCash-V2] No-token: atomic completion returned", ntResult);
+          // Fallback: try separate status update (best-effort)
+          await updatePaymentRecordStatus(record.id, internalStatusNoToken);
         }
-        await activateCompanySubscription(record.company_id, record.plan_id);
       } else {
+        await updatePaymentRecordStatus(record.id, internalStatusNoToken);
         console.log(`[ZainCash-V2] No-token callback: status=${internalStatusNoToken} — subscription NOT activated`);
       }
 
@@ -1665,42 +1704,27 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       }
     }
 
-    await updatePaymentRecordStatus(transactionId, internalStatus);
-
-    // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
-    // NEVER activate on FAILED, EXPIRED, PENDING, or any other status.
-    // Uses dbCompanyId from OUR database — NOT the URL query param companyId.
     if (internalStatus === "completed" && dbCompanyId) {
-      // CROSS-TRANSACTION CHECK: if company already has active subscription,
-      // mark this payment as duplicate_paid instead of activating.
-      try {
-        const dupCheckRes = await fetch(
-          `${cbSupabaseUrl}/rest/v1/companies?id=eq.${encodeURIComponent(dbCompanyId)}&select=subscription_active,subscription_expires_at&limit=1`,
-          { headers: { apikey: cbSupabaseKey, Authorization: `Bearer ${cbSupabaseKey}` } }
+      // ATOMIC: complete payment + activate subscription in a single transaction
+      const wtResult = await completePaymentAndActivate(orderId, dbCompanyId, dbPlanId);
+      if (wtResult === "duplicate_paid") {
+        console.log("[ZainCash-V2] With-token: duplicate_paid (subscription already active)");
+        return res.status(200).type("text/html; charset=utf-8").send(
+          callbackResultHtml("success", transactionId || orderId,
+            "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
         );
-        if (dupCheckRes.ok) {
-          const dupRows = await dupCheckRes.json() as Array<{
-            subscription_active: boolean; subscription_expires_at: string | null;
-          }>;
-          if (dupRows.length > 0) {
-            const dupExp = dupRows[0].subscription_expires_at ? new Date(dupRows[0].subscription_expires_at) : null;
-            if (dupRows[0].subscription_active && dupExp && dupExp > new Date()) {
-              // Already active — mark as duplicate_paid, do NOT extend
-              console.log("[ZainCash-V2] Cross-transaction: company already active — marking as duplicate_paid");
-              await updatePaymentRecordStatus(transactionId || orderId, "duplicate_paid");
-              return res.status(200).type("text/html; charset=utf-8").send(
-                callbackResultHtml("success", transactionId || orderId,
-                  "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
-              );
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("[ZainCash-V2] Cross-transaction check failed:", e instanceof Error ? e.message : String(e));
+      } else if (wtResult === "already_completed") {
+        console.log("[ZainCash-V2] With-token: already_completed (idempotent)");
+      } else if (wtResult === "activated") {
+        console.log("[ZainCash-V2] With-token: payment completed + subscription activated");
+      } else {
+        console.error("[ZainCash-V2] With-token: atomic completion returned", wtResult);
+        // Fallback: try separate status update (best-effort)
+        await updatePaymentRecordStatus(transactionId || orderId, internalStatus);
       }
-      await activateCompanySubscription(dbCompanyId, dbPlanId);
     } else {
-      console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
+      await updatePaymentRecordStatus(transactionId || orderId, internalStatus);
+      console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated.`);
     }
 
     // Determine the callback result kind based on the VERIFIED inquiry status.
@@ -1908,31 +1932,22 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
       }
     }
 
-    await updatePaymentRecordStatus(orderId, webhookInternalStatus);
-
     if (webhookInternalStatus === "completed" && companyName) {
-      // Cross-transaction check: don't activate if already active
-      try {
-        const whDupRes = await fetch(
-          `${supabaseUrl}/rest/v1/companies?id=eq.${encodeURIComponent(companyName)}&select=subscription_active,subscription_expires_at&limit=1`,
-          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
-        );
-        if (whDupRes.ok) {
-          const whDupRows = await whDupRes.json() as Array<{
-            subscription_active: boolean; subscription_expires_at: string | null;
-          }>;
-          if (whDupRows.length > 0) {
-            const whExp = whDupRows[0].subscription_expires_at ? new Date(whDupRows[0].subscription_expires_at) : null;
-            if (whDupRows[0].subscription_active && whExp && whExp > new Date()) {
-              await updatePaymentRecordStatus(orderId, "duplicate_paid");
-              return res.status(200).json({ received: true, verified: true, transactionId, status: "duplicate_paid" });
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("[ZainCash-V2] Webhook cross-transaction check failed:", e instanceof Error ? e.message : String(e));
+      // ATOMIC: complete payment + activate subscription in a single transaction
+      const whResult = await completePaymentAndActivate(orderId, companyName, webhookPlanId);
+      if (whResult === "duplicate_paid") {
+        return res.status(200).json({ received: true, verified: true, transactionId, status: "duplicate_paid" });
+      } else if (whResult === "already_completed") {
+        return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
+      } else if (whResult === "activated") {
+        console.log("[ZainCash-V2] Webhook: payment completed + subscription activated");
+      } else {
+        console.error("[ZainCash-V2] Webhook: atomic completion returned", whResult);
+        // Fallback: try separate status update
+        await updatePaymentRecordStatus(orderId, webhookInternalStatus);
       }
-      await activateCompanySubscription(companyName, webhookPlanId);
+    } else {
+      await updatePaymentRecordStatus(orderId, webhookInternalStatus);
     }
 
     return res.status(200).json({

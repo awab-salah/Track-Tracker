@@ -149,10 +149,10 @@ describe('Source pattern verification', () => {
     });
 
     test('V2 callback handler activates subscription ONLY on completed status', () => {
-      assert.ok(v2.includes("internalStatus === \"completed\"") || v2.includes("internalStatus === 'completed'"),
-        'V2 callback must only activate on completed status');
-      assert.ok(v2.includes('NEVER activate on FAILED'),
-        'V2 callback must have explicit comment about not activating on non-completed');
+      assert.ok(v2.includes('internalStatus === "completed"'),
+        'V2 callback must check completed status before activation');
+      assert.ok(v2.includes('NOT activated'),
+        'V2 callback must log when subscription is NOT activated');
     });
 
     test('V2 callback with-token path uses DB companyId (not URL param)', () => {
@@ -411,13 +411,13 @@ describe('Subscription duration + driver limits + promo code', () => {
 
   test('All 3 callback paths pass planId to activateCompanySubscription', () => {
     // No-token path
-    assert.ok(v2.includes('activateCompanySubscription(record.company_id, record.plan_id)'),
+    assert.ok(v2.includes('completePaymentAndActivate(record.id, record.company_id, record.plan_id)'),
       'No-token callback must pass record.plan_id');
     // With-token path
-    assert.ok(v2.includes('activateCompanySubscription(dbCompanyId, dbPlanId)'),
+    assert.ok(v2.includes('completePaymentAndActivate(orderId, dbCompanyId, dbPlanId)'),
       'With-token callback must pass dbPlanId');
     // Webhook path
-    assert.ok(v2.includes('activateCompanySubscription(companyName, webhookPlanId)'),
+    assert.ok(v2.includes('completePaymentAndActivate(orderId, companyName, webhookPlanId)'),
       'Webhook must pass webhookPlanId');
   });
 
@@ -623,11 +623,11 @@ describe('Duplicate subscription prevention', () => {
       'V2 create must store transaction_id after ZainCash init');
   });
 
-  test('Backend: duplicate_paid status for cross-transaction', () => {
+  test('Backend: atomic RPC handles cross-transaction duplicate_paid', () => {
+    assert.ok(v2.includes('completePaymentAndActivate'),
+      'Callback must use completePaymentAndActivate RPC');
     assert.ok(v2.includes('duplicate_paid'),
-      'Callback must mark second transaction as duplicate_paid');
-    assert.ok(v2.includes('CROSS-TRANSACTION CHECK'),
-      'Callback must have cross-transaction check before activation');
+      'RPC must return duplicate_paid for already-active subscriptions');
   });
 
   test('Frontend: auth token included in subscribeToPlan request', () => {
@@ -688,14 +688,14 @@ describe('Stale recovery + callback verification', () => {
   test('Webhook: has duplicate_paid cross-transaction check', () => {
     const webhookIdx = v2.indexOf('router.post');
     const webhookSection = v2.substring(webhookIdx);
-    assert.ok(webhookSection.includes('duplicate_paid'),
+    assert.ok(webhookSection.includes('completePaymentAndActivate'),
       'Webhook must mark as duplicate_paid if company already active');
   });
 
   test('All 3 callback paths have cross-transaction prevention', () => {
-    assert.ok(v2.includes('No-token cross-transaction'),
+    assert.ok(v2.includes('No-token: duplicate_paid'),
       'No-token callback must have cross-transaction check');
-    assert.ok(v2.includes('Cross-transaction: company already active'),
+    assert.ok(v2.includes('With-token: duplicate_paid'),
       'With-token callback must have cross-transaction check');
   });
 });
