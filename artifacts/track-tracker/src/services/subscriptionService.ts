@@ -119,7 +119,22 @@ export async function subscribeToPlan(
     });
 
     if (!response.ok) {
-      return { success: false, message: 'فشل إنشاء عملية الدفع' };
+      const errorData = await response.json().catch(() => ({ error: 'فشل إنشاء عملية الدفع' }));
+      // Map backend error codes to user-facing Arabic messages
+      const errorMessages: Record<string, string> = {
+        'SUBSCRIPTION_ALREADY_ACTIVE': 'اشتراكك مفعل بالفعل',
+        'PAYMENT_ALREADY_PENDING': 'يوجد عملية دفع قيد المعالجة بالفعل',
+        'STALE_RESOLVED_COMPLETED': 'تم إكمال عملية دفع سابقة — يرجى تحديث الصفحة',
+        'STALE_RESOLVED_FAILED': 'فشلت عملية دفع سابقة — يمكنك المحاولة مرة أخرى',
+        'RESERVATION_NO_TRANSACTION_ID': 'يوجد حجز دفع معلق — يرجى التواصل مع الدعم',
+        'NO_AUTH_TOKEN': 'يجب تسجيل الدخول أولاً',
+        'AUTH_INVALID': 'انتهت الجلسة — يرجى تسجيل الدخول مرة أخرى',
+        'COMPANY_MISMATCH': 'لا تملك صلاحية الدفع لهذه الشركة',
+        'VERIFICATION_FAILED': 'تعذر التحقق من الحالة — يرجى المحاولة لاحقاً',
+      };
+      const code = errorData.code ?? '';
+      const message = errorMessages[code] ?? errorData.error ?? 'فشل إنشاء عملية الدفع';
+      return { success: false, message };
     }
 
     const data = await response.json();

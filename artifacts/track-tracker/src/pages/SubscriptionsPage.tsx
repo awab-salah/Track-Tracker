@@ -84,7 +84,18 @@ export default function SubscriptionsPage() {
     });
 
     if (!result.success) {
-      toast({ title: 'فشل الدفع', description: result.message, variant: 'destructive' });
+      // Check if the subscription was recovered (STALE_RESOLVED_COMPLETED)
+      // — refresh the page state to reflect the active subscription
+      if (result.message.includes('تم إكمال عملية دفع سابقة')) {
+        toast({ title: 'تم تفعيل الاشتراك', description: result.message, variant: 'default' });
+        // Reload to refresh subscription status
+        setTimeout(() => window.location.reload(), 2000);
+      } else if (result.message.includes('فشلت عملية دفع سابقة')) {
+        // Stale payment failed — user can retry
+        toast({ title: 'يمكنك المحاولة مرة أخرى', description: result.message, variant: 'default' });
+      } else {
+        toast({ title: 'فشل الدفع', description: result.message, variant: 'destructive' });
+      }
     }
     // If success, the browser is already redirecting to ZainCash — no cleanup needed
     setPaymentLoadingPlan(null);

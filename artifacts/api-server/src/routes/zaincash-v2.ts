@@ -1628,18 +1628,39 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     const internalStatus = mapV2StatusToInternal(inquiryStatus);
 
     // CONSISTENCY CHECKS: verify inquiry result matches our payment record.
-    // Do NOT trust callback parameters alone — verify against DB.
+    // Do NOT trust callback parameters alone — verify amount, currency, orderId.
     if (internalStatus === "completed") {
-      const wtAmountOk = wtInquiryAmount !== undefined && wtInquiryAmount === record?.amount;
-      // record may not be loaded in with-token path — use dbPlanId's amount if available
-      // For now, check currency and orderId which are always available
+      // Fetch the payment record's amount from DB for comparison
+      let dbAmount: number | undefined;
+      let dbOrderId: string | undefined;
+      try {
+        const dbRecRes = await fetch(
+          `${cbSupabaseUrl}/rest/v1/payment_records?id=eq.${encodeURIComponent(orderId)}&select=amount,order_id&limit=1`,
+          { headers: { apikey: cbSupabaseKey, Authorization: `Bearer ${cbSupabaseKey}` } }
+        );
+        if (dbRecRes.ok) {
+          const dbRows = await dbRecRes.json() as Array<{ amount: number; order_id: string }>;
+          if (dbRows.length > 0) {
+            dbAmount = dbRows[0].amount;
+            dbOrderId = dbRows[0].order_id;
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] With-token DB amount lookup failed:", e instanceof Error ? e.message : String(e));
+      }
+
+      // Enforce ALL checks — any failure → no activation
+      const wtAmountOk = wtInquiryAmount !== undefined && dbAmount !== undefined && wtInquiryAmount === dbAmount;
       const wtCurrencyOk = wtInquiryCurrency === "IQD";
-      const wtOrderIdOk = wtInquiryOrderId !== undefined && wtOrderIdOk !== false; // orderId from JWT matches
-      if (!wtCurrencyOk) {
-        console.error("[ZainCash-V2] With-token callback: currency mismatch — NOT activating");
+      const wtOrderIdOk = wtInquiryOrderId !== undefined && dbOrderId !== undefined && wtInquiryOrderId === dbOrderId;
+
+      if (!wtAmountOk || !wtCurrencyOk || !wtOrderIdOk) {
+        console.error("[ZainCash-V2] With-token callback: verification FAILED",
+          "amount:", wtAmountOk, "currency:", wtCurrencyOk, "orderId:", wtOrderIdOk);
         await updatePaymentRecordStatus(transactionId || orderId, "unverified");
         return res.status(200).type("text/html; charset=utf-8").send(
-          callbackResultHtml("unverified", transactionId || orderId, "فشل التحقق من العملة")
+          callbackResultHtml("unverified", transactionId || orderId,
+            "فشل التحقق من بيانات الدفع — المبلغ أو العملة أو رقم الطلب غير مطابق")
         );
       }
     }
@@ -1830,10 +1851,11 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     const internalStatus = mapV2StatusToInternal(currentStatus);
 
     // CONSISTENCY CHECKS: call ZainCash inquiry to verify the transaction
-    // Do NOT trust webhook JWT claims alone — verify against inquiry + DB
+    // Do NOT trust webhook JWT claims alone — verify amount, currency, orderId.
     let webhookInquiryStatus = currentStatus;
-    let whAmountOk = false;
-    let whCurrencyOk = false;
+    let whInquiryAmount: number | undefined;
+    let whInquiryCurrency: string | undefined;
+    let whInquiryOrderId: string | undefined;
     try {
       const whInquiry = await v2Request(cfg, "GET",
         `/api/v2/payment-gateway/transaction/inquiry/${encodeURIComponent(transactionId)}`);
@@ -1843,10 +1865,9 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
           transactionDetails?: { orderId?: string; amount?: { value?: number; currency?: string } };
         };
         if (wb.status) webhookInquiryStatus = wb.status;
-        const whInqCurrency = wb.transactionDetails?.amount?.currency;
-        whCurrencyOk = whInqCurrency === "IQD";
-        // Amount verification would need the payment record's amount
-        // For now, verify currency (IQD is the only supported currency)
+        whInquiryAmount = wb.transactionDetails?.amount?.value;
+        whInquiryCurrency = wb.transactionDetails?.amount?.currency;
+        whInquiryOrderId = wb.transactionDetails?.orderId;
       }
     } catch (e) {
       console.warn("[ZainCash-V2] Webhook inquiry failed:", e instanceof Error ? e.message : String(e));
@@ -1854,10 +1875,37 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
 
     const webhookInternalStatus = mapV2StatusToInternal(webhookInquiryStatus);
 
-    if (webhookInternalStatus === "completed" && !whCurrencyOk) {
-      console.error("[ZainCash-V2] Webhook: currency verification FAILED — NOT activating");
-      await updatePaymentRecordStatus(orderId, "unverified");
-      return res.status(200).json({ received: true, verified: true, transactionId, status: "currency_mismatch" });
+    // Fetch DB record for amount + orderId comparison
+    let whDbAmount: number | undefined;
+    let whDbOrderId: string | undefined;
+    if (webhookInternalStatus === "completed") {
+      try {
+        const whDbRes = await fetch(
+          `${supabaseUrl}/rest/v1/payment_records?id=eq.${encodeURIComponent(orderId)}&select=amount,order_id&limit=1`,
+          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+        );
+        if (whDbRes.ok) {
+          const whDbRows = await whDbRes.json() as Array<{ amount: number; order_id: string }>;
+          if (whDbRows.length > 0) {
+            whDbAmount = whDbRows[0].amount;
+            whDbOrderId = whDbRows[0].order_id;
+          }
+        }
+      } catch (e) {
+        console.warn("[ZainCash-V2] Webhook DB amount lookup failed:", e instanceof Error ? e.message : String(e));
+      }
+
+      // Enforce ALL checks
+      const whAmountOk = whInquiryAmount !== undefined && whDbAmount !== undefined && whInquiryAmount === whDbAmount;
+      const whCurrencyOk = whInquiryCurrency === "IQD";
+      const whOrderIdOk = whInquiryOrderId !== undefined && whDbOrderId !== undefined && whInquiryOrderId === whDbOrderId;
+
+      if (!whAmountOk || !whCurrencyOk || !whOrderIdOk) {
+        console.error("[ZainCash-V2] Webhook: verification FAILED",
+          "amount:", whAmountOk, "currency:", whCurrencyOk, "orderId:", whOrderIdOk);
+        await updatePaymentRecordStatus(orderId, "unverified");
+        return res.status(200).json({ received: true, verified: true, transactionId, status: "verification_failed" });
+      }
     }
 
     await updatePaymentRecordStatus(orderId, webhookInternalStatus);
