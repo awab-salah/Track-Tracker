@@ -856,13 +856,30 @@ async function activateCompanySubscription(companyName: string, planId?: string)
  *
  * Returns: 'activated' | 'duplicate_paid' | 'already_completed' | 'already_duplicate_paid' | 'payment_not_found' | 'rpc_failed'
  */
+/**
+ * Call the atomic complete_payment_and_activate RPC.
+ *
+ * This is the ONLY operation allowed to mark a payment completed and
+ * activate a subscription. It takes ONLY the payment ID and the verified
+ * provider transaction ID — company/plan/amount are read from the DB
+ * inside the RPC, never trusted from the caller.
+ *
+ * NO FALLBACK: if the RPC fails, times out, or returns an unknown result,
+ * the payment stays in its current (retryable) state. We do NOT call
+ * updatePaymentRecordStatus("completed") or activateCompanySubscription
+ * separately. The caller must return HTTP 503 to allow retry.
+ *
+ * @returns The RPC result string: 'activated' | 'duplicate_paid' |
+ *          'already_completed' | 'already_duplicate_paid' | 'payment_not_found' |
+ *          'payment_not_pending' | 'no_transaction_id' | 'transaction_id_mismatch' |
+ *          'invalid_amount' | 'unsupported_plan' | 'company_not_found' | 'rpc_error'
+ */
 async function completePaymentAndActivate(
   paymentId: string,
-  companyId: string,
-  planId?: string,
+  providerTransactionId: string,
 ): Promise<string> {
   const { url, key } = getSupabaseCreds();
-  if (!url || !key) return "rpc_failed";
+  if (!url || !key) return "rpc_error";
   try {
     const res = await fetch(`${url}/rest/v1/rpc/complete_payment_and_activate`, {
       method: "POST",
@@ -873,26 +890,75 @@ async function completePaymentAndActivate(
       },
       body: JSON.stringify({
         p_payment_id: paymentId,
-        p_company_id: companyId,
-        p_plan_id: planId ?? null,
+        p_provider_transaction_id: providerTransactionId,
       }),
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
-      console.warn("[ZainCash-V2] complete_payment_and_activate RPC failed:", res.status);
-      return "rpc_failed";
+      console.error("[ZainCash-V2] RPC HTTP error:", res.status, "payment_id:", paymentId);
+      return "rpc_error";
     }
     const result = await res.text();
-    // PostgREST returns the result as a JSON string
     try {
       return JSON.parse(result) as string;
     } catch {
       return result;
     }
   } catch (e) {
-    console.warn("[ZainCash-V2] complete_payment_and_activate error:", e instanceof Error ? e.message : String(e));
-    return "rpc_failed";
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[ZainCash-V2] RPC error:", msg, "payment_id:", paymentId);
+    return "rpc_error";
   }
+}
+
+/**
+ * Handle the result of completePaymentAndActivate for GET callback paths
+ * (no-token and with-token). Returns the HTTP response or undefined if
+ * the caller should continue processing.
+ *
+ * Returns undefined for non-completed statuses (caller handles those).
+ */
+function handleAtomicResult(
+  res: Response,
+  result: string,
+  paymentId: string,
+  transactionId: string,
+): boolean {
+  // Returns true if the response was sent (caller should return)
+  if (result === "activated") {
+    console.log("[ZainCash-V2] Atomic: payment completed + subscription activated");
+    return false; // Let caller show success page
+  }
+  if (result === "already_completed") {
+    console.log("[ZainCash-V2] Atomic: already_completed (idempotent)");
+    return false; // Let caller show success page
+  }
+  if (result === "duplicate_paid") {
+    console.log("[ZainCash-V2] Atomic: duplicate_paid (subscription already active)");
+    res.status(200).type("text/html; charset=utf-8").send(
+      callbackResultHtml("success", transactionId || paymentId,
+        "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
+    );
+    return true;
+  }
+  if (result === "rpc_error" || result === "payment_not_found" ||
+      result === "payment_not_pending" || result === "no_transaction_id" ||
+      result === "transaction_id_mismatch" || result === "invalid_amount" ||
+      result === "unsupported_plan" || result === "company_not_found") {
+    console.error("[ZainCash-V2] Atomic: error result:", result, "payment_id:", paymentId);
+    // Do NOT mark completed, do NOT activate — preserve retryable state
+    res.status(503).type("text/html; charset=utf-8").send(
+      callbackResultHtml("unverified", transactionId || paymentId,
+        "تعذر إكمال العملية تلقائياً. يرجى المحاولة مرة أخرى أو التواصل مع الدعم.")
+    );
+    return true;
+  }
+  // Unknown result — safe fallback: do nothing, preserve state
+  console.error("[ZainCash-V2] Atomic: unknown result:", result, "payment_id:", paymentId);
+  res.status(503).type("text/html; charset=utf-8").send(
+    callbackResultHtml("unverified", transactionId || paymentId)
+  );
+  return true;
 }
 
 /**
@@ -1177,23 +1243,25 @@ router.post("/zaincash/v2/create", async (req: Request, res: Response) => {
                         const orderIdOk = inqOrderId === stale.order_id;
 
                         if (amountOk && currencyOk && orderIdOk) {
-                          // Consistency checks pass — process the stale payment
-                          await updatePaymentRecordStatus(stale.id, "completed");
-                          // Look up company by UUID and activate
-                          const staleCompanyRes = await fetch(
-                            `${resvUrl}/rest/v1/payment_records?id=eq.${encodeURIComponent(stale.id)}&select=company_id,plan_id&limit=1`,
-                            { headers: { apikey: resvKey, Authorization: `Bearer ${resvKey}` } }
-                          );
-                          if (staleCompanyRes.ok) {
-                            const scRows = await staleCompanyRes.json() as Array<{ company_id: string; plan_id: string }>;
-                            if (scRows.length > 0) {
-                              await activateCompanySubscription(scRows[0].company_id, scRows[0].plan_id);
-                            }
+                          // Consistency checks pass — use atomic RPC to complete + activate
+                          const staleResult = await completePaymentAndActivate(stale.id, stale.transaction_id);
+                          if (staleResult === "activated" || staleResult === "already_completed") {
+                            return res.status(409).json({
+                              error: "A previous payment was completed during this request",
+                              code: "STALE_RESOLVED_COMPLETED",
+                            });
+                          } else if (staleResult === "duplicate_paid") {
+                            return res.status(409).json({
+                              error: "Previous payment was duplicate_paid",
+                              code: "STALE_RESOLVED_COMPLETED",
+                            });
+                          } else {
+                            // RPC failed — keep reservation, reject
+                            return res.status(409).json({
+                              error: "Stale payment could not be completed",
+                              code: "PAYMENT_ALREADY_PENDING",
+                            });
                           }
-                          return res.status(409).json({
-                            error: "A previous payment was completed during this request",
-                            code: "STALE_RESOLVED_COMPLETED",
-                          });
                         } else {
                           // Consistency check failed — keep reservation, reject
                           console.error("[ZainCash-V2] Stale reservation consistency check FAILED");
@@ -1453,21 +1521,9 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
 
       if (internalStatusNoToken === "completed" && record.company_id) {
         // ATOMIC: complete payment + activate subscription in a single transaction
-        const ntResult = await completePaymentAndActivate(record.id, record.company_id, record.plan_id);
-        if (ntResult === "duplicate_paid") {
-          console.log("[ZainCash-V2] No-token: duplicate_paid (subscription already active)");
-          return res.status(200).type("text/html; charset=utf-8").send(
-            callbackResultHtml("success", record.id,
-              "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
-          );
-        } else if (ntResult === "already_completed") {
-          console.log("[ZainCash-V2] No-token: already_completed (idempotent)");
-        } else if (ntResult === "activated") {
-          console.log("[ZainCash-V2] No-token: payment completed + subscription activated");
-        } else {
-          console.error("[ZainCash-V2] No-token: atomic completion returned", ntResult);
-          // Fallback: try separate status update (best-effort)
-          await updatePaymentRecordStatus(record.id, internalStatusNoToken);
+        const ntResult = await completePaymentAndActivate(record.id, record.id);
+        if (handleAtomicResult(res, ntResult, record.id, record.id)) {
+          return; // Response already sent
         }
       } else {
         await updatePaymentRecordStatus(record.id, internalStatusNoToken);
@@ -1706,21 +1762,9 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
 
     if (internalStatus === "completed" && dbCompanyId) {
       // ATOMIC: complete payment + activate subscription in a single transaction
-      const wtResult = await completePaymentAndActivate(orderId, dbCompanyId, dbPlanId);
-      if (wtResult === "duplicate_paid") {
-        console.log("[ZainCash-V2] With-token: duplicate_paid (subscription already active)");
-        return res.status(200).type("text/html; charset=utf-8").send(
-          callbackResultHtml("success", transactionId || orderId,
-            "تم استلام الدفع لكن اشتراكك الحالي لا يزال ساريًا. يرجى التواصل مع الدعم.")
-        );
-      } else if (wtResult === "already_completed") {
-        console.log("[ZainCash-V2] With-token: already_completed (idempotent)");
-      } else if (wtResult === "activated") {
-        console.log("[ZainCash-V2] With-token: payment completed + subscription activated");
-      } else {
-        console.error("[ZainCash-V2] With-token: atomic completion returned", wtResult);
-        // Fallback: try separate status update (best-effort)
-        await updatePaymentRecordStatus(transactionId || orderId, internalStatus);
+      const wtResult = await completePaymentAndActivate(orderId, transactionId);
+      if (handleAtomicResult(res, wtResult, orderId, transactionId)) {
+        return; // Response already sent
       }
     } else {
       await updatePaymentRecordStatus(transactionId || orderId, internalStatus);
@@ -1934,17 +1978,18 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
 
     if (webhookInternalStatus === "completed" && companyName) {
       // ATOMIC: complete payment + activate subscription in a single transaction
-      const whResult = await completePaymentAndActivate(orderId, companyName, webhookPlanId);
-      if (whResult === "duplicate_paid") {
+      const whResult = await completePaymentAndActivate(orderId, transactionId);
+      if (whResult === "rpc_error") {
+        return res.status(503).json({ received: true, verified: true, transactionId, status: "rpc_error", error: "Atomic completion failed — retryable" });
+      } else if (whResult === "duplicate_paid") {
         return res.status(200).json({ received: true, verified: true, transactionId, status: "duplicate_paid" });
       } else if (whResult === "already_completed") {
         return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
       } else if (whResult === "activated") {
         console.log("[ZainCash-V2] Webhook: payment completed + subscription activated");
       } else {
-        console.error("[ZainCash-V2] Webhook: atomic completion returned", whResult);
-        // Fallback: try separate status update
-        await updatePaymentRecordStatus(orderId, webhookInternalStatus);
+        console.error("[ZainCash-V2] Webhook: atomic result:", whResult, "payment_id:", orderId);
+        return res.status(503).json({ received: true, verified: true, transactionId, status: whResult ?? "unknown", error: "Atomic completion failed — retryable" });
       }
     } else {
       await updatePaymentRecordStatus(orderId, webhookInternalStatus);

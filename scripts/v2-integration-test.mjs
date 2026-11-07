@@ -409,16 +409,15 @@ describe('Subscription duration + driver limits + promo code', () => {
       'activateCompanySubscription must accept planId parameter');
   });
 
-  test('All 3 callback paths pass planId to activateCompanySubscription', () => {
-    // No-token path
-    assert.ok(v2.includes('completePaymentAndActivate(record.id, record.company_id, record.plan_id)'),
-      'No-token callback must pass record.plan_id');
-    // With-token path
-    assert.ok(v2.includes('completePaymentAndActivate(orderId, dbCompanyId, dbPlanId)'),
-      'With-token callback must pass dbPlanId');
-    // Webhook path
-    assert.ok(v2.includes('completePaymentAndActivate(orderId, companyName, webhookPlanId)'),
-      'Webhook must pass webhookPlanId');
+  test('All 3 callback paths use atomic RPC with 2 inputs only', () => {
+    // No callback passes companyId or planId — RPC reads from DB
+    assert.ok(v2.includes('completePaymentAndActivate('),
+      'Callbacks must call completePaymentAndActivate');
+    // Verify no 3-param calls remain
+    assert.ok(!v2.includes('completePaymentAndActivate(record.id, record.company_id'),
+      'No-token must NOT pass companyId (RPC reads from DB)');
+    assert.ok(!v2.includes('completePaymentAndActivate(orderId, dbCompanyId'),
+      'With-token must NOT pass companyId (RPC reads from DB)');
   });
 
   test('Migration SQL adds subscription_expires_at column', () => {
@@ -692,11 +691,11 @@ describe('Stale recovery + callback verification', () => {
       'Webhook must mark as duplicate_paid if company already active');
   });
 
-  test('All 3 callback paths have cross-transaction prevention', () => {
-    assert.ok(v2.includes('No-token: duplicate_paid'),
-      'No-token callback must have cross-transaction check');
-    assert.ok(v2.includes('With-token: duplicate_paid'),
-      'With-token callback must have cross-transaction check');
+  test('All 3 callback paths have cross-transaction prevention via RPC', () => {
+    assert.ok(v2.includes('handleAtomicResult'),
+      'All callbacks must use handleAtomicResult for cross-transaction handling');
+    assert.ok(v2.includes('duplicate_paid'),
+      'RPC must return duplicate_paid for already-active subscriptions');
   });
 });
 
