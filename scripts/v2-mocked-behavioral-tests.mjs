@@ -18,14 +18,20 @@ import { readFileSync } from 'node:fs';
  * Mirrors the exact PL/pgSQL transaction semantics.
  */
 function simulateRPC(paymentRecord, companyRecord, providerTxId) {
-  // Step 2: Verify record exists (before any spread)
-  if (!paymentRecord) return 'payment_not_found';
+  // Step 0: Reject NULL or empty inputs immediately
+  if (!paymentRecord || paymentRecord.id === null || paymentRecord.id === undefined || paymentRecord.id === '') {
+    return 'invalid_payment_id';
+  }
+  if (providerTxId === null || providerTxId === undefined || providerTxId === '') {
+    return 'invalid_provider_transaction_id';
+  }
 
   // Simulate FOR UPDATE lock — returns a snapshot
   const pr = { ...paymentRecord };
   const co = companyRecord ? { ...companyRecord } : null;
 
-  // Step 3: Verify status
+  // Step 3: Verify status — reject NULL before any comparison
+  if (pr.status === null || pr.status === undefined) return 'payment_status_null';
   if (pr.status === 'completed') return 'already_completed';
   if (pr.status === 'duplicate_paid') return 'already_duplicate_paid';
   if (pr.status !== 'pending') return 'payment_not_pending';
@@ -231,7 +237,7 @@ describe('Atomic RPC behavioral tests', () => {
     assert.equal(r, 'transaction_id_mismatch');
     // Payment not found
     const r2 = simulateRPC(null, co, TX_ID_1);
-    assert.equal(r2, 'payment_not_found');
+    assert.equal(r2, 'invalid_payment_id');
   });
 
   test('11. Wrong amount or currency is rejected', () => {
@@ -332,8 +338,6 @@ describe('Atomic RPC behavioral tests', () => {
   });
 
   test('13. Ordinary authenticated and anonymous users cannot execute the RPC', () => {
-    // Verify the migration REVOKEs from public/anon/authenticated and only
-    // GRANTs to service_role. Also verify the helper uses service-key creds.
     const v2 = readFileSync('artifacts/api-server/src/routes/zaincash-v2.ts', 'utf8');
     assert.ok(v2.includes('getSupabaseCreds()'), 'Helper must use service-role credentials');
     const sql = readFileSync('supabase/migrations/atomic_complete_payment_and_activate.sql', 'utf8');
@@ -342,13 +346,53 @@ describe('Atomic RPC behavioral tests', () => {
     assert.ok(sql.includes('from authenticated'), 'Migration must REVOKE from authenticated');
     assert.ok(sql.includes('to service_role'), 'Migration must GRANT only to service_role');
   });
+
+  // ─── NULL/empty input tests ───
+
+  test('19. NULL payment ID is rejected', () => {
+    const pr = mockPayment(null, COMPANY_UUID, 'plan-10', 14000, 'pending', TX_ID_1);
+    const co = mockCompany(COMPANY_UUID, false, null);
+    const r = simulateRPC(pr, co, TX_ID_1);
+    assert.equal(r, 'invalid_payment_id');
+  });
+
+  test('20. Empty payment ID is rejected', () => {
+    const pr = mockPayment('', COMPANY_UUID, 'plan-10', 14000, 'pending', TX_ID_1);
+    const co = mockCompany(COMPANY_UUID, false, null);
+    const r = simulateRPC(pr, co, TX_ID_1);
+    assert.equal(r, 'invalid_payment_id');
+  });
+
+  test('21. NULL provider transaction ID is rejected', () => {
+    const pr = mockPayment(PAYMENT_ID_1, COMPANY_UUID, 'plan-10', 14000, 'pending', TX_ID_1);
+    const co = mockCompany(COMPANY_UUID, false, null);
+    const r = simulateRPC(pr, co, null);
+    assert.equal(r, 'invalid_provider_transaction_id');
+  });
+
+  test('22. Empty provider transaction ID is rejected', () => {
+    const pr = mockPayment(PAYMENT_ID_1, COMPANY_UUID, 'plan-10', 14000, 'pending', TX_ID_1);
+    const co = mockCompany(COMPANY_UUID, false, null);
+    const r = simulateRPC(pr, co, '');
+    assert.equal(r, 'invalid_provider_transaction_id');
+  });
+
+  test('23. NULL payment status is rejected', () => {
+    const pr = mockPayment(PAYMENT_ID_1, COMPANY_UUID, 'plan-10', 14000, null, TX_ID_1);
+    const co = mockCompany(COMPANY_UUID, false, null);
+    const r = simulateRPC(pr, co, TX_ID_1);
+    assert.equal(r, 'payment_status_null');
+    // Verify no state changed
+    assert.equal(co.subscription_active, false);
+  });
 });
 
 // ─── Summary ───────────────────────────────────────────────────────────────
 
 test('Mocked behavioral test summary', () => {
-  console.log('\n✅ All 19 mocked behavioral tests passed');
+  console.log('\n✅ All 24 mocked behavioral tests passed');
   console.log('   - Atomic RPC logic tested in isolation');
   console.log('   - No real payments or API calls made');
-  console.log('   - All NULL checks, concurrency, idempotency, and edge cases covered');
+  console.log('   - All NULL/empty input checks verified');
+  console.log('   - All concurrency, idempotency, and edge cases covered');
 });

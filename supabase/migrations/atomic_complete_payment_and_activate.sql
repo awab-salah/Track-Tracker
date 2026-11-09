@@ -45,6 +45,16 @@ declare
   v_expires_at timestamptz;
   v_now timestamptz := now();
 begin
+  -- ── 0. Reject NULL or empty inputs immediately ──
+  -- Prevents three-valued logic issues downstream.
+  if p_payment_id is null or p_payment_id = '' then
+    return 'invalid_payment_id';
+  end if;
+
+  if p_provider_transaction_id is null or p_provider_transaction_id = '' then
+    return 'invalid_provider_transaction_id';
+  end if;
+
   -- ── 1. Lock the payment record (SELECT ... FOR UPDATE) ──
   -- Schema-qualified: public.payment_records
   select id, order_id, company_id, plan_id, amount, status, transaction_id
@@ -60,6 +70,11 @@ begin
   end if;
 
   -- ── 3. Verify status is eligible ──
+  -- Explicitly reject NULL status before any comparison (NULL = 'completed' yields NULL, not false).
+  if v_record_status is null then
+    return 'payment_status_null';
+  end if;
+
   if v_record_status = 'completed' then
     return 'already_completed';
   end if;
