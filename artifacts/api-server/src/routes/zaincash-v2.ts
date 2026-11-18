@@ -849,6 +849,49 @@ async function completePaymentAndActivate(
 }
 
 /**
+ * Map the atomic completion RPC result to a customer-facing callback result
+ * kind. The backend reports "success" to the customer ONLY when the RPC
+ * confirms a valid completed or previously-completed outcome.
+ *
+ * Every other result is reported as "unverified" so the customer is directed
+ * to check the subscriptions page / contact support — never as "success", and
+ * never falling back to a direct mutation:
+ *   'duplicate_paid'         — another payment already activated the
+ *                              subscription; this payment is marked
+ *                              duplicate_paid and the subscription is NOT
+ *                              extended (the RPC guarantees this). The
+ *                              subscription may already be active — the
+ *                              customer can verify on the subscriptions page.
+ *   'already_duplicate_paid' — this payment was already marked duplicate_paid
+ *                              by a prior callback; same handling as above.
+ *   'no_transaction_id'      — the payment record has no stored provider
+ *                              transaction id (cannot verify ownership).
+ *   'transaction_id_mismatch'— the caller-supplied provider transaction id
+ *                              does not match the record's stored value.
+ *   'payment_not_found'      — no payment record with that id.
+ *   'payment_not_pending'    — status is not 'pending' (and not
+ *                              completed/duplicate_paid, which have their own
+ *                              outcomes above).
+ *   'payment_status_null'    — status is NULL.
+ *   'invalid_payment_id' / 'invalid_provider_transaction_id' — NULL/empty input.
+ *   'invalid_company_id'     — company_id is NULL (the RPC raises an exception
+ *                              for non-UUID company_id, returned as null here).
+ *   'invalid_amount'         — amount is NULL or <= 0.
+ *   'unsupported_plan'       — plan_id is NULL or not in the approved list.
+ *   'company_not_found'      — no companies row for the record's company_id.
+ *   null                     — HTTP/transport failure or RPC-raised exception.
+ *
+ * Non-completed inquiry statuses (failed/expired/refunded/pending) never reach
+ * this mapping — they are handled directly by the caller.
+ */
+function rpcResultToCallbackKind(rpcResult: string | null): CallbackResultKind {
+  if (rpcResult === "activated" || rpcResult === "already_completed") {
+    return "success";
+  }
+  return "unverified";
+}
+
+/**
  * Look up a payment record by order_id using a direct PostgREST query.
  *
  * This requires the Supabase service role key (SUPABASE_SERVICE_KEY env var)
@@ -1241,18 +1284,27 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       // payment_records.status is updated — the guard allows non-completed
       // statuses (it blocks only status='completed'). These are NOT routed
       // through the completion RPC.
+      let rpcResultNoToken: string | null = null;
       if (internalStatusNoToken === "completed") {
-        const rpcResult = await completePaymentAndActivate(record.id, record.id);
-        console.log(`[ZainCash-V2] No-token callback atomic completion result=${rpcResult} for tx=${record.id}`);
+        rpcResultNoToken = await completePaymentAndActivate(record.id, record.id);
+        console.log(`[ZainCash-V2] No-token callback atomic completion result=${rpcResultNoToken} for tx=${record.id}`);
       } else {
         await updatePaymentRecordStatus(record.id, internalStatusNoToken);
         console.log(`[ZainCash-V2] No-token callback: status=${internalStatusNoToken} — subscription NOT activated`);
       }
 
-      // Step 7: Show the correct result page
+      // Step 7: Show the correct result page.
+      // "success" is reported ONLY when the atomic RPC confirms a completed or
+      // previously-completed outcome (activated / already_completed). Every
+      // other RPC result (duplicate_paid, already_duplicate_paid,
+      // no_transaction_id, transaction_id_mismatch, payment_not_found,
+      // payment_not_pending, invalid_*, null/transport failure) is reported as
+      // "unverified" — never as "success", and never falling back to a direct
+      // mutation. 'duplicate_paid' / 'already_duplicate_paid' do NOT activate
+      // or extend the subscription (the RPC guarantees this).
       let resultKindNoToken: CallbackResultKind;
       if (internalStatusNoToken === "completed") {
-        resultKindNoToken = "success";
+        resultKindNoToken = rpcResultToCallbackKind(rpcResultNoToken);
       } else if (internalStatusNoToken === "failed" || internalStatusNoToken === "expired") {
         resultKindNoToken = "failed";
       } else {
@@ -1441,20 +1493,26 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     //
     // For NON-completed statuses, only update payment_records.status (the
     // guard allows non-completed statuses; it blocks only status='completed').
+    let rpcResult: string | null = null;
     if (internalStatus === "completed") {
-      const rpcResult = await completePaymentAndActivate(transactionId, transactionId);
+      rpcResult = await completePaymentAndActivate(transactionId, transactionId);
       console.log(`[ZainCash-V2] callback atomic completion result=${rpcResult} for tx=${transactionId}`);
     } else {
       await updatePaymentRecordStatus(transactionId, internalStatus);
       console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
     }
 
-    // Determine the callback result kind based on the VERIFIED inquiry status.
-    // Do NOT assume success/failure from the callback URL alone — the status
-    // above was confirmed by V2 inquiry (authenticated, authoritative).
+    // Determine the callback result kind. "success" is reported ONLY when the
+    // atomic RPC confirms a completed or previously-completed outcome
+    // (activated / already_completed). Every other RPC result (duplicate_paid,
+    // already_duplicate_paid, no_transaction_id, transaction_id_mismatch,
+    // payment_not_found, payment_not_pending, invalid_*, null/transport failure)
+    // is reported as "unverified" — never as "success", never falling back to a
+    // direct mutation. The inquiry status above was confirmed by authenticated
+    // V2 inquiry; the RPC outcome governs the customer-facing result.
     let resultKind: CallbackResultKind;
     if (internalStatus === "completed") {
-      resultKind = "success";
+      resultKind = rpcResultToCallbackKind(rpcResult);
     } else if (internalStatus === "failed" || internalStatus === "expired") {
       resultKind = "failed";
     } else {
@@ -1604,18 +1662,26 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     //
     // For NON-completed statuses, only update payment_records.status (the
     // guard allows non-completed statuses; it blocks only status='completed').
+    let rpcResult: string | null = null;
     if (internalStatus === "completed") {
-      const rpcResult = await completePaymentAndActivate(transactionId, transactionId);
+      rpcResult = await completePaymentAndActivate(transactionId, transactionId);
       console.log(`[ZainCash-V2] webhook atomic completion result=${rpcResult} for tx=${transactionId}`);
     } else {
       await updatePaymentRecordStatus(transactionId, internalStatus);
     }
 
+    // Surface the atomic RPC outcome for observability. `status` is the
+    // inquiry-mapped status; `completionResult` is the RPC text result
+    // ('activated' / 'already_completed' / 'duplicate_paid' / ... / null on
+    // failure). The webhook is server-to-server (not customer-facing); the
+    // GET /callback handler gates the customer-facing "success" page on this
+    // outcome via rpcResultToCallbackKind.
     return res.status(200).json({
       received: true,
       verified: true,
       transactionId,
       status: internalStatus,
+      completionResult: rpcResult,
       orderId,
       eventId: claims!.eventId,
       eventType: claims!.eventType,

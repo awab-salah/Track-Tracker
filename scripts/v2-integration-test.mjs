@@ -584,6 +584,114 @@ describe('Subscription duration + driver limits + promo code', () => {
   });
 });
 
+// ─── 5. V2 Atomic RPC Result Handling ─────────────────────────────────────
+// The customer-facing "success" page must be gated on the atomic RPC outcome,
+// NOT just on the ZainCash inquiry status. This prevents reporting success
+// when the RPC could not complete/activate (no_transaction_id, mismatch,
+// not-found, transport failure, duplicate without extension).
+
+describe('V2 atomic RPC result handling', () => {
+  const v2 = readSrc('artifacts/api-server/src/routes/zaincash-v2.ts');
+
+  test('rpcResultToCallbackKind helper exists', () => {
+    assert.ok(v2.includes('function rpcResultToCallbackKind('),
+      'V2 route must define rpcResultToCallbackKind to map RPC outcomes to customer-facing result kinds');
+  });
+
+  test('activated + already_completed are the ONLY outcomes reported as success', () => {
+    // The success set must be exactly { activated, already_completed }
+    assert.ok(v2.includes('rpcResult === "activated"'),
+      'rpcResultToCallbackKind must treat "activated" as success');
+    assert.ok(v2.includes('rpcResult === "already_completed"'),
+      'rpcResultToCallbackKind must treat "already_completed" as success');
+    // The default (every other outcome) must be "unverified", not "success"
+    assert.ok(/function rpcResultToCallbackKind[\s\S]*?return "unverified"/.test(v2),
+      'rpcResultToCallbackKind must default to "unverified" for all non-completed outcomes');
+  });
+
+  test('duplicate_paid + already_duplicate_paid do NOT report success (no activation/extension)', () => {
+    // The RPC marks these without extending; the backend must NOT tell the
+    // customer the payment succeeded (it did not activate/extend the sub).
+    // Verify the success set does NOT include duplicate outcomes.
+    const fnBody = v2.match(/function rpcResultToCallbackKind[\s\S]*?\n}/);
+    assert.ok(fnBody, 'rpcResultToCallbackKind body must be parseable');
+    const body = fnBody[0];
+    assert.ok(!body.includes('duplicate_paid'),
+      'rpcResultToCallbackKind must NOT map duplicate_paid / already_duplicate_paid to success');
+    assert.ok(body.includes('return "unverified"'),
+      'duplicate outcomes must fall through to "unverified"');
+  });
+
+  test('error outcomes (no_transaction_id, mismatch, not_found, not_pending, invalid_*) → unverified, no fallback', () => {
+    // All RPC error results + null must map to "unverified" (the default).
+    // None may trigger a fallback to a direct PATCH/UPDATE.
+    const fnBody = v2.match(/function rpcResultToCallbackKind[\s\S]*?\n}/);
+    assert.ok(fnBody, 'rpcResultToCallbackKind body must be parseable');
+    const body = fnBody[0];
+    const errorOutcomes = [
+      'no_transaction_id', 'transaction_id_mismatch', 'payment_not_found',
+      'payment_not_pending', 'payment_status_null', 'invalid_payment_id',
+      'invalid_provider_transaction_id', 'invalid_company_id', 'invalid_amount',
+      'unsupported_plan', 'company_not_found',
+    ];
+    // None of these appear in the success branch (they all fall to the default)
+    for (const oc of errorOutcomes) {
+      assert.ok(!body.includes(`"${oc}"`) || body.indexOf('return "unverified"') > body.indexOf(`"${oc}"`) === false,
+        `rpcResultToCallbackKind must not specially handle ${oc} as success (must fall to default unverified)`);
+    }
+    // null (transport/HTTP failure) → the helper returns null → unverified
+    assert.ok(/completePaymentAndActivate[\s\S]*?return null/.test(v2),
+      'completePaymentAndActivate must return null on failure (callers map null → unverified)');
+  });
+
+  test('Both callback paths gate success on rpcResultToCallbackKind (NOT inquiry status alone)', () => {
+    // No-token path
+    assert.ok(v2.includes('rpcResultToCallbackKind(rpcResultNoToken)'),
+      'No-token callback must determine result kind via rpcResultToCallbackKind(rpcResultNoToken)');
+    // With-token path
+    assert.ok(v2.includes('rpcResultToCallbackKind(rpcResult)'),
+      'With-token callback must determine result kind via rpcResultToCallbackKind(rpcResult)');
+    // The OLD pattern (success based solely on internalStatus === "completed")
+    // must be GONE — no direct assignment of "success" in a completed branch.
+    assert.ok(!/resultKindNoToken\s*=\s*"success"/.test(v2),
+      'No-token callback must NOT assign resultKindNoToken = "success" directly (must use the RPC outcome)');
+    assert.ok(!/resultKind\s*=\s*"success"/.test(v2),
+      'With-token callback must NOT assign resultKind = "success" directly (must use the RPC outcome)');
+  });
+
+  test('Webhook surfaces the atomic RPC outcome (completionResult) for observability', () => {
+    assert.ok(v2.includes('completionResult: rpcResult'),
+      'Webhook JSON response must include completionResult (the RPC text result) for observability');
+    assert.ok(/webhook atomic completion result=/.test(v2),
+      'Webhook must log the RPC result');
+  });
+
+  test('No RPC outcome ever falls back to a direct PATCH/UPDATE', () => {
+    // The completePaymentAndActivate helper returns null on failure and must
+    // never call activateCompanySubscription or PATCH companies as a fallback.
+    assert.ok(!v2.includes('activateCompanySubscription'),
+      'No code path may call the old activateCompanySubscription direct-PATCH helper');
+    // No direct PostgREST PATCH of companies.subscription_active=true anywhere
+    assert.ok(!/body:\s*JSON\.stringify\([^)]*subscription_active:\s*true/s.test(v2),
+      'No code path may directly PATCH companies.subscription_active=true');
+    // No direct PostgREST mutation setting payment_records.status="completed"
+    assert.ok(!/body:\s*JSON\.stringify\([^)]*status:\s*['"]completed['"]/s.test(v2),
+      'No code path may directly set payment_records.status="completed"');
+    // The no-fallback contract is documented
+    assert.ok(v2.includes('Do NOT fall back to a direct PATCH'),
+      'completePaymentAndActivate must document the no-fallback contract');
+  });
+
+  test('Non-completed inquiry statuses bypass the RPC entirely (failed/expired/refunded/pending)', () => {
+    // These must use updatePaymentRecordStatus, NOT the completion RPC.
+    assert.ok(/else\s*\{[^}]*updatePaymentRecordStatus/s.test(v2),
+      'Non-completed (else) branches must use updatePaymentRecordStatus, not the RPC');
+    // The guard allows non-completed statuses (blocks only 'completed')
+    assert.ok(v2.includes("guard allows non-completed"),
+      'Code must document that the guard allows non-completed statuses');
+  });
+});
+
 // ─── Summary ──────────────────────────────────────────────────────────────
 
 test('Test suite summary', () => {
