@@ -148,20 +148,29 @@ describe('Source pattern verification', () => {
         'V2 no-token callback path must have consistency checks');
     });
 
-    test('V2 callback handler activates subscription ONLY on completed status', () => {
+    test('V2 callback handler completes/activates ONLY on completed status', () => {
       assert.ok(v2.includes("internalStatus === \"completed\"") || v2.includes("internalStatus === 'completed'"),
-        'V2 callback must only activate on completed status');
-      assert.ok(v2.includes('NEVER activate on FAILED'),
-        'V2 callback must have explicit comment about not activating on non-completed');
+        'V2 callback must only complete+activate on completed status');
+      // Non-completed statuses must NOT call the completion RPC — they only
+      // update payment_records.status (the guard allows non-completed statuses;
+      // it blocks only status='completed').
+      assert.ok(/else\s*\{[^}]*updatePaymentRecordStatus/s.test(v2),
+        'V2 callback non-completed branch must use updatePaymentRecordStatus, not the RPC');
     });
 
-    test('V2 callback with-token path uses DB companyId (not URL param)', () => {
-      // After the fix, the with-token path should look up payment record via get_payment_record RPC
-      // and use dbCompanyId instead of URL companyId
-      assert.ok(v2.includes('dbCompanyId'),
-        'V2 with-token callback path must use dbCompanyId from DB lookup');
+    test('V2 callback with-token path uses the atomic RPC (company_id read from record, not URL)', () => {
+      // The atomic RPC `complete_payment_and_activate` reads company_id from
+      // the payment record itself — never from the URL query param. This is a
+      // STRONGER guarantee than the old dbCompanyId extraction: the caller
+      // cannot supply company_id at all (the RPC ignores any caller-supplied
+      // company/plan/amount and uses only the locked payment record's fields).
+      assert.ok(v2.includes('completePaymentAndActivate(transactionId, transactionId)'),
+        'V2 with-token callback must call completePaymentAndActivate(transactionId, transactionId)');
       assert.ok(v2.includes('get_payment_record'),
-        'V2 with-token callback path must call get_payment_record RPC');
+        'V2 with-token callback must still call get_payment_record RPC for the idempotency check');
+      // The URL companyId query param must NOT be passed to the RPC
+      assert.ok(!/completePaymentAndActivate\([^)]*companyId[^)]*\)/.test(v2),
+        'V2 with-token callback must NOT pass the URL companyId to the RPC');
     });
 
     test('V2 callback has idempotency check (skip if already completed)', () => {
@@ -394,31 +403,107 @@ describe('Subscription duration + driver limits + promo code', () => {
   const migration = readSrc('supabase/migrations/subscription_expiry_and_driver_limits.sql');
   const types = readSrc('artifacts/track-tracker/src/types.ts');
   const companyRepo = readSrc('artifacts/track-tracker/src/services/companyRepository.ts');
+  const atomicMigration = readSrc('supabase/migrations/atomic_complete_payment_and_activate.sql');
+  const restrictMigration = readSrc('supabase/migrations/restrict_payment_record_rpc_permissions.sql');
 
-  test('activateCompanySubscription sets subscription_expires_at (1-month expiry)', () => {
-    assert.ok(v2.includes('subscription_expires_at'),
-      'activateCompanySubscription must set subscription_expires_at');
-    assert.ok(v2.includes('setMonth'),
-      'activateCompanySubscription must use calendar-month arithmetic (setMonth)');
-    assert.ok(v2.includes('expiresAt.getDate() < now.getDate()'),
-      'activateCompanySubscription must clamp day overflow (month-end handling)');
+  test('completePaymentAndActivate helper calls the atomic RPC endpoint', () => {
+    assert.ok(v2.includes('async function completePaymentAndActivate('),
+      'V2 route must define the completePaymentAndActivate helper');
+    assert.ok(v2.includes('/rest/v1/rpc/complete_payment_and_activate'),
+      'completePaymentAndActivate must POST to /rpc/complete_payment_and_activate');
+    assert.ok(v2.includes('p_payment_id') && v2.includes('p_provider_transaction_id'),
+      'completePaymentAndActivate must pass p_payment_id + p_provider_transaction_id');
   });
 
-  test('activateCompanySubscription accepts planId parameter', () => {
-    assert.ok(v2.includes('companyName: string, planId?: string'),
-      'activateCompanySubscription must accept planId parameter');
+  test('insertPaymentRecord stores transaction_id for RPC verification', () => {
+    assert.ok(v2.includes('transaction_id: tx.id'),
+      'insertPaymentRecord must set transaction_id (== ZainCash transaction id) so the RPC can verify it (step 4)');
   });
 
-  test('All 3 callback paths pass planId to activateCompanySubscription', () => {
-    // No-token path
-    assert.ok(v2.includes('activateCompanySubscription(record.company_id, record.plan_id)'),
-      'No-token callback must pass record.plan_id');
-    // With-token path
-    assert.ok(v2.includes('activateCompanySubscription(dbCompanyId, dbPlanId)'),
-      'With-token callback must pass dbPlanId');
-    // Webhook path
-    assert.ok(v2.includes('activateCompanySubscription(companyName, webhookPlanId)'),
-      'Webhook must pass webhookPlanId');
+  test('All 3 V2 completion paths call completePaymentAndActivate on completed status', () => {
+    // No-token callback (record.id is both payment id + verified provider tx id)
+    assert.ok(v2.includes('completePaymentAndActivate(record.id, record.id)'),
+      'No-token callback must call completePaymentAndActivate(record.id, record.id)');
+    // With-token callback + webhook (transactionId is both)
+    const matches = v2.match(/await completePaymentAndActivate\(transactionId, transactionId\)/g);
+    assert.ok(matches && matches.length >= 2,
+      'With-token callback AND webhook must both call completePaymentAndActivate(transactionId, transactionId)');
+  });
+
+  test('No V2 path directly mutates subscription_active=true or status="completed"', () => {
+    // The old direct-PATCH helper must be entirely removed
+    assert.ok(!v2.includes('activateCompanySubscription'),
+      'V2 route must NOT contain the old activateCompanySubscription direct-PATCH helper');
+    // No direct PostgREST PATCH of companies.subscription_active=true
+    assert.ok(!/body:\s*JSON\.stringify\([^)]*subscription_active:\s*true/s.test(v2),
+      'V2 route must NOT directly PATCH companies.subscription_active=true (only the RPC may)');
+    // No direct PostgREST PATCH/UPDATE setting payment_records.status="completed"
+    assert.ok(!/body:\s*JSON\.stringify\([^)]*status:\s*['"]completed['"]/s.test(v2),
+      'V2 route must NOT directly set payment_records.status="completed" (only the RPC may)');
+  });
+
+  test('RPC failure does NOT fall back to a direct PATCH', () => {
+    // The helper returns null on HTTP/transport failure and logs it — it must
+    // never call activateCompanySubscription or PATCH companies as a fallback.
+    assert.ok(/return null;/.test(v2),
+      'completePaymentAndActivate must return null on failure (no fallback)');
+    assert.ok(!/activateCompanySubscription/.test(v2),
+      'No code path may fall back to activateCompanySubscription');
+    assert.ok(/Do NOT fall back to a direct PATCH/.test(v2),
+      'completePaymentAndActivate must document the no-fallback contract');
+  });
+
+  test('Non-completed statuses still use updatePaymentRecordStatus (NOT the RPC)', () => {
+    // failed / expired / refunded / pending must update payment_records.status
+    // directly (the guard allows non-completed statuses; it blocks only 'completed').
+    assert.ok(v2.includes('await updatePaymentRecordStatus(record.id, internalStatusNoToken)'),
+      'No-token callback non-completed branch must use updatePaymentRecordStatus');
+    assert.ok(v2.includes('await updatePaymentRecordStatus(transactionId, internalStatus)'),
+      'With-token + webhook non-completed branches must use updatePaymentRecordStatus');
+    // Non-completed branches must NOT call the completion RPC
+    assert.ok(!/else\s*\{[^}]*completePaymentAndActivate/s.test(v2),
+      'Non-completed (else) branches must NOT call completePaymentAndActivate');
+  });
+
+  test('Duplicate callback is idempotent (already_completed short-circuits before the RPC)', () => {
+    // No-token path: early return when record.status === 'completed'
+    assert.ok(v2.includes('if (record.status === "completed")'),
+      'No-token callback must short-circuit on already-completed (idempotency)');
+    // With-token + webhook paths: get_payment_record status check
+    assert.ok(/rows\[0\]\.status === "completed"/.test(v2),
+      'With-token + webhook must check already_completed via get_payment_record before the RPC');
+  });
+
+  test('Atomic RPC SQL: 1-month expiry, idempotent duplicate handling, reads record fields', () => {
+    assert.ok(atomicMigration, 'atomic_complete_payment_and_activate.sql must exist');
+    // Calendar-month expiry now lives in the RPC (moved out of the backend)
+    assert.ok(atomicMigration.includes("interval '1 month'"),
+      "Atomic RPC must set subscription_expires_at = now + interval '1 month'");
+    // Idempotent: already_completed / duplicate_paid do not re-activate or extend
+    assert.ok(atomicMigration.includes('already_completed'),
+      'Atomic RPC must return already_completed for an already-completed payment');
+    assert.ok(atomicMigration.includes('duplicate_paid'),
+      'Atomic RPC must mark duplicate_paid WITHOUT extending an active subscription');
+    // Reads company_id / plan_id / amount / transaction_id from the record (not caller)
+    assert.ok(atomicMigration.includes('v_record_company_id') && atomicMigration.includes('v_record_plan_id'),
+      'Atomic RPC must read company_id + plan_id from the payment record');
+    // SECURITY DEFINER + EXECUTE only to service_role
+    assert.ok(atomicMigration.includes('security definer'),
+      'Atomic RPC must be SECURITY DEFINER');
+    assert.ok(atomicMigration.includes('grant execute on function public.complete_payment_and_activate'),
+      'Atomic RPC must grant EXECUTE');
+  });
+
+  test('Restrict migration installs guards + least-privilege payment_completer ownership', () => {
+    assert.ok(restrictMigration, 'restrict_payment_record_rpc_permissions.sql must exist');
+    assert.ok(restrictMigration.includes('payment_records_status_guard'),
+      'Restrict migration must install payment_records_status_guard (blocks direct status=completed)');
+    assert.ok(restrictMigration.includes('companies_subscription_activation_guard'),
+      'Restrict migration must install companies_subscription_activation_guard (blocks direct subscription_active=true)');
+    assert.ok(restrictMigration.includes('owner to payment_completer'),
+      'Restrict migration must reassign the RPC owner to payment_completer');
+    assert.ok(restrictMigration.includes('grant usage on schema public'),
+      'Restrict migration must grant only USAGE on public (least privilege — CREATE is transient)');
   });
 
   test('Migration SQL adds subscription_expires_at column', () => {

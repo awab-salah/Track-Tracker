@@ -739,6 +739,14 @@ async function insertPaymentRecord(tx: {
         plan_id: tx.planId,
         amount: tx.amount,
         status: "pending",
+        // Store the ZainCash transaction id (== tx.id for V2 — the create
+        // endpoint uses the ZainCash transactionId as the record id) so the
+        // atomic completion RPC `complete_payment_and_activate` can verify the
+        // provider transaction id against the record (RPC step 4: the record's
+        // transaction_id must be non-NULL and match p_provider_transaction_id).
+        // Without this column set, the RPC returns 'no_transaction_id' and
+        // completion cannot proceed.
+        transaction_id: tx.id,
         created_at: new Date().toISOString(),
       }),
     });
@@ -765,54 +773,78 @@ async function updatePaymentRecordStatus(txId: string, status: string): Promise<
   }
 }
 
-async function activateCompanySubscription(companyName: string, planId?: string): Promise<boolean> {
+/**
+ * Atomic payment completion + subscription activation via the SECURITY DEFINER
+ * RPC `complete_payment_and_activate` (owner: payment_completer, EXECUTE
+ * granted only to service_role).
+ *
+ * This is the ONLY operation allowed to set payment_records.status='completed'
+ * and companies.subscription_active=true. The live DB guards
+ * (payment_records_status_guard, companies_subscription_activation_guard)
+ * block direct service_role PATCHes of those columns, so every V2 completion
+ * path MUST route through this RPC instead of a direct PostgREST PATCH/UPDATE.
+ *
+ * The RPC reads company_id, plan_id, amount, and transaction_id from the
+ * payment record itself (never caller-supplied), verifies the provider
+ * transaction id matches the record's stored transaction_id, and performs the
+ * completion + activation in a single row-locked transaction. Idempotent:
+ *   'already_completed'      — payment was already completed (no re-activation)
+ *   'already_duplicate_paid' — payment was already marked duplicate_paid
+ *   'duplicate_paid'         — another payment already activated the
+ *                              subscription; this payment is marked
+ *                              duplicate_paid and the subscription is NOT extended
+ *   'activated'              — success: subscription activated + payment completed
+ *
+ * Returns the RPC's text result, or null on HTTP/transport failure. NEVER
+ * falls back to a direct PATCH — callers must treat null / non-'activated' as
+ * a completion failure (the guards + single transaction ensure no partial
+ * state was written).
+ */
+async function completePaymentAndActivate(
+  paymentId: string,
+  providerTransactionId: string,
+): Promise<string | null> {
   const { url, key } = getSupabaseCreds();
-  if (!url || !key) return false;
+  if (!url || !key || !paymentId || !providerTransactionId) return null;
   try {
-    const encoded = encodeURIComponent(companyName);
-    // Set subscription_active = true + 1-month expiry + plan_id.
-    // subscription_expires_at = now + 30 days (exactly one month).
-    // If the subscription_expires_at column doesn't exist yet (pre-migration),
-    // the PATCH will still succeed for subscription_active — PostgREST
-    // silently ignores unknown columns in the UPDATE body when using
-    // Prefer: return=minimal. The migration in supabase/migrations/ adds
-    // the column; once applied, the expiry is enforced.
-    //
-    // Duration: use CALENDAR MONTH arithmetic (not fixed 30 days) to match
-    // PostgreSQL's `interval '1 month'`. This handles month-end correctly:
-    //   Jan 31 + 1 month = Feb 28/29 (clamped, not Mar 2/3)
-    //   Mar 31 + 1 month = Apr 30 (clamped, not May 1)
-    // JS Date.setMonth overflows (Jan 31 → Mar 3); we detect and clamp.
-    const now = new Date();
-    const expiresAt = new Date(now);
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
-    // Clamp: if the day overflowed (e.g., Jan 31 → Mar 3), move back to
-    // the last day of the target month.
-    if (expiresAt.getDate() < now.getDate()) {
-      expiresAt.setDate(0); // day 0 = last day of previous month
-    }
-    const patchBody: Record<string, unknown> = {
-      subscription_active: true,
-      subscription_started_at: now.toISOString(),
-      subscription_expires_at: expiresAt.toISOString(),
-      updated_at: now.toISOString(),
-    };
-    if (planId) {
-      patchBody.subscription_plan_id = planId;
-    }
-    const res = await fetch(`${url}/rest/v1/companies?name=eq.${encoded}`, {
-      method: "PATCH",
+    const res = await fetch(`${url}/rest/v1/rpc/complete_payment_and_activate`, {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: key,
         Authorization: `Bearer ${key}`,
-        Prefer: "return=minimal",
       },
-      body: JSON.stringify(patchBody),
+      body: JSON.stringify({
+        p_payment_id: paymentId,
+        p_provider_transaction_id: providerTransactionId,
+      }),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (!res.ok) {
+      // The RPC raised an exception (e.g. non-UUID company_id on an old
+      // name-based record) OR the call was rejected. The guards guarantee no
+      // partial mutation happened. Do NOT fall back to a direct PATCH.
+      const bodyText = await res.text().catch(() => "");
+      console.error(
+        `[ZainCash-V2] complete_payment_and_activate RPC HTTP ${res.status} for payment ${paymentId}` +
+          (bodyText ? ` — ${bodyText.slice(0, 200)}` : ""),
+      );
+      return null;
+    }
+    // PostgREST serializes a `returns text` function result as a JSON string
+    // literal, e.g. `"activated"`. Parse it back to the raw text value.
+    const raw = await res.text();
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "string" ? parsed : parsed == null ? "" : String(parsed);
+    } catch {
+      return raw;
+    }
+  } catch (e) {
+    console.error(
+      "[ZainCash-V2] complete_payment_and_activate RPC failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+    return null;
   }
 }
 
@@ -1194,13 +1226,26 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
       const internalStatusNoToken = mapV2StatusToInternal(inquiryStatusNoToken);
       console.log("[ZainCash-V2] No-token callback inquiry result:", inquiryStatusNoToken, "->", internalStatusNoToken, "for tx:", record.id);
 
-      await updatePaymentRecordStatus(record.id, internalStatusNoToken);
-
-      // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
-      // Uses record.company_id from OUR database — NOT from the URL query param.
-      if (internalStatusNoToken === "completed" && record.company_id) {
-        await activateCompanySubscription(record.company_id, record.plan_id);
+      // Atomic completion + activation via the SECURITY DEFINER RPC (owner
+      // payment_completer). The live DB guards block direct service_role
+      // PATCHes of status='completed' / subscription_active=true, so ALL V2
+      // completion MUST route through `complete_payment_and_activate`. The RPC
+      // reads company_id/plan_id/amount/transaction_id from the payment record
+      // itself (not caller-supplied) and is idempotent (already_completed /
+      // already_duplicate_paid / duplicate_paid do NOT re-activate or extend).
+      // record.id is both the payment record id AND the verified ZainCash
+      // transaction id (the inquiry above used record.id and returned SUCCESS),
+      // so it is passed as both p_payment_id and p_provider_transaction_id.
+      //
+      // For NON-completed statuses (failed/expired/refunded/pending), only
+      // payment_records.status is updated — the guard allows non-completed
+      // statuses (it blocks only status='completed'). These are NOT routed
+      // through the completion RPC.
+      if (internalStatusNoToken === "completed") {
+        const rpcResult = await completePaymentAndActivate(record.id, record.id);
+        console.log(`[ZainCash-V2] No-token callback atomic completion result=${rpcResult} for tx=${record.id}`);
       } else {
+        await updatePaymentRecordStatus(record.id, internalStatusNoToken);
         console.log(`[ZainCash-V2] No-token callback: status=${internalStatusNoToken} — subscription NOT activated`);
       }
 
@@ -1334,8 +1379,6 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     // tampered with by an attacker who intercepts the callback URL.
     // Also serves as idempotency check: if already completed, skip.
     const { url: cbSupabaseUrl, key: cbSupabaseKey } = getSupabaseCreds();
-    let dbCompanyId = "";
-    let dbPlanId = "";
     let alreadyCompleted = false;
     if (cbSupabaseUrl && cbSupabaseKey) {
       try {
@@ -1345,13 +1388,12 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
           body: JSON.stringify({ p_id: transactionId }),
         });
         if (r.ok) {
-          const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
-          if (rows.length > 0) {
-            dbCompanyId = rows[0].company_id ?? "";
-            dbPlanId = rows[0].plan_id ?? "";
-            if (rows[0].status === "completed") {
-              alreadyCompleted = true;
-            }
+          // Only the status is needed here (for the idempotency check). The
+          // atomic completion RPC reads company_id/plan_id/amount/transaction_id
+          // from the payment record itself — they are no longer extracted here.
+          const rows = await r.json() as Array<{ status: string }>;
+          if (rows.length > 0 && rows[0].status === "completed") {
+            alreadyCompleted = true;
           }
         }
       } catch (e) {
@@ -1386,17 +1428,24 @@ router.get("/zaincash/v2/callback", async (req: Request, res: Response) => {
     }
 
     const internalStatus = mapV2StatusToInternal(inquiryStatus);
-    // Update payment_records status (pending → failed | completed | expired | refunded | pending)
-    await updatePaymentRecordStatus(transactionId, internalStatus);
-
-    // CRITICAL SAFETY: only activate subscription when payment is COMPLETED.
-    // NEVER activate on FAILED, EXPIRED, PENDING, or any other status.
-    // Uses dbCompanyId from OUR database — NOT the URL query param companyId.
-    // This prevents an attacker from tampering with the URL's companyId to
-    // activate a different company's subscription.
-    if (internalStatus === "completed" && dbCompanyId) {
-      await activateCompanySubscription(dbCompanyId, dbPlanId);
+    // Atomic completion + activation via the SECURITY DEFINER RPC (owner
+    // payment_completer). The live DB guards block direct service_role PATCHes
+    // of status='completed' / subscription_active=true, so ALL V2 completion
+    // MUST route through `complete_payment_and_activate`. The RPC reads
+    // company_id/plan_id/amount/transaction_id from the payment record itself
+    // (not caller-supplied) — company_id/plan_id no longer need to be extracted
+    // here. transactionId is the verified ZainCash transaction id (from the
+    // verified JWT) AND the payment record id, so it is passed as both
+    // p_payment_id and p_provider_transaction_id. Idempotent: already_completed
+    // / already_duplicate_paid / duplicate_paid do NOT re-activate or extend.
+    //
+    // For NON-completed statuses, only update payment_records.status (the
+    // guard allows non-completed statuses; it blocks only status='completed').
+    if (internalStatus === "completed") {
+      const rpcResult = await completePaymentAndActivate(transactionId, transactionId);
+      console.log(`[ZainCash-V2] callback atomic completion result=${rpcResult} for tx=${transactionId}`);
     } else {
+      await updatePaymentRecordStatus(transactionId, internalStatus);
       console.log(`[ZainCash-V2] callback: transaction ${transactionId} final status=${internalStatus} — subscription NOT activated (only completed activates).`);
     }
 
@@ -1520,8 +1569,6 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
 
     // Idempotency check via RPC
     const { url: supabaseUrl, key: supabaseKey } = getSupabaseCreds();
-    let companyName = "";
-    let webhookPlanId = "";
     if (supabaseUrl && supabaseKey) {
       try {
         const r = await fetch(`${supabaseUrl}/rest/v1/rpc/get_payment_record`, {
@@ -1530,13 +1577,12 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
           body: JSON.stringify({ p_id: transactionId }),
         });
         if (r.ok) {
-          const rows = await r.json() as Array<{ status: string; company_id: string; plan_id: string }>;
-          if (rows.length > 0) {
-            if (rows[0].status === "completed") {
-              return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
-            }
-            companyName = rows[0].company_id ?? "";
-            webhookPlanId = rows[0].plan_id ?? "";
+          // Only the status is needed (for the idempotency check). The atomic
+          // completion RPC reads company_id/plan_id/amount/transaction_id from
+          // the payment record itself — they are no longer extracted here.
+          const rows = await r.json() as Array<{ status: string }>;
+          if (rows.length > 0 && rows[0].status === "completed") {
+            return res.status(200).json({ received: true, verified: true, transactionId, status: "already_completed" });
           }
         }
       } catch (e) {
@@ -1545,10 +1591,24 @@ router.post("/zaincash/v2/webhook", async (req: Request, res: Response) => {
     }
 
     const internalStatus = mapV2StatusToInternal(currentStatus);
-    await updatePaymentRecordStatus(transactionId, internalStatus);
-
-    if (internalStatus === "completed" && companyName) {
-      await activateCompanySubscription(companyName, webhookPlanId);
+    // Atomic completion + activation via the SECURITY DEFINER RPC (owner
+    // payment_completer). The live DB guards block direct service_role PATCHes
+    // of status='completed' / subscription_active=true, so ALL V2 completion
+    // MUST route through `complete_payment_and_activate`. The RPC reads
+    // company_id/plan_id/amount/transaction_id from the payment record itself
+    // (not caller-supplied). transactionId is the verified ZainCash transaction
+    // id (from the verified webhook JWT) AND the payment record id, so it is
+    // passed as both p_payment_id and p_provider_transaction_id. Idempotent:
+    // already_completed / already_duplicate_paid / duplicate_paid do NOT
+    // re-activate or extend the subscription.
+    //
+    // For NON-completed statuses, only update payment_records.status (the
+    // guard allows non-completed statuses; it blocks only status='completed').
+    if (internalStatus === "completed") {
+      const rpcResult = await completePaymentAndActivate(transactionId, transactionId);
+      console.log(`[ZainCash-V2] webhook atomic completion result=${rpcResult} for tx=${transactionId}`);
+    } else {
+      await updatePaymentRecordStatus(transactionId, internalStatus);
     }
 
     return res.status(200).json({
